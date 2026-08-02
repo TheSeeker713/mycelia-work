@@ -9,7 +9,10 @@ clock-out, an AI agent (via a local [OpenClaw](https://docs.openclaw.ai)
 install) turns the raw log into a natural-language work journal, saved in
 the app and exported to `docs/workjournal/`.
 
-Runs entirely local on Windows 11. No cloud sync, no accounts.
+Runs entirely local on Windows 11. No cloud sync, no accounts. Designed
+as a compact "pocket book" that lives in the system tray, not a
+sprawling dashboard — see `CLAUDE.md` for the full design and process
+rules.
 
 ## Status
 
