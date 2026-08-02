@@ -1,0 +1,1282 @@
+<title>Mycelia Time — Design Review</title>
+<style>
+  :root {
+    --paper: #f5f3ec;
+    --paper-deep: #ece7d8;
+    --paper-card: #fbfaf5;
+    --ink: #262420;
+    --ink-soft: #6b675d;
+    --ink-faint: #9d988a;
+    --line: #ddd7c3;
+    --line-soft: #e8e3d2;
+    --moss: #3f6b4a;
+    --moss-deep: #2c4d35;
+    --moss-pale: #dce6da;
+    --amber: #ad7a26;
+    --amber-pale: #f1e3c6;
+    --rust: #a34b3c;
+    --rust-pale: #f0dcd6;
+    --shadow: rgba(38, 36, 32, 0.14);
+  }
+
+  :root[data-theme="dark"] {
+    --paper: #1c1e1a;
+    --paper-deep: #14150f;
+    --paper-card: #23261f;
+    --ink: #eeeade;
+    --ink-soft: #b7b2a0;
+    --ink-faint: #85806c;
+    --line: #4c5240;
+    --line-soft: #383d2e;
+    --moss: #7ba889;
+    --moss-deep: #a8cbb2;
+    --moss-pale: #2c3d2e;
+    --amber: #d9ab5c;
+    --amber-pale: #3a301a;
+    --rust: #d38975;
+    --rust-pale: #3a241e;
+    --shadow: rgba(0, 0, 0, 0.45);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #1c1e1a;
+      --paper-deep: #14150f;
+      --paper-card: #23261f;
+      --ink: #eeeade;
+      --ink-soft: #b7b2a0;
+      --ink-faint: #85806c;
+      --line: #4c5240;
+      --line-soft: #383d2e;
+      --moss: #7ba889;
+      --moss-deep: #a8cbb2;
+      --moss-pale: #2c3d2e;
+      --amber: #d9ab5c;
+      --amber-pale: #3a301a;
+      --rust: #d38975;
+      --rust-pale: #3a241e;
+      --shadow: rgba(0, 0, 0, 0.45);
+    }
+  }
+
+  /* The simulated app's own theme switch is independent of the review
+     page's theme - it must win regardless of ambient/page theme. */
+  #device[data-theme="light"] {
+    --paper: #f5f3ec;
+    --paper-deep: #ece7d8;
+    --paper-card: #fbfaf5;
+    --ink: #262420;
+    --ink-soft: #6b675d;
+    --ink-faint: #9d988a;
+    --line: #ddd7c3;
+    --line-soft: #e8e3d2;
+    --moss: #3f6b4a;
+    --moss-deep: #2c4d35;
+    --moss-pale: #dce6da;
+    --amber: #ad7a26;
+    --amber-pale: #f1e3c6;
+    --rust: #a34b3c;
+    --rust-pale: #f0dcd6;
+    --shadow: rgba(38, 36, 32, 0.14);
+  }
+  #device[data-theme="dark"] {
+    --paper: #1c1e1a;
+    --paper-deep: #14150f;
+    --paper-card: #23261f;
+    --ink: #eeeade;
+    --ink-soft: #b7b2a0;
+    --ink-faint: #85806c;
+    --line: #4c5240;
+    --line-soft: #383d2e;
+    --moss: #7ba889;
+    --moss-deep: #a8cbb2;
+    --moss-pale: #2c3d2e;
+    --amber: #d9ab5c;
+    --amber-pale: #3a301a;
+    --rust: #d38975;
+    --rust-pale: #3a241e;
+    --shadow: rgba(0, 0, 0, 0.5);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wordmark {
+    font-family: Iowan Old Style, Palatino Linotype, ui-serif, Georgia, serif;
+    font-weight: 600;
+  }
+
+  .review {
+    display: grid;
+    grid-template-columns: 260px 1fr 300px;
+    gap: 28px;
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 36px 24px 64px;
+    min-height: 100vh;
+    align-items: start;
+  }
+
+  @media (max-width: 880px) {
+    .review { grid-template-columns: 1fr; }
+  }
+
+  header.top {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 4px;
+  }
+  header.top h1 { font-size: 1.5rem; margin: 0; letter-spacing: -0.01em; }
+  header.top .tag { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-soft); }
+
+  nav.rail { position: sticky; top: 36px; display: flex; flex-direction: column; gap: 2px; }
+  nav.rail .rail-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.09em; color: var(--ink-faint); margin: 4px 0 8px 12px; }
+  nav.rail button {
+    all: unset; cursor: pointer; display: flex; align-items: baseline; gap: 10px;
+    padding: 10px 12px; border-radius: 8px; font-size: 0.88rem; color: var(--ink-soft);
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+  nav.rail button .n { font-variant-numeric: tabular-nums; font-size: 0.72rem; color: var(--ink-faint); min-width: 1.2em; }
+  nav.rail button:hover { background: var(--paper-deep); color: var(--ink); }
+  nav.rail button[aria-current="true"] { background: var(--moss-pale); color: var(--moss-deep); font-weight: 600; }
+  nav.rail button[aria-current="true"] .n { color: var(--moss-deep); }
+  nav.rail button:focus-visible { outline: 2px solid var(--moss); outline-offset: 1px; }
+
+  .stage-wrap { display: flex; flex-direction: column; align-items: center; gap: 18px; padding-top: 12px; }
+  .stage { position: relative; width: 340px; height: 480px; }
+  .device {
+    width: 340px; height: 480px; border-radius: 22px; background: var(--paper-card);
+    border: 1px solid var(--line); box-shadow: 0 24px 48px -20px var(--shadow), 0 2px 6px var(--shadow);
+    overflow: hidden; display: flex; flex-direction: column; position: relative;
+  }
+  .device-bar { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid var(--line-soft); flex-shrink: 0; }
+  .device-bar .brand { display: flex; align-items: center; gap: 7px; font-size: 0.82rem; font-weight: 600; }
+  .device-bar .brand .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--moss); }
+  .device-bar .icons { display: flex; gap: 4px; }
+  .icon-btn {
+    all: unset; cursor: pointer; width: 26px; height: 26px; border-radius: 7px;
+    display: flex; align-items: center; justify-content: center; color: var(--ink-soft); font-size: 0.85rem;
+  }
+  .icon-btn:hover { background: var(--paper-deep); color: var(--ink); }
+  .icon-btn.active { background: var(--moss-pale); color: var(--moss-deep); }
+
+  .device-body { flex: 1; position: relative; overflow: hidden; }
+  /* color is a regular (non-custom) property: a descendant that never
+     writes `color: var(--ink)` itself just inherits body's already-
+     resolved value, not a live re-evaluation scoped to #device's own
+     theme. Every themed subtree needs its own explicit color anchor. */
+  .device, .zen-overlay, .library-overlay { color: var(--ink); }
+  .scene {
+    position: absolute; inset: 0; display: none; flex-direction: column;
+    padding: 24px 22px; overflow-y: auto; overflow-x: hidden;
+    color: var(--ink);
+  }
+  .scene.on { display: flex; }
+
+  .caption { width: 340px; text-align: center; font-size: 0.82rem; color: var(--ink-soft); line-height: 1.5; }
+
+  aside.notes { position: sticky; top: 36px; background: var(--paper-card); border: 1px solid var(--line); border-radius: 12px; padding: 20px; }
+  aside.notes h2 { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-faint); margin: 0 0 10px; }
+  aside.notes p { font-size: 0.88rem; line-height: 1.55; color: var(--ink); margin: 0 0 12px; }
+  aside.notes p:last-child { margin-bottom: 0; }
+  aside.notes .rule { display: block; font-size: 0.78rem; color: var(--moss-deep); background: var(--moss-pale); padding: 8px 10px; border-radius: 7px; margin-top: 12px; }
+
+  /* --- Pocket view (also hosts timer states + all three compartments) --- */
+  .add-task-row { display: none; margin-bottom: 14px; }
+  .add-task-row.open { display: block; }
+  .add-task-row input {
+    width: 100%; font: inherit; font-size: 0.92rem; padding: 10px 12px;
+    border: 1px solid var(--moss); border-radius: 10px; background: var(--paper);
+    color: var(--ink); outline: none;
+  }
+
+  .task-focus { display: flex; flex-direction: column; gap: 4px; margin-bottom: 24px; cursor: pointer; }
+  .task-focus .label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--ink-faint); }
+  .task-focus .name { font-size: 1.05rem; font-weight: 600; line-height: 1.35; }
+
+  .timer-display { font-variant-numeric: tabular-nums; font-size: 2.4rem; font-weight: 300; letter-spacing: -0.01em; margin: 4px 0 22px; line-height: 1.1; }
+
+  .status-pill { display: inline-flex; align-items: center; gap: 6px; font-size: 0.74rem; padding: 5px 12px; border-radius: 100px; width: fit-content; margin-bottom: 28px; }
+  .status-pill .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .status-pill.state-idle { background: var(--paper-deep); color: var(--ink-soft); }
+  .status-pill.state-idle .dot { background: var(--ink-faint); }
+  .status-pill.state-running { background: var(--moss-pale); color: var(--moss-deep); }
+  .status-pill.state-running .dot { background: var(--moss); }
+  .status-pill.state-break { background: var(--amber-pale); color: var(--amber); }
+  .status-pill.state-break .dot { background: var(--amber); }
+  .status-pill.state-stopped { background: var(--line-soft); color: var(--ink-soft); }
+  .status-pill.state-stopped .dot { background: var(--ink-faint); }
+
+  .primary-action {
+    all: unset; cursor: pointer; text-align: center; padding: 13px; border-radius: 12px;
+    font-size: 0.92rem; font-weight: 600; margin-bottom: 10px; transition: filter 0.15s ease;
+  }
+  .primary-action:hover { filter: brightness(0.96); }
+  .primary-action.go { background: var(--moss); color: #fff; }
+  .primary-action.pause { background: var(--amber-pale); color: var(--amber); }
+  .primary-action.resume { background: var(--moss); color: #fff; }
+  .primary-action.stop { background: var(--rust-pale); color: var(--rust); }
+
+  .state-switch { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: auto; padding-top: 16px; border-top: 1px dashed var(--line); border-radius: 8px; }
+  .state-switch button { all: unset; cursor: pointer; text-align: center; font-size: 0.66rem; padding: 7px 2px; border-radius: 7px; color: var(--ink-faint); border: 1px solid transparent; }
+  .state-switch button:hover { background: var(--paper-deep); }
+  .state-switch button[aria-pressed="true"] { border-color: var(--moss); color: var(--moss-deep); font-weight: 600; }
+  .state-switch.pulse { animation: pulseGlow 1s ease 2; }
+  @keyframes pulseGlow {
+    0%, 100% { box-shadow: none; }
+    50% { box-shadow: 0 0 0 4px var(--moss-pale); border-radius: 10px; }
+  }
+
+  /* --- Pull tabs + compartments --- */
+  .tab-stack { position: absolute; right: -1px; top: 84px; display: flex; flex-direction: column; gap: 8px; z-index: 5; }
+  .pulltab {
+    background: var(--moss); color: #fff; font-size: 0.68rem; letter-spacing: 0.06em; text-transform: uppercase;
+    padding: 9px 5px; border-radius: 8px 0 0 8px; writing-mode: vertical-rl; cursor: pointer; border: none;
+  }
+  .pulltab:hover { filter: brightness(1.08); }
+
+  .compartment {
+    position: absolute; inset: 0; background: var(--paper-card);
+    transform: translateX(100%); transition: transform 0.28s ease;
+    display: flex; flex-direction: column; padding: 24px 22px; overflow-y: auto; overflow-x: hidden;
+  }
+  .compartment.open { transform: translateX(0); }
+  .compartment-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .compartment-head .label { font-size: 0.78rem; font-weight: 600; }
+
+  .mini-note { border: 1px solid var(--line); border-radius: 10px; padding: 10px; font-size: 0.8rem; color: var(--ink-soft); background: var(--paper); }
+  .autosave { font-size: 0.68rem; color: var(--ink-faint); display: flex; align-items: center; gap: 5px; margin-top: 8px; }
+  .autosave .pip { width: 5px; height: 5px; border-radius: 50%; background: var(--moss); opacity: 0.4; transition: opacity 0.15s ease; }
+  .autosave.saving .pip { opacity: 1; }
+
+  .zen-launch, .library-link {
+    all: unset; cursor: pointer; margin-top: 12px; text-align: center; font-size: 0.8rem;
+    color: var(--moss-deep); padding: 9px; border: 1px solid var(--moss); border-radius: 9px;
+  }
+  .library-link { color: var(--ink-soft); border-color: var(--line); margin-top: 8px; }
+  .zen-launch:hover { background: var(--moss-pale); }
+  .library-link:hover { background: var(--paper-deep); }
+
+  .zen-overlay {
+    position: fixed; inset: 0; background: var(--paper); z-index: 40; display: none;
+    flex-direction: column; padding: 40px min(10vw, 120px);
+  }
+  .zen-overlay.on { display: flex; }
+  .zen-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .zen-top .label { font-size: 0.78rem; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.08em; }
+  .zen-top .right { display: flex; align-items: center; gap: 14px; }
+  .zen-close { all: unset; cursor: pointer; font-size: 0.85rem; color: var(--ink-soft); padding: 8px 14px; border-radius: 8px; border: 1px solid var(--line); }
+  .zen-close:hover { background: var(--paper-deep); }
+  .zen-hint { font-size: 0.76rem; color: var(--ink-faint); margin-bottom: 22px; }
+
+  .zen-text-wrap { position: relative; flex: 1; max-width: 640px; }
+  .zen-ghost, .zen-input {
+    position: absolute; inset: 0; font-size: 1.15rem; line-height: 1.7; font-family: inherit;
+    width: 100%; height: 100%; border: none; background: transparent; resize: none;
+  }
+  .zen-ghost { color: var(--ink); pointer-events: none; white-space: pre-wrap; }
+  .zen-ghost .stamp { color: var(--moss-deep); font-variant-numeric: tabular-nums; }
+  .zen-ghost .suggestion { color: var(--ink-faint); }
+  .zen-input { color: transparent; caret-color: var(--ink); outline: none; }
+
+  .tab-chip {
+    position: absolute; bottom: -34px; left: 0; font-size: 0.72rem; background: var(--moss-pale);
+    color: var(--moss-deep); padding: 5px 10px; border-radius: 100px; opacity: 0; transition: opacity 0.15s ease;
+  }
+  .tab-chip.show { opacity: 1; }
+
+  /* Library overlay */
+  .library-overlay {
+    position: fixed; inset: 0; background: var(--paper); z-index: 41; display: none;
+    flex-direction: column; padding: 40px min(8vw, 100px);
+  }
+  .library-overlay.on { display: flex; }
+  .lib-section-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-faint); margin: 22px 0 10px; }
+  .lib-section-label:first-child { margin-top: 0; }
+  .book-card {
+    border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; margin-bottom: 8px; cursor: pointer;
+  }
+  .book-card:hover { background: var(--paper-deep); }
+  .book-card .title { font-size: 0.9rem; font-weight: 600; }
+  .book-card .meta { font-size: 0.76rem; color: var(--ink-soft); margin-top: 2px; }
+  .book-back { all: unset; cursor: pointer; font-size: 0.8rem; color: var(--ink-soft); margin-bottom: 14px; display: inline-block; }
+  .book-back:hover { color: var(--ink); }
+  .lib-entry { border-bottom: 1px solid var(--line-soft); padding: 16px 0; cursor: pointer; }
+  .lib-entry .when { font-size: 0.72rem; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.06em; }
+  .lib-entry .task { font-size: 0.9rem; font-weight: 600; margin: 4px 0 6px; }
+  .lib-entry .snippet { font-size: 0.84rem; color: var(--ink-soft); line-height: 1.5; }
+  .lib-entry .full-actions { display: none; gap: 8px; margin-top: 10px; }
+  .lib-entry.expanded .full-actions { display: flex; }
+  .lib-entry .full-actions button {
+    all: unset; cursor: pointer; font-size: 0.76rem; padding: 6px 11px; border-radius: 100px;
+    border: 1px solid var(--moss); color: var(--moss-deep);
+  }
+  .lib-entry .full-actions button:hover { background: var(--moss-pale); }
+  .ai-edit-box { display: none; margin-top: 10px; gap: 8px; }
+  .ai-edit-box.show { display: flex; }
+  .ai-edit-box input {
+    flex: 1; font: inherit; font-size: 0.8rem; padding: 8px 10px; border: 1px solid var(--line);
+    border-radius: 8px; background: var(--paper); color: var(--ink); outline: none;
+  }
+  .ai-edit-box button {
+    all: unset; cursor: pointer; font-size: 0.76rem; padding: 8px 12px; border-radius: 8px;
+    background: var(--moss); color: #fff;
+  }
+  .ai-thinking { font-size: 0.74rem; color: var(--ink-faint); font-style: italic; margin-top: 8px; display: none; }
+  .ai-thinking.show { display: block; }
+  .new-book-form { display: none; flex-direction: column; gap: 8px; margin-bottom: 20px; padding: 14px; border: 1px solid var(--line); border-radius: 10px; }
+  .new-book-form.show { display: flex; }
+  .new-book-form input {
+    font: inherit; font-size: 0.85rem; padding: 9px 11px; border: 1px solid var(--line);
+    border-radius: 8px; background: var(--paper); color: var(--ink); outline: none;
+  }
+
+  /* --- Task list (inside Tasks compartment) --- */
+  .list-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .list-head .label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--ink-faint); }
+  .task-row { display: flex; align-items: center; gap: 10px; padding: 11px 4px; border-bottom: 1px solid var(--line-soft); font-size: 0.86rem; cursor: pointer; }
+  .task-row:hover { background: var(--paper-deep); }
+  .task-row .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .task-row.running .dot { background: var(--moss); }
+  .task-row.break .dot { background: var(--amber); }
+  .task-row.stopped .dot { background: var(--ink-faint); }
+  .task-row .name { flex: 1; }
+  .task-row .time { font-variant-numeric: tabular-nums; font-size: 0.76rem; color: var(--ink-soft); }
+  .task-row.focused { background: var(--moss-pale); border-radius: 8px; }
+  .expand-toggle { all: unset; cursor: pointer; margin-top: auto; text-align: center; font-size: 0.76rem; color: var(--ink-soft); padding: 10px; }
+  .expand-toggle:hover { color: var(--ink); }
+  .task-row.hidden-extra { display: none; }
+  .device[data-list-expanded="true"] .task-row.hidden-extra { display: flex; }
+  .add-task-inline {
+    margin-top: 10px; border: 1px dashed var(--line); border-radius: 9px; padding: 10px;
+    font-size: 0.8rem; color: var(--ink-faint); text-align: center; cursor: pointer;
+  }
+  .add-task-inline:hover { color: var(--ink); border-color: var(--moss); }
+
+  /* --- Todos --- */
+  .todo-row { display: flex; align-items: flex-start; gap: 10px; padding: 11px 4px; border-bottom: 1px solid var(--line-soft); }
+  .todo-check { width: 16px; height: 16px; border-radius: 5px; border: 1.5px solid var(--line); margin-top: 2px; flex-shrink: 0; }
+  .todo-body { flex: 1; }
+  .todo-text { font-size: 0.86rem; }
+  .todo-alert { display: inline-flex; align-items: center; gap: 4px; font-size: 0.7rem; color: var(--amber); background: var(--amber-pale); padding: 2px 7px; border-radius: 100px; margin-top: 4px; }
+  .add-todo { margin-top: 12px; border: 1px dashed var(--line); border-radius: 9px; padding: 10px; font-size: 0.8rem; color: var(--ink-faint); text-align: center; }
+
+  /* --- Idle toast --- */
+  .scene.idle-stage-bg.on { justify-content: flex-end; }
+  .toast { background: var(--paper-card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; box-shadow: 0 10px 24px -12px var(--shadow); }
+  .toast .head { display: flex; justify-content: space-between; font-size: 0.82rem; margin-bottom: 8px; }
+  .toast .head .away { color: var(--ink-soft); }
+  .toast-bar { height: 3px; border-radius: 3px; background: var(--line-soft); overflow: hidden; margin-bottom: 10px; }
+  .toast-bar .fill { height: 100%; background: var(--amber); width: 100%; transform-origin: left; animation: drain 6s linear forwards; }
+  @keyframes drain { to { transform: scaleX(0); } }
+  .toast .actions { display: flex; gap: 8px; }
+  .toast .actions button { all: unset; cursor: pointer; flex: 1; text-align: center; font-size: 0.76rem; padding: 8px; border-radius: 8px; }
+  .toast .actions .keep { background: var(--moss-pale); color: var(--moss-deep); }
+  .toast .actions .brk { background: var(--paper-deep); color: var(--ink-soft); }
+
+  /* --- Check-in chat --- */
+  .chat-scroll { flex: 1; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; }
+  .bubble { max-width: 84%; font-size: 0.82rem; line-height: 1.45; padding: 10px 12px; border-radius: 12px; }
+  .bubble.agent { background: var(--paper-deep); align-self: flex-start; border-bottom-left-radius: 3px; }
+  .bubble.user { background: var(--moss); color: #fff; align-self: flex-end; border-bottom-right-radius: 3px; }
+  .chip-row { display: flex; flex-wrap: wrap; gap: 6px; align-self: flex-start; max-width: 90%; }
+  .chip { all: unset; cursor: pointer; font-size: 0.76rem; padding: 8px 11px; border-radius: 100px; border: 1px solid var(--moss); color: var(--moss-deep); }
+  .chip:hover { background: var(--moss-pale); }
+  .chip.used { display: none; }
+  .resolved-chip { align-self: flex-start; font-size: 0.76rem; background: var(--moss-pale); color: var(--moss-deep); padding: 8px 11px; border-radius: 100px; display: none; }
+  .resolved-chip.show { display: inline-flex; align-items: center; gap: 6px; }
+  .free-text-row { display: none; flex-direction: column; margin-top: 4px; }
+  .free-text-row.show { display: flex; }
+  .free-text-row textarea {
+    font: inherit; font-size: 0.82rem; padding: 10px 12px; border: 1px solid var(--moss);
+    border-radius: 10px; background: var(--paper); color: var(--ink); outline: none; resize: none;
+  }
+  .segment-list { margin-top: 6px; }
+  .segment-row { font-size: 0.82rem; padding: 6px 0; border-bottom: 1px solid var(--line-soft); display: flex; justify-content: space-between; }
+  .segment-row .est { color: var(--ink-faint); font-size: 0.7rem; }
+
+  /* --- Tray --- */
+  .scene.tray-stage.on { justify-content: flex-end; }
+  .taskbar { background: var(--ink); border-radius: 8px; padding: 8px 12px; display: flex; justify-content: flex-end; gap: 10px; position: relative; }
+  .tray-icon { width: 20px; height: 20px; border-radius: 5px; background: var(--moss); display: flex; align-items: center; justify-content: center; font-size: 0.7rem; cursor: pointer; }
+  .tray-bubble {
+    position: absolute; bottom: 100%; right: 6px; margin-bottom: 10px; background: var(--paper-card);
+    border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; width: 200px;
+    box-shadow: 0 12px 28px -14px var(--shadow); opacity: 0; transform: translateY(6px);
+    pointer-events: none; transition: all 0.2s ease;
+  }
+  .tray-bubble.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
+  .tray-bubble .row { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+  .tray-bubble .txt { font-size: 0.78rem; }
+  .tray-bubble .voice { font-size: 0.68rem; color: var(--moss-deep); margin-top: 6px; display: flex; align-items: center; gap: 4px; }
+  .tray-bubble .dismiss { all: unset; cursor: pointer; color: var(--ink-faint); font-size: 0.9rem; line-height: 1; }
+
+  /* --- Settings --- */
+  .pin-demo { display: flex; align-items: center; gap: 10px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; margin-bottom: 14px; }
+  .pin-demo .txt { font-size: 0.82rem; flex: 1; }
+  .settings-panel { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .settings-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; font-size: 0.84rem; border-bottom: 1px solid var(--line-soft); background: var(--paper-card); }
+  .settings-row:last-child { border-bottom: none; }
+  .switch { width: 38px; height: 21px; background: var(--line); border: 1px solid var(--line); border-radius: 100px; position: relative; cursor: pointer; flex-shrink: 0; }
+  .switch .knob { position: absolute; top: 1px; left: 1px; width: 17px; height: 17px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px var(--shadow); transition: transform 0.18s ease; }
+  .switch.on { background: var(--moss); border-color: var(--moss); }
+  .switch.on .knob { transform: translateX(17px); }
+  .theme-demo-note { margin-top: 14px; font-size: 0.76rem; color: var(--ink-faint); text-align: center; }
+
+  /* --- Recap --- */
+  .recap-toggle { display: flex; gap: 6px; margin-bottom: 16px; }
+  .recap-toggle button {
+    all: unset; cursor: pointer; flex: 1; text-align: center; font-size: 0.8rem;
+    padding: 8px; border-radius: 9px; border: 1px solid var(--line); color: var(--ink-soft);
+  }
+  .recap-toggle button[aria-pressed="true"] { background: var(--moss-pale); border-color: var(--moss); color: var(--moss-deep); font-weight: 600; }
+  .recap-card { background: var(--paper); border: 1px solid var(--line-soft); border-radius: 12px; padding: 14px; font-size: 0.86rem; line-height: 1.55; margin-bottom: 16px; }
+  .recap-open .label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--ink-faint); margin-bottom: 8px; display: block; }
+  .recap-row { display: flex; align-items: center; gap: 8px; font-size: 0.84rem; padding: 7px 0; border-bottom: 1px solid var(--line-soft); }
+  .recap-row .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--amber); flex-shrink: 0; }
+</style>
+
+<div class="review">
+  <header class="top">
+    <h1 class="wordmark">Mycelia Time — design review</h1>
+    <span class="tag">Phase 1 · rev 3 · light default · pocket-book shell</span>
+  </header>
+
+  <nav class="rail" aria-label="Scenes">
+    <span class="rail-label">Walk through</span>
+    <button data-scene="pocket"><span class="n">01</span> Pocket view</button>
+    <button data-scene="timer"><span class="n">02</span> Timer states</button>
+    <button data-scene="tasks"><span class="n">03</span> Tasks</button>
+    <button data-scene="notes"><span class="n">04</span> Notes &amp; zen mode</button>
+    <button data-scene="todos"><span class="n">05</span> Todos</button>
+    <button data-scene="idle"><span class="n">06</span> Short-idle toast</button>
+    <button data-scene="checkin"><span class="n">07</span> Forgot-to-clock-out check-in</button>
+    <button data-scene="tray"><span class="n">08</span> System tray alert</button>
+    <button data-scene="settings"><span class="n">09</span> Always-on-top &amp; settings</button>
+    <button data-scene="recap"><span class="n">10</span> Daily &amp; weekly recap</button>
+  </nav>
+
+  <div class="stage-wrap">
+    <div class="stage">
+      <div class="device" id="device">
+        <div class="device-bar">
+          <div class="brand"><span class="dot"></span> Mycelia Time</div>
+          <div class="icons">
+            <button class="icon-btn" title="Add a task" id="addTaskIconTop">＋</button>
+            <button class="icon-btn" title="Always on top" id="pinIconTop">📌</button>
+            <button class="icon-btn" title="Settings" id="gearIconTop">⚙</button>
+            <button class="icon-btn" title="Minimize to tray">▁</button>
+          </div>
+        </div>
+        <div class="device-body" id="deviceBody">
+
+          <!-- Pocket view: hosts timer states + tasks/notes/todos compartments -->
+          <div class="scene on" data-name="pocket">
+            <div class="add-task-row" id="addTaskRow">
+              <input id="addTaskInput" placeholder="What are you working on?" />
+            </div>
+            <div class="task-focus" id="taskFocusBlock" title="Click to rename / add a task">
+              <span class="label">Focused task</span>
+              <span class="name" id="focusedTaskName">Rebuild the data layer</span>
+            </div>
+            <div class="timer-display" id="timerDisplay">00:00:00</div>
+            <div class="status-pill state-idle" id="statusPill"><span class="dot"></span><span id="statusText">Not started</span></div>
+            <button class="primary-action go" id="primaryBtn">Clock in</button>
+            <div class="state-switch" id="stateSwitch">
+              <button data-state="idle" aria-pressed="true">Not started</button>
+              <button data-state="running">Running</button>
+              <button data-state="break">On break</button>
+              <button data-state="stopped">Stopped</button>
+            </div>
+
+            <div class="tab-stack">
+              <button class="pulltab" data-compartment="tasks">Tasks</button>
+              <button class="pulltab" data-compartment="notes">Notes</button>
+              <button class="pulltab" data-compartment="todos">Todos</button>
+              <button class="pulltab" id="libraryPulltab">Library</button>
+            </div>
+
+            <!-- Tasks compartment -->
+            <div class="compartment" data-compartment="tasks">
+              <div class="compartment-head">
+                <span class="label">All tasks</span>
+                <button class="icon-btn close-compartment">✕</button>
+              </div>
+              <div class="task-row running focused"><span class="dot"></span><span class="name">Rebuild the data layer</span><span class="time">42:10</span></div>
+              <div class="task-row break"><span class="dot"></span><span class="name">Reply to Mycelia LLC filing email</span><span class="time">on break</span></div>
+              <div class="task-row stopped"><span class="dot"></span><span class="name">Sketch tray icon options</span><span class="time">1:04:12</span></div>
+              <div class="task-row stopped hidden-extra"><span class="dot"></span><span class="name">Read OpenClaw gateway docs</span><span class="time">18:30</span></div>
+              <div class="task-row stopped hidden-extra"><span class="dot"></span><span class="name">Voice cue script draft</span><span class="time">9:02</span></div>
+              <button class="expand-toggle" id="listExpandBtn">Show 2 more</button>
+              <div class="add-task-inline" id="addTaskInline">+ add a task</div>
+            </div>
+
+            <!-- Notes compartment -->
+            <div class="compartment" data-compartment="notes">
+              <div class="compartment-head">
+                <span class="label">Notes — this session</span>
+                <button class="icon-btn close-compartment">✕</button>
+              </div>
+              <div class="mini-note" id="miniNote">09:14 — started on the migration file, schema felt right on the first pass<br><br>09:41 — repository tests failing, timestamps were inconsistent, not a real bug</div>
+              <div class="autosave"><span class="pip"></span> autosaved</div>
+              <button class="zen-launch" id="zenLaunchBtn">Expand to zen mode ↗</button>
+              <button class="library-link" id="libraryLinkBtn">View past sessions →</button>
+            </div>
+
+            <!-- Todos compartment -->
+            <div class="compartment" data-compartment="todos">
+              <div class="compartment-head">
+                <span class="label">Todos</span>
+                <button class="icon-btn close-compartment">✕</button>
+              </div>
+              <div class="todo-row">
+                <div class="todo-check"></div>
+                <div class="todo-body">
+                  <div class="todo-text">Renew xai auth in OpenClaw</div>
+                  <div class="todo-alert">⏰ 3:00 PM today</div>
+                </div>
+              </div>
+              <div class="todo-row">
+                <div class="todo-check"></div>
+                <div class="todo-body"><div class="todo-text">Order the reference mic for voice cue takes</div></div>
+              </div>
+              <div class="todo-row">
+                <div class="todo-check"></div>
+                <div class="todo-body"><div class="todo-text">Ask about the tray icon size on HiDPI</div></div>
+              </div>
+              <div class="add-todo">+ add a todo</div>
+            </div>
+          </div>
+
+          <!-- Idle toast -->
+          <div class="scene idle-stage-bg" data-name="idle">
+            <div class="task-focus">
+              <span class="label">Focused task</span>
+              <span class="name">Rebuild the data layer</span>
+            </div>
+            <div class="toast">
+              <div class="head"><span>Still there?</span><span class="away">away ~11 min</span></div>
+              <div class="toast-bar"><div class="fill" id="toastFill"></div></div>
+              <div class="actions">
+                <button class="keep">Keep as work</button>
+                <button class="brk">Log as a break</button>
+              </div>
+            </div>
+            <p style="font-size:0.7rem;color:var(--ink-faint);text-align:center;margin-top:8px;">auto-dismisses in 30s (shown at 6s for demo) · defaults to "keep as work"</p>
+          </div>
+
+          <!-- Check-in chat -->
+          <div class="scene" data-name="checkin" style="gap:10px;">
+            <div class="list-head"><span class="label">Welcome back</span></div>
+            <div class="chat-scroll" id="chatScroll">
+              <div class="bubble agent">Last thing logged was clocking into <strong>Sketch tray icon options</strong> at 6:04 PM yesterday. Still there, or did that end up sitting for a while?</div>
+              <div class="chip-row" id="chipRow1">
+                <button class="chip" data-reply="Just closed it out right at 6:04.">Closed it out right then</button>
+                <button class="chip" data-reply="Worked a bit, then got pulled away for the night.">Worked a bit, then away</button>
+                <button class="chip" data-reply="Kept going for a while after that.">Kept working for a while</button>
+                <button class="chip" id="checkinOtherChip">Something else — let me explain</button>
+              </div>
+              <div class="free-text-row" id="checkinFreeText">
+                <textarea id="checkinFreeInput" placeholder="Whatever happened, in your own words…" rows="3"></textarea>
+                <button class="zen-launch" id="checkinFreeSend" style="margin-top:8px;">Send</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tray -->
+          <div class="scene tray-stage" data-name="tray">
+            <p style="font-size:0.8rem;color:var(--ink-soft);text-align:center;margin-bottom:16px;">Minimized — app keeps running as a tray icon.</p>
+            <div class="taskbar">
+              <div class="tray-bubble" id="trayBubble">
+                <div class="row">
+                  <div class="txt"><strong>Todo alert</strong><br>Renew xai auth in OpenClaw</div>
+                  <button class="dismiss" id="trayDismiss">✕</button>
+                </div>
+                <div class="voice">🔊 voice cue played</div>
+              </div>
+              <div class="tray-icon" id="trayIconBtn">🍄</div>
+            </div>
+          </div>
+
+          <!-- Pin + Settings -->
+          <div class="scene" data-name="settings">
+            <div class="pin-demo">
+              <span class="txt" id="pinTxt">Not pinned — normal window</span>
+              <div class="switch" id="pinSwitch"><div class="knob"></div></div>
+            </div>
+            <div class="settings-panel">
+              <div class="settings-row">
+                <span>Dark mode</span>
+                <div class="switch" id="darkSwitch"><div class="knob"></div></div>
+              </div>
+              <div class="settings-row">
+                <span>Sound cues</span>
+                <div class="switch on"><div class="knob"></div></div>
+              </div>
+              <div class="settings-row">
+                <span>Start minimized to tray</span>
+                <div class="switch"><div class="knob"></div></div>
+              </div>
+            </div>
+            <p class="theme-demo-note">This toggle changes only the app frame's theme — light stays the default, dark is a real option, same as any setting.</p>
+          </div>
+
+          <!-- Recap -->
+          <div class="scene" data-name="recap">
+            <div class="recap-toggle" id="recapToggle">
+              <button data-span="today" aria-pressed="true">Today</button>
+              <button data-span="week" aria-pressed="false">This week</button>
+            </div>
+            <div class="recap-card" id="recapCard">Got the data layer rebuilt and its tests passing again, cleaned up a real bug in the task dashboard, and sketched out today's design review. Renew xai auth is still sitting there, and the tray icon sketch hasn't moved.</div>
+            <div class="recap-open">
+              <span class="label">Still open</span>
+              <div class="recap-row"><span class="dot"></span> Renew xai auth in OpenClaw — due 3:00 PM today</div>
+              <div class="recap-row"><span class="dot"></span> Sketch tray icon options</div>
+              <div class="recap-row"><span class="dot"></span> Order the reference mic</div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Zen mode overlay - nested inside #device so it inherits the
+             device's own theme scoping (data-theme), not the outer page's -->
+        <div class="zen-overlay" id="zenOverlay">
+          <div class="zen-top">
+            <span class="label">Zen mode — Rebuild the data layer</span>
+            <div class="right">
+              <span class="autosave" id="zenAutosave"><span class="pip"></span> autosaved</span>
+              <button class="library-link" id="zenLibraryBtn" style="margin:0;padding:6px 12px;">Library</button>
+              <button class="zen-close" id="zenCloseBtn">✕ Collapse (Esc)</button>
+            </div>
+          </div>
+          <p class="zen-hint">Press Enter to start a new line — the time fills itself in. Leaving here clears this box for next time; everything you wrote is archived in the library.</p>
+          <div class="zen-text-wrap">
+            <div class="zen-ghost" id="zenGhost"></div>
+            <textarea class="zen-input" id="zenInput" spellcheck="false"></textarea>
+            <div class="tab-chip" id="tabChip">Tab to accept</div>
+          </div>
+        </div>
+
+        <!-- Library overlay - same reason, nested inside #device -->
+        <div class="library-overlay" id="libraryOverlay">
+          <div class="zen-top">
+            <span class="label" id="libraryTitle">Notes library</span>
+            <div class="right">
+              <button class="library-link" id="newBookBtn" style="margin:0;padding:6px 12px;">+ New book</button>
+              <button class="zen-close" id="libraryCloseBtn">✕ Close (Esc)</button>
+            </div>
+          </div>
+          <div class="new-book-form" id="newBookForm">
+            <input id="newBookTitle" placeholder="Title" />
+            <input id="newBookSubject" placeholder="Subject" />
+            <input id="newBookAuthor" placeholder="Author" value="Jeremy Robards" />
+            <button class="zen-launch" id="newBookSave" style="margin-top:8px;">Save book</button>
+          </div>
+          <div id="libraryList"></div>
+        </div>
+      </div>
+    </div>
+
+    <p class="caption" id="caption">A small pocket-book window, not a dashboard — precise padding, nothing sprawling. Click a stop on the left to walk through each state.</p>
+  </div>
+
+  <aside class="notes" id="annotation">
+    <h2>What you're looking at</h2>
+    <p id="annoText">The default view: whatever task is focused, its live timer, and the one action that matters right now.</p>
+    <span class="rule" id="annoRule">Light theme by default — dark is opt-in, under Settings.</span>
+  </aside>
+</div>
+
+<script>
+  const scenes = document.querySelectorAll(".scene");
+  const railButtons = document.querySelectorAll(".rail button");
+  const captionEl = document.getElementById("caption");
+  const annoText = document.getElementById("annoText");
+  const annoRule = document.getElementById("annoRule");
+  const device = document.getElementById("device");
+
+  const sceneMeta = {
+    pocket: {
+      caption: "A small pocket-book window, not a dashboard — precise padding, nothing sprawling. Click a stop on the left to walk through each state.",
+      anno: "The default view: whatever task is focused, its live timer, and the one action that matters right now. Click the ＋ up top, or the task name itself, to write a new one in.",
+      rule: "Light theme by default — dark is opt-in, under Settings."
+    },
+    timer: {
+      caption: "Same screen as 01, just mid-session — try the row of buttons at the bottom of the frame.",
+      anno: "Not started, running, on break, stopped — one primary action label and color per state. This isn't a separate screen, it's the same pocket view at a different moment.",
+      rule: "Multiple tasks can each be in a different one of these states at once."
+    },
+    tasks: {
+      caption: "Pulled out from the same pocket view — collapsed by default, \"Show 2 more\" reveals the rest.",
+      anno: "A status dot per task (running / on break / stopped), the focused task highlighted, and a quick add right at the bottom.",
+      rule: "Grounded in van-life storage design: compact by default, fully capable when opened."
+    },
+    notes: {
+      caption: "The pull-tab is the compartment metaphor made literal. Click \"Notes\", then \"Expand to zen mode\".",
+      anno: "Pulling the tab opens a compartment inline. Zen mode goes full screen for focused writing — timestamps fill in on their own, it autosaves as you go, and inline AI suggestions appear as gray ghost text, Tab to accept.",
+      rule: "Collapsing back down (or Esc) clears the box for next time — everything's archived in the library, nothing's lost."
+    },
+    todos: {
+      caption: "Same compartment pattern as Notes and Tasks — a todo with an alert time shows its own small badge.",
+      anno: "Todos live in their own pull-tab. An alert time renders as a quiet badge, not a loud warning.",
+      rule: "Alerts here are informational until they actually fire."
+    },
+    idle: {
+      caption: "A soft toast, not a blocking dialog. It's sped up here — 6s instead of 30s — so you can see it drain.",
+      anno: "No response in time → auto-dismiss, defaults to \"keep as work.\" This is a nudge, not a demand for an answer.",
+      rule: "Real threshold: 30 seconds on screen, assumes you're just busy."
+    },
+    checkin: {
+      caption: "Triggered after 8+ hours (especially 16+) still clocked in. Click a reply, or try \"Something else\" for a messier day.",
+      anno: "One question at a time, anchored to a real timestamp, never \"how many hours did you work.\" If the tappable answers don't fit a genuinely chaotic day, free text opens up a real back-and-forth until it can log it as multiple separate blocks.",
+      rule: "Resolves a bucketed close time (or several) marked as an estimate, and feeds the day's recap and journal."
+    },
+    tray: {
+      caption: "Minimized, the app is a tray icon and nothing else — until something needs you. Click the mushroom icon.",
+      anno: "An alert pops out of the tray with a voice cue and dismisses in one click. It never blocks anything else on screen.",
+      rule: "This is the app's default background state — not an edge case."
+    },
+    settings: {
+      caption: "Two real settings: pin above other windows, and theme. Try both switches.",
+      anno: "Jeremy uses light and stays pinned rarely — but this ships as a setting for anyone, not a hard-coded choice.",
+      rule: "Personal preference sets the default. It never becomes the only option."
+    },
+    recap: {
+      caption: "Not a chat, not a report — a friendly reminder of what actually happened, and what's still sitting open.",
+      anno: "Toggle between today and this week. Plain language, no false cheer, pulled from the same logged sessions and todos as everything else.",
+      rule: "This is a glance, not a conversation — the check-in chat is for the forgot-to-clock-out case specifically."
+    }
+  };
+
+  function closeAllCompartments() {
+    document.querySelectorAll(".compartment").forEach(c => c.classList.remove("open"));
+  }
+
+  function openCompartment(name) {
+    closeAllCompartments();
+    if (!name) return;
+    const el = document.querySelector('.compartment[data-compartment="' + name + '"]');
+    if (el) el.classList.add("open");
+  }
+
+  function setScene(name) {
+    const target = ["timer", "tasks", "notes", "todos"].includes(name) ? "pocket" : name;
+    scenes.forEach(s => s.classList.toggle("on", s.dataset.name === target));
+    railButtons.forEach(b => b.setAttribute("aria-current", b.dataset.scene === name ? "true" : "false"));
+    const meta = sceneMeta[name];
+    if (meta) {
+      captionEl.textContent = meta.caption;
+      annoText.textContent = meta.anno;
+      annoRule.textContent = meta.rule;
+    }
+    if (name === "pocket" || name === "timer") {
+      closeAllCompartments();
+    }
+    if (["tasks", "notes", "todos"].includes(name)) {
+      openCompartment(name);
+    }
+    if (name === "timer") {
+      applyState("running");
+      const sw = document.getElementById("stateSwitch");
+      sw.classList.remove("pulse");
+      void sw.offsetWidth;
+      sw.classList.add("pulse");
+    }
+  }
+
+  railButtons.forEach(btn => btn.addEventListener("click", () => setScene(btn.dataset.scene)));
+  setScene("pocket");
+
+  // --- Timer state switch ---
+  const statusPill = document.getElementById("statusPill");
+  const statusText = document.getElementById("statusText");
+  const primaryBtn = document.getElementById("primaryBtn");
+  const timerDisplay = document.getElementById("timerDisplay");
+  const stateSwitch = document.getElementById("stateSwitch");
+  let tickInterval = null;
+  let seconds = 0;
+
+  function fmt(s) {
+    const h = String(Math.floor(s / 3600)).padStart(2, "0");
+    const m = String(Math.floor((s % 3600) / 60)).padStart(2, "0");
+    const sec = String(s % 60).padStart(2, "0");
+    return h + ":" + m + ":" + sec;
+  }
+
+  function applyState(state) {
+    clearInterval(tickInterval);
+    statusPill.className = "status-pill state-" + state;
+    stateSwitch.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", b.dataset.state === state ? "true" : "false"));
+    if (state === "idle") {
+      statusText.textContent = "Not started";
+      primaryBtn.textContent = "Clock in";
+      primaryBtn.className = "primary-action go";
+      seconds = 0;
+      timerDisplay.textContent = fmt(0);
+    } else if (state === "running") {
+      statusText.textContent = "Running";
+      primaryBtn.textContent = "Take a break";
+      primaryBtn.className = "primary-action pause";
+      seconds = seconds || 2530;
+      timerDisplay.textContent = fmt(seconds);
+      tickInterval = setInterval(() => { seconds++; timerDisplay.textContent = fmt(seconds); }, 1000);
+    } else if (state === "break") {
+      statusText.textContent = "On break";
+      primaryBtn.textContent = "Resume";
+      primaryBtn.className = "primary-action resume";
+      timerDisplay.textContent = fmt(seconds || 2530);
+    } else if (state === "stopped") {
+      statusText.textContent = "Stopped";
+      primaryBtn.textContent = "Clock in again";
+      primaryBtn.className = "primary-action go";
+      timerDisplay.textContent = fmt(seconds || 2530);
+    }
+  }
+  stateSwitch.querySelectorAll("button").forEach(b => b.addEventListener("click", () => applyState(b.dataset.state)));
+  primaryBtn.addEventListener("click", () => {
+    const current = stateSwitch.querySelector('[aria-pressed="true"]').dataset.state;
+    const next = current === "idle" ? "running" : current === "running" ? "break" : "running";
+    applyState(next);
+  });
+
+  // --- Add task ---
+  const addTaskRow = document.getElementById("addTaskRow");
+  const addTaskInput = document.getElementById("addTaskInput");
+  const focusedTaskName = document.getElementById("focusedTaskName");
+
+  function openAddTask() {
+    setScene("pocket");
+    addTaskRow.classList.add("open");
+    addTaskInput.value = "";
+    addTaskInput.focus();
+  }
+  function commitAddTask() {
+    const v = addTaskInput.value.trim();
+    if (v) {
+      focusedTaskName.textContent = v;
+      applyState("idle");
+    }
+    addTaskRow.classList.remove("open");
+  }
+  document.getElementById("addTaskIconTop").addEventListener("click", openAddTask);
+  document.getElementById("taskFocusBlock").addEventListener("click", openAddTask);
+  document.getElementById("addTaskInline").addEventListener("click", openAddTask);
+  addTaskInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") commitAddTask();
+    if (e.key === "Escape") addTaskRow.classList.remove("open");
+  });
+
+  // --- Task list expand ---
+  document.getElementById("listExpandBtn").addEventListener("click", function () {
+    const expanded = device.dataset.listExpanded === "true";
+    device.dataset.listExpanded = String(!expanded);
+    this.textContent = expanded ? "Show 2 more" : "Show fewer";
+  });
+
+  // --- Pull tabs ---
+  document.querySelectorAll(".pulltab").forEach(tab => {
+    tab.addEventListener("click", () => {
+      const name = tab.dataset.compartment;
+      const el = document.querySelector('.compartment[data-compartment="' + name + '"]');
+      if (el.classList.contains("open")) {
+        el.classList.remove("open");
+      } else {
+        openCompartment(name);
+      }
+    });
+  });
+  document.querySelectorAll(".close-compartment").forEach(btn => {
+    btn.addEventListener("click", () => btn.closest(".compartment").classList.remove("open"));
+  });
+
+  // --- Notes library: unfiled sessions + books (in-memory demo data) ---
+  const noteLibrary = [
+    { id: "n1", when: "Yesterday · 6:04 PM", task: "Sketch tray icon options", full: "6:02 PM — three rough shapes, mushroom silhouette reads best at 16px.\n6:04 PM — closing this out, picking it back up tomorrow." },
+    { id: "n2", when: "Aug 1 · 4:40 PM", task: "Rebuild the data layer", full: "4:12 PM — schema drafted.\n4:38 PM — first migration run clean.\n4:40 PM — done for the day." }
+  ];
+  const books = [
+    {
+      id: "b1", title: "Mycelia Time build log", subject: "App development", author: "Jeremy Robards",
+      notes: [
+        { id: "bn1", when: "Aug 2 · 12:29 PM", task: "Phase 0 kickoff", full: "12:29 PM — scaffold running, Tauri + React + TS.\n12:40 PM — data layer done, 19 tests passing." }
+      ]
+    }
+  ];
+  let libraryView = { screen: "root", bookId: null }; // root | book
+
+  function snippetOf(full) {
+    const flat = full.replace(/\n/g, " ");
+    return flat.length > 120 ? flat.slice(0, 120) + "…" : flat;
+  }
+
+  function renderNoteEntry(entry) {
+    const div = document.createElement("div");
+    div.className = "lib-entry";
+    div.innerHTML =
+      '<div class="when">' + entry.when + '</div>' +
+      '<div class="task">' + entry.task + '</div>' +
+      '<div class="snippet">' + snippetOf(entry.full) + '</div>' +
+      '<div class="full-actions">' +
+        '<button class="open-zen-note">Open in zen mode ↗</button>' +
+        '<button class="ai-edit-toggle">✨ Edit with AI</button>' +
+      '</div>' +
+      '<div class="ai-edit-box"><input placeholder="Tell the AI what to change…" /><button class="ai-edit-go">Apply</button></div>' +
+      '<div class="ai-thinking">Thinking…</div>';
+    const snippetEl = div.querySelector(".snippet");
+    div.addEventListener("click", (e) => {
+      if (e.target.closest(".full-actions") || e.target.closest(".ai-edit-box")) return;
+      const expanded = div.classList.toggle("expanded");
+      snippetEl.textContent = expanded ? entry.full : snippetOf(entry.full);
+      snippetEl.style.whiteSpace = expanded ? "pre-wrap" : "normal";
+    });
+    div.querySelector(".open-zen-note").addEventListener("click", (e) => {
+      e.stopPropagation();
+      closeLibrary();
+      openZenWithText(entry.task, entry.full);
+    });
+    const aiBox = div.querySelector(".ai-edit-box");
+    div.querySelector(".ai-edit-toggle").addEventListener("click", (e) => {
+      e.stopPropagation();
+      aiBox.classList.toggle("show");
+    });
+    div.querySelector(".ai-edit-go").addEventListener("click", (e) => {
+      e.stopPropagation();
+      const prompt = aiBox.querySelector("input").value.trim();
+      if (!prompt) return;
+      const thinking = div.querySelector(".ai-thinking");
+      thinking.classList.add("show");
+      setTimeout(() => {
+        thinking.classList.remove("show");
+        entry.full = "(edited — " + prompt + ")\n" + entry.full.split("\n")[0] + " — tightened up, the rest read clean already.";
+        snippetEl.textContent = entry.full;
+        snippetEl.style.whiteSpace = "pre-wrap";
+        aiBox.classList.remove("show");
+        aiBox.querySelector("input").value = "";
+      }, 900);
+    });
+    return div;
+  }
+
+  function renderLibrary() {
+    const list = document.getElementById("libraryList");
+    const title = document.getElementById("libraryTitle");
+    list.innerHTML = "";
+    if (libraryView.screen === "book") {
+      const book = books.find(b => b.id === libraryView.bookId);
+      title.textContent = book.title;
+      const back = document.createElement("button");
+      back.className = "book-back";
+      back.textContent = "← All books";
+      back.addEventListener("click", () => { libraryView = { screen: "root", bookId: null }; renderLibrary(); });
+      list.appendChild(back);
+      const meta = document.createElement("div");
+      meta.className = "lib-section-label";
+      meta.textContent = book.subject + " · by " + book.author;
+      list.appendChild(meta);
+      book.notes.forEach(n => list.appendChild(renderNoteEntry(n)));
+      return;
+    }
+    title.textContent = "Notes library";
+    const booksLabel = document.createElement("div");
+    booksLabel.className = "lib-section-label";
+    booksLabel.textContent = "Books";
+    list.appendChild(booksLabel);
+    books.forEach(book => {
+      const card = document.createElement("div");
+      card.className = "book-card";
+      card.innerHTML = '<div class="title">' + book.title + '</div><div class="meta">' + book.subject + ' · by ' + book.author + ' · ' + book.notes.length + ' note' + (book.notes.length === 1 ? "" : "s") + '</div>';
+      card.addEventListener("click", () => { libraryView = { screen: "book", bookId: book.id }; renderLibrary(); });
+      list.appendChild(card);
+    });
+    const unfiledLabel = document.createElement("div");
+    unfiledLabel.className = "lib-section-label";
+    unfiledLabel.textContent = "Unfiled sessions";
+    list.appendChild(unfiledLabel);
+    noteLibrary.forEach(entry => list.appendChild(renderNoteEntry(entry)));
+  }
+
+  const libraryOverlay = document.getElementById("libraryOverlay");
+  const newBookForm = document.getElementById("newBookForm");
+  function openLibrary() {
+    libraryView = { screen: "root", bookId: null };
+    newBookForm.classList.remove("show");
+    renderLibrary();
+    libraryOverlay.classList.add("on");
+  }
+  function closeLibrary() { libraryOverlay.classList.remove("on"); newBookForm.classList.remove("show"); }
+  document.getElementById("libraryPulltab").addEventListener("click", () => { setScene("pocket"); openLibrary(); });
+  document.getElementById("libraryLinkBtn").addEventListener("click", openLibrary);
+  document.getElementById("zenLibraryBtn").addEventListener("click", openLibrary);
+  document.getElementById("libraryCloseBtn").addEventListener("click", closeLibrary);
+  document.getElementById("newBookBtn").addEventListener("click", () => newBookForm.classList.toggle("show"));
+  document.getElementById("newBookSave").addEventListener("click", () => {
+    const t = document.getElementById("newBookTitle").value.trim();
+    const s = document.getElementById("newBookSubject").value.trim();
+    const a = document.getElementById("newBookAuthor").value.trim() || "Jeremy Robards";
+    if (!t) return;
+    books.unshift({ id: "b" + Date.now(), title: t, subject: s || "Untitled subject", author: a, notes: [] });
+    document.getElementById("newBookTitle").value = "";
+    document.getElementById("newBookSubject").value = "";
+    newBookForm.classList.remove("show");
+    renderLibrary();
+  });
+
+  // --- Zen mode: auto-timestamp on Enter, autosave, ghost-text AI suggestion, archive-on-close ---
+  const zenOverlay = document.getElementById("zenOverlay");
+  const zenInput = document.getElementById("zenInput");
+  const zenGhost = document.getElementById("zenGhost");
+  const tabChip = document.getElementById("tabChip");
+  const zenAutosave = document.getElementById("zenAutosave");
+  const miniNote = document.getElementById("miniNote");
+  const seedText = "10:52 — repository tests are green, nineteen of them";
+  const demoSuggestions = [
+    ", the earlier ordering bug was just inconsistent test timestamps, not a real defect.",
+    " passing now, and the build is clean.",
+    " after fixing the tie-break on the query order."
+  ];
+  let ghostTimer = null;
+  let saveTimer = null;
+  let currentSuggestion = "";
+
+  function nowLabel() {
+    const d = new Date();
+    let h = d.getHours();
+    const m = String(d.getMinutes()).padStart(2, "0");
+    const ampm = h >= 12 ? "PM" : "AM";
+    h = h % 12; if (h === 0) h = 12;
+    return h + ":" + m + " " + ampm;
+  }
+
+  function renderGhost() {
+    const text = zenInput.value;
+    const stamped = text.replace(/(^|\n)(\d{1,2}:\d{2} (AM|PM) — )/g, (m, p1, p2) => p1 + '<span class="stamp">' + p2 + '</span>');
+    zenGhost.innerHTML = stamped.replace(/\n/g, "<br>") + (currentSuggestion ? '<span class="suggestion">' + currentSuggestion + "</span>" : "");
+  }
+
+  function markSaving() {
+    zenAutosave.classList.add("saving");
+    zenAutosave.lastChild.textContent = " saving…";
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      zenAutosave.classList.remove("saving");
+      zenAutosave.lastChild.textContent = " autosaved";
+    }, 700);
+  }
+
+  function openZenWithText(taskLabel, text) {
+    document.querySelector("#zenOverlay .zen-top .label").textContent = "Zen mode — " + taskLabel;
+    zenOverlay.classList.add("on");
+    zenInput.value = text;
+    renderGhost();
+    zenInput.focus();
+    zenInput.setSelectionRange(zenInput.value.length, zenInput.value.length);
+  }
+
+  document.getElementById("zenLaunchBtn").addEventListener("click", () => {
+    if (!zenInput.value) zenInput.value = nowLabel() + " — " + seedText.replace(/^\d.*— /, "");
+    openZenWithText(focusedTaskName.textContent, zenInput.value);
+  });
+
+  function closeZen() {
+    zenOverlay.classList.remove("on");
+    currentSuggestion = "";
+    tabChip.classList.remove("show");
+    const written = zenInput.value.trim();
+    if (written) {
+      noteLibrary.unshift({ id: "n" + Date.now(), when: "Just now", task: focusedTaskName.textContent, full: written });
+      miniNote.innerHTML = "Session cleared — that entry is now in the library.";
+    }
+    zenInput.value = "";
+    renderGhost();
+  }
+  document.getElementById("zenCloseBtn").addEventListener("click", closeZen);
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      if (libraryOverlay.classList.contains("on")) { closeLibrary(); return; }
+      if (zenOverlay.classList.contains("on")) closeZen();
+    }
+  });
+
+  zenInput.addEventListener("keydown", (e) => {
+    if (e.key === "Tab" && currentSuggestion) {
+      e.preventDefault();
+      zenInput.value += currentSuggestion;
+      currentSuggestion = "";
+      tabChip.classList.remove("show");
+      renderGhost();
+      zenInput.setSelectionRange(zenInput.value.length, zenInput.value.length);
+      return;
+    }
+    if (e.key === "Enter") {
+      e.preventDefault();
+      const pos = zenInput.selectionStart;
+      const insert = "\n" + nowLabel() + " — ";
+      zenInput.value = zenInput.value.slice(0, pos) + insert + zenInput.value.slice(pos);
+      const newPos = pos + insert.length;
+      zenInput.setSelectionRange(newPos, newPos);
+      currentSuggestion = "";
+      tabChip.classList.remove("show");
+      renderGhost();
+      markSaving();
+      return;
+    }
+    if (currentSuggestion && e.key !== "Shift") {
+      currentSuggestion = "";
+      tabChip.classList.remove("show");
+    }
+  });
+  zenInput.addEventListener("input", () => {
+    renderGhost();
+    markSaving();
+    clearTimeout(ghostTimer);
+    if (zenInput.value.trim().length < 4) return;
+    ghostTimer = setTimeout(() => {
+      currentSuggestion = demoSuggestions[Math.floor(Math.random() * demoSuggestions.length)];
+      renderGhost();
+      tabChip.classList.add("show");
+    }, 900);
+  });
+
+  // --- Idle toast restart animation on scene view ---
+  const toastFill = document.getElementById("toastFill");
+  document.querySelector('[data-scene="idle"]').addEventListener("click", () => {
+    toastFill.style.animation = "none";
+    void toastFill.offsetWidth;
+    toastFill.style.animation = "drain 6s linear forwards";
+  });
+
+  // --- Check-in chat ---
+  const chatScroll = document.getElementById("chatScroll");
+  const chipRow1 = document.getElementById("chipRow1");
+  const checkinFreeText = document.getElementById("checkinFreeText");
+
+  function addBubble(role, text) {
+    const b = document.createElement("div");
+    b.className = "bubble " + role;
+    b.textContent = text;
+    chatScroll.appendChild(b);
+    chatScroll.scrollTop = chatScroll.scrollHeight;
+    return b;
+  }
+
+  chipRow1.querySelectorAll(".chip[data-reply]").forEach(chip => {
+    chip.addEventListener("click", function () {
+      chipRow1.querySelectorAll(".chip").forEach(c => c.classList.add("used"));
+      addBubble("user", this.dataset.reply);
+      addBubble("agent", "Got it — closing that one out around then, marked as an estimate. Anything you want noted about it?");
+      const resolved = document.createElement("div");
+      resolved.className = "resolved-chip show";
+      resolved.innerHTML = "✓ Closed at ~6:15 PM · estimated";
+      chatScroll.appendChild(resolved);
+    });
+  });
+
+  // "Something else" - free text, then an adaptive multi-turn follow-up
+  // for genuinely chaotic days (mixed work/travel/breaks), resolving to
+  // multiple logged segments instead of one single close time.
+  document.getElementById("checkinOtherChip").addEventListener("click", () => {
+    chipRow1.querySelectorAll(".chip").forEach(c => c.classList.add("used"));
+    checkinFreeText.classList.add("show");
+    document.getElementById("checkinFreeInput").focus();
+  });
+
+  document.getElementById("checkinFreeSend").addEventListener("click", () => {
+    const input = document.getElementById("checkinFreeInput");
+    const text = input.value.trim();
+    if (!text) return;
+    addBubble("user", text);
+    checkinFreeText.classList.remove("show");
+    setTimeout(() => {
+      addBubble("agent", "Sounds like a genuinely mixed day, not just one long stretch. Roughly how many separate times did you sit down to actually work?");
+      const chips = document.createElement("div");
+      chips.className = "chip-row";
+      ["1", "2", "3", "4+"].forEach(n => {
+        const c = document.createElement("button");
+        c.className = "chip";
+        c.textContent = n;
+        c.addEventListener("click", () => {
+          chips.querySelectorAll(".chip").forEach(x => x.classList.add("used"));
+          addBubble("user", n + (n === "1" ? " time" : " times"));
+          setTimeout(() => {
+            addBubble("agent", "Got it. Logging today as separate estimated blocks instead of one long session — here's the closest split:");
+            const segList = document.createElement("div");
+            segList.className = "segment-list";
+            const segs = [
+              ["6:00 AM – 8:15 AM", "Sketch tray icon options"],
+              ["11:00 AM – 1:30 PM", "Sketch tray icon options"],
+              ["4:00 PM – 6:15 PM", "Sketch tray icon options"]
+            ].slice(0, Math.min(4, n === "4+" ? 4 : parseInt(n)));
+            segs.forEach(([time, task]) => {
+              const row = document.createElement("div");
+              row.className = "segment-row";
+              row.innerHTML = "<span>" + time + " — " + task + "</span><span class=\"est\">estimated</span>";
+              segList.appendChild(row);
+            });
+            chatScroll.appendChild(segList);
+            addBubble("agent", "Anything you want noted about the rest of the day, or is that close enough?");
+            const resolved = document.createElement("div");
+            resolved.className = "resolved-chip show";
+            resolved.innerHTML = "✓ Logged as " + segs.length + " separate blocks · estimated";
+            chatScroll.appendChild(resolved);
+            chatScroll.scrollTop = chatScroll.scrollHeight;
+          }, 500);
+        });
+        chips.appendChild(c);
+      });
+      chatScroll.appendChild(chips);
+      chatScroll.scrollTop = chatScroll.scrollHeight;
+    }, 500);
+  });
+
+  // --- Tray bubble ---
+  const trayBubble = document.getElementById("trayBubble");
+  document.getElementById("trayIconBtn").addEventListener("click", () => trayBubble.classList.toggle("show"));
+  document.getElementById("trayDismiss").addEventListener("click", (e) => {
+    e.stopPropagation();
+    trayBubble.classList.remove("show");
+  });
+
+  // --- Pin + dark mode switches ---
+  function wireSwitch(id, onChange) {
+    const el = document.getElementById(id);
+    el.addEventListener("click", () => {
+      const on = !el.classList.contains("on");
+      el.classList.toggle("on", on);
+      onChange(on);
+    });
+  }
+  wireSwitch("pinSwitch", (on) => {
+    document.getElementById("pinTxt").textContent = on ? "Pinned — stays above other windows" : "Not pinned — normal window";
+    document.getElementById("pinIconTop").classList.toggle("active", on);
+  });
+  wireSwitch("darkSwitch", (on) => {
+    device.setAttribute("data-theme", on ? "dark" : "light");
+  });
+
+  document.getElementById("gearIconTop").addEventListener("click", () => setScene("settings"));
+
+  // --- Recap toggle ---
+  const recapCopy = {
+    today: "Got the data layer rebuilt and its tests passing again, cleaned up a real bug in the task dashboard, and sketched out today's design review. Renew xai auth is still sitting there, and the tray icon sketch hasn't moved.",
+    week: "Four phases back on solid ground this week: scaffold, data layer, dashboard, and the design pass you're looking at right now. Renew xai auth and the tray icon sketch have both been open since Wednesday."
+  };
+  document.getElementById("recapToggle").querySelectorAll("button").forEach(btn => {
+    btn.addEventListener("click", function () {
+      document.getElementById("recapToggle").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", "false"));
+      this.setAttribute("aria-pressed", "true");
+      document.getElementById("recapCard").textContent = recapCopy[this.dataset.span];
+    });
+  });
+</script>
