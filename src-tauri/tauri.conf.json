@@ -13,8 +13,8 @@
     "windows": [
       {
         "title": "Mycelia Time",
-        "width": 380,
-        "height": 520,
+        "width": 480,
+        "height": 620,
         "resizable": false,
         "decorations": false,
         "transparent": true,
