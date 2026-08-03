@@ -81,6 +81,14 @@ export function createTasksRepository(executor: SqlExecutor) {
       return rows.map(mapRow);
     },
 
+    /** The Library's archived-tasks view — archiving is a soft delete, not a real one. */
+    async listArchived(): Promise<Task[]> {
+      const rows = await executor.select<TaskRow>(
+        "SELECT * FROM tasks WHERE archived_at IS NOT NULL ORDER BY archived_at DESC, rowid DESC",
+      );
+      return rows.map(mapRow);
+    },
+
     async complete(id: string): Promise<void> {
       await executor.execute("UPDATE tasks SET completed_at = ? WHERE id = ?", [
         nowIso(),
@@ -91,6 +99,12 @@ export function createTasksRepository(executor: SqlExecutor) {
     async archive(id: string): Promise<void> {
       await executor.execute("UPDATE tasks SET archived_at = ? WHERE id = ?", [
         nowIso(),
+        id,
+      ]);
+    },
+
+    async unarchive(id: string): Promise<void> {
+      await executor.execute("UPDATE tasks SET archived_at = NULL WHERE id = ?", [
         id,
       ]);
     },

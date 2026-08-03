@@ -10,11 +10,14 @@ export interface NewTaskInput {
 
 export interface TasksState {
   tasks: Task[];
+  archivedTasks: Task[];
   loading: boolean;
   focusedTaskId: string | null;
   loadTasks: () => Promise<void>;
+  loadArchivedTasks: () => Promise<void>;
   addTask: (input: NewTaskInput) => Promise<void>;
   archiveTask: (id: string) => Promise<void>;
+  unarchiveTask: (id: string) => Promise<void>;
   focusTask: (id: string | null) => void;
 }
 
@@ -26,6 +29,7 @@ export interface TasksState {
 export function createTasksStore(repos: Repositories) {
   return create<TasksState>((set, get) => ({
     tasks: [],
+    archivedTasks: [],
     loading: false,
     focusedTaskId: null,
 
@@ -33,6 +37,11 @@ export function createTasksStore(repos: Repositories) {
       set({ loading: true });
       const tasks = await repos.tasks.list();
       set({ tasks, loading: false });
+    },
+
+    async loadArchivedTasks() {
+      const archivedTasks = await repos.tasks.listArchived();
+      set({ archivedTasks });
     },
 
     async addTask(input) {
@@ -49,6 +58,12 @@ export function createTasksStore(repos: Repositories) {
       await repos.tasks.archive(id);
       await get().loadTasks();
       if (get().focusedTaskId === id) set({ focusedTaskId: null });
+    },
+
+    async unarchiveTask(id) {
+      await repos.tasks.unarchive(id);
+      await get().loadArchivedTasks();
+      await get().loadTasks();
     },
 
     focusTask(id) {

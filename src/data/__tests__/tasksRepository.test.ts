@@ -57,4 +57,31 @@ describe("tasksRepository", () => {
     const all = await tasks.list({ includeArchived: true });
     expect(all.find((t) => t.id === task.id)).toBeDefined();
   });
+
+  it("listArchived returns only archived tasks, newest archived first", async () => {
+    const active = await tasks.create({ title: "Still active" });
+    const archivedOne = await tasks.create({ title: "Archived first" });
+    await tasks.archive(archivedOne.id);
+    const archivedTwo = await tasks.create({ title: "Archived second" });
+    await tasks.archive(archivedTwo.id);
+
+    const archived = await tasks.listArchived();
+    expect(archived.map((t) => t.id)).not.toContain(active.id);
+    expect(archived.map((t) => t.title)).toEqual([
+      "Archived second",
+      "Archived first",
+    ]);
+  });
+
+  it("archiving is reversible via unarchive — a soft delete, not a real one", async () => {
+    const task = await tasks.create({ title: "Old task" });
+    await tasks.archive(task.id);
+    await tasks.unarchive(task.id);
+
+    const found = await tasks.getById(task.id);
+    expect(found?.archived_at).toBeNull();
+
+    const active = await tasks.list();
+    expect(active.find((t) => t.id === task.id)).toBeDefined();
+  });
 });

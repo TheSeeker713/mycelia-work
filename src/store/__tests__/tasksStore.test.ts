@@ -71,4 +71,28 @@ describe("tasksStore", () => {
 
     expect(useTasksStore.getState().focusedTaskId).toBe(a.id);
   });
+
+  it("loadArchivedTasks populates archivedTasks without touching the active list", async () => {
+    await useTasksStore.getState().addTask({ title: "Old task" });
+    const task = useTasksStore.getState().tasks[0];
+    await useTasksStore.getState().archiveTask(task.id);
+
+    await useTasksStore.getState().loadArchivedTasks();
+
+    expect(useTasksStore.getState().archivedTasks.map((t) => t.title)).toEqual([
+      "Old task",
+    ]);
+  });
+
+  it("unarchiveTask restores a task to the active list", async () => {
+    await useTasksStore.getState().addTask({ title: "Old task" });
+    const task = useTasksStore.getState().tasks[0];
+    await useTasksStore.getState().archiveTask(task.id);
+    await useTasksStore.getState().loadArchivedTasks();
+
+    await useTasksStore.getState().unarchiveTask(task.id);
+
+    expect(useTasksStore.getState().archivedTasks).toEqual([]);
+    expect(useTasksStore.getState().tasks.map((t) => t.title)).toEqual(["Old task"]);
+  });
 });

@@ -91,4 +91,47 @@ describe("Dashboard", () => {
     expect(screen.getAllByText("client-work").length).toBe(2);
     expect(screen.getByText("billable")).toBeInTheDocument();
   });
+
+  it("Tasks is the default open compartment, and pull-tabs switch between the others", async () => {
+    const user = userEvent.setup();
+    renderDashboard();
+
+    // Tasks content visible by default
+    expect(await screen.findByPlaceholderText("What are you working on?")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Todos" }));
+    expect(screen.getByPlaceholderText("Add a todo")).toBeInTheDocument();
+    expect(screen.queryByPlaceholderText("What are you working on?")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Projects" }));
+    expect(screen.getByText("+ New project")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Notes" }));
+    expect(screen.getByText(/Clock into a task to start writing/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Library" }));
+    expect(screen.getByText("Nothing archived yet.")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Tasks" }));
+    expect(screen.getByPlaceholderText("What are you working on?")).toBeInTheDocument();
+  });
+
+  it("archiving a task in Tasks makes it appear, restorable, in Library", async () => {
+    const user = userEvent.setup();
+    renderDashboard();
+
+    const input = await screen.findByPlaceholderText("What are you working on?");
+    await user.type(input, "Old task{Enter}");
+    await user.click(await screen.findByText("Old task"));
+    await user.click(screen.getByRole("button", { name: "Archive" }));
+
+    await user.click(screen.getByRole("button", { name: "Library" }));
+    expect(await screen.findByText("Old task")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Restore" }));
+    expect(screen.queryByText("Old task")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Tasks" }));
+    expect(await screen.findByText("Old task")).toBeInTheDocument();
+  });
 });
