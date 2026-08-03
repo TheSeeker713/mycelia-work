@@ -19,4 +19,13 @@ describe("DeviceBar", () => {
     // flipping state — this just confirms it doesn't crash the component.
     expect(pinBtn).toBeInTheDocument();
   });
+
+  it("the emergency exit button doesn't throw when clicked without a Tauri bridge", async () => {
+    const user = userEvent.setup();
+    render(<DeviceBar />);
+
+    const exitBtn = screen.getByTitle("Emergency exit — fully closes the app");
+    await user.click(exitBtn);
+    expect(exitBtn).toBeInTheDocument();
+  });
 });

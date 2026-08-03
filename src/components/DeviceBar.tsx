@@ -29,6 +29,14 @@ export function DeviceBar() {
     }
   }
 
+  async function emergencyExit() {
+    try {
+      await getCurrentWindow().close();
+    } catch {
+      // no Tauri bridge available; nothing to close
+    }
+  }
+
   return (
     <div
       data-tauri-drag-region
@@ -57,6 +65,15 @@ export function DeviceBar() {
           }}
         >
           📌
+        </button>
+        <button
+          type="button"
+          title="Emergency exit — fully closes the app"
+          onClick={emergencyExit}
+          className="ml-1.5 flex h-[26px] w-[26px] items-center justify-center rounded-[7px] text-[0.85rem]"
+          style={{ color: "var(--rust)" }}
+        >
+          ⏻
         </button>
       </div>
     </div>
