@@ -1,45 +1,61 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { DeviceBar } from "../DeviceBar";
 
+function renderDeviceBar(overrides: Partial<React.ComponentProps<typeof DeviceBar>> = {}) {
+  const props = {
+    pinned: false,
+    onTogglePin: vi.fn(),
+    onMinimize: vi.fn(),
+    onExpandFullscreen: vi.fn(),
+    onExit: vi.fn(),
+    ...overrides,
+  };
+  render(<DeviceBar {...props} />);
+  return props;
+}
+
 describe("DeviceBar", () => {
-  it("renders outside a Tauri webview without crashing", async () => {
-    render(<DeviceBar />);
+  it("renders without crashing", async () => {
+    renderDeviceBar();
     expect(await screen.findByText("Mycelia Time")).toBeInTheDocument();
   });
 
-  it("the pin button doesn't throw when clicked without a Tauri bridge", async () => {
+  it("the pin button calls onTogglePin", async () => {
     const user = userEvent.setup();
-    render(<DeviceBar />);
+    const props = renderDeviceBar();
 
-    const pinBtn = screen.getByTitle("Always on top");
-    await user.click(pinBtn);
-    // No Tauri bridge in jsdom, so the toggle silently no-ops rather than
-    // flipping state — this just confirms it doesn't crash the component.
-    expect(pinBtn).toBeInTheDocument();
+    await user.click(screen.getByTitle("Always on top"));
+    expect(props.onTogglePin).toHaveBeenCalledTimes(1);
   });
 
-  it("the minimize-to-tray button doesn't throw when clicked without a Tauri bridge", async () => {
+  it("the expand-to-full-screen button calls onExpandFullscreen", async () => {
     const user = userEvent.setup();
-    render(<DeviceBar />);
+    const props = renderDeviceBar();
 
-    const minimizeBtn = screen.getByTitle("Minimize to tray");
-    await user.click(minimizeBtn);
-    expect(minimizeBtn).toBeInTheDocument();
+    await user.click(screen.getByTitle("Expand to full screen"));
+    expect(props.onExpandFullscreen).toHaveBeenCalledTimes(1);
   });
 
-  it("the emergency exit button doesn't throw when clicked without a Tauri bridge", async () => {
+  it("the minimize-to-tray button calls onMinimize", async () => {
     const user = userEvent.setup();
-    render(<DeviceBar />);
+    const props = renderDeviceBar();
 
-    const exitBtn = screen.getByTitle("Emergency exit — fully closes the app");
-    await user.click(exitBtn);
-    expect(exitBtn).toBeInTheDocument();
+    await user.click(screen.getByTitle("Minimize to tray"));
+    expect(props.onMinimize).toHaveBeenCalledTimes(1);
+  });
+
+  it("the emergency exit button calls onExit", async () => {
+    const user = userEvent.setup();
+    const props = renderDeviceBar();
+
+    await user.click(screen.getByTitle("Emergency exit — fully closes the app"));
+    expect(props.onExit).toHaveBeenCalledTimes(1);
   });
 
   it("a mousedown-drag-mouseup sequence on the bar doesn't throw without a Tauri bridge", async () => {
-    render(<DeviceBar />);
+    renderDeviceBar();
     const bar = screen.getByTestId("device-bar");
 
     fireEvent.mouseDown(bar, { button: 0, screenX: 100, screenY: 100 });
@@ -50,14 +66,12 @@ describe("DeviceBar", () => {
   });
 
   it("mousedown on the pin button doesn't start a window drag", async () => {
-    render(<DeviceBar />);
+    const props = renderDeviceBar();
     const pinBtn = screen.getByTitle("Always on top");
 
     // stopPropagation on the button means this mousedown never reaches
-    // the bar's drag handler — nothing to assert on the drag itself
-    // (there's no Tauri bridge to move a window through anyway), just
-    // that it doesn't throw.
+    // the bar's drag handler.
     fireEvent.mouseDown(pinBtn, { button: 0 });
-    expect(pinBtn).toBeInTheDocument();
+    expect(props.onTogglePin).not.toHaveBeenCalled();
   });
 });

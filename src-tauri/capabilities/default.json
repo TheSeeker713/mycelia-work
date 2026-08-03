@@ -9,6 +9,7 @@
     "core:window:allow-set-always-on-top",
     "core:window:allow-destroy",
     "core:window:allow-hide",
+    "core:window:allow-set-size",
     "opener:default",
     "sql:default",
     "sql:allow-load",

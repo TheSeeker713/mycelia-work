@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
 import { initDatabase, type Repositories } from "../../data";
@@ -133,5 +133,49 @@ describe("Dashboard", () => {
 
     await user.click(screen.getByRole("button", { name: "Tasks" }));
     expect(await screen.findByText("Old task")).toBeInTheDocument();
+  });
+
+  it("expanding to full screen shows the menu bar, and the back button returns to pocket view", async () => {
+    const user = userEvent.setup();
+    renderDashboard();
+
+    await user.click(screen.getByTitle("Expand to full screen"));
+
+    expect(screen.getByRole("button", { name: "File" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Edit" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Settings" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Help" })).toBeInTheDocument();
+    // pocket-mode chrome is gone while full screen
+    expect(screen.queryByTitle("Expand to full screen")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /Back to pocket view/ }));
+    expect(screen.getByTitle("Expand to full screen")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "File" })).not.toBeInTheDocument();
+  });
+
+  it("Escape exits full screen back to the pocket view", async () => {
+    const user = userEvent.setup();
+    renderDashboard();
+
+    await user.click(screen.getByTitle("Expand to full screen"));
+    expect(screen.getByRole("button", { name: "File" })).toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: "Escape" });
+
+    expect(await screen.findByTitle("Expand to full screen")).toBeInTheDocument();
+  });
+
+  it("File > New task in full-screen mode switches to the Tasks compartment", async () => {
+    const user = userEvent.setup();
+    renderDashboard();
+
+    await user.click(screen.getByTitle("Expand to full screen"));
+    await user.click(screen.getByRole("button", { name: "Library" }));
+    expect(screen.getByText("Nothing archived yet.")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "File" }));
+    await user.click(screen.getByText("New task"));
+
+    expect(screen.getByPlaceholderText("What are you working on?")).toBeInTheDocument();
   });
 });
