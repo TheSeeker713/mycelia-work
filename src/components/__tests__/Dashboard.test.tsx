@@ -178,4 +178,30 @@ describe("Dashboard", () => {
 
     expect(screen.getByPlaceholderText("What are you working on?")).toBeInTheDocument();
   });
+
+  it("shows the onboarding coach mark by default, dismissible", async () => {
+    const user = userEvent.setup();
+    renderDashboard();
+
+    expect(await screen.findByText("1 / 2")).toBeInTheDocument();
+
+    await user.click(screen.getByTitle("Skip all"));
+    expect(screen.queryByText("1 / 2")).not.toBeInTheDocument();
+  });
+
+  it("Help > Replay onboarding tips brings it back and exits full screen first", async () => {
+    const user = userEvent.setup();
+    renderDashboard();
+
+    await user.click(screen.getByTitle("Skip all"));
+    expect(screen.queryByText("1 / 2")).not.toBeInTheDocument();
+
+    await user.click(screen.getByTitle("Expand to full screen"));
+    await user.click(screen.getByRole("button", { name: "Help" }));
+    await user.click(screen.getByText("Replay onboarding tips"));
+
+    // back in pocket mode, with the coach mark showing again from step 1
+    expect(screen.getByTitle("Expand to full screen")).toBeInTheDocument();
+    expect(await screen.findByText("1 / 2")).toBeInTheDocument();
+  });
 });

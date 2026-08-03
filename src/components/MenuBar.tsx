@@ -9,12 +9,14 @@ export function MenuBar({
   onExit,
   onBackToPocket,
   onSelectCompartment,
+  onReplayOnboarding,
 }: {
   pinned: boolean;
   onTogglePin: () => void;
   onExit: () => void;
   onBackToPocket: () => void;
   onSelectCompartment: (name: CompartmentName) => void;
+  onReplayOnboarding: () => void;
 }) {
   const [openMenu, setOpenMenu] = useState<MenuName | null>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -83,6 +85,9 @@ export function MenuBar({
         open={openMenu === "help"}
         onToggle={toggle}
       >
+        <MenuAction onClick={item(onReplayOnboarding)}>
+          Replay onboarding tips
+        </MenuAction>
         <MenuAction
           onClick={item(() =>
             showToast("Mycelia Time — built with Jeremy Robards and Claude Code."),

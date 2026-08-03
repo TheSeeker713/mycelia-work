@@ -13,6 +13,7 @@ import { TodosCompartment } from "./compartments/TodosCompartment";
 import { ProjectsCompartment } from "./compartments/ProjectsCompartment";
 import { NotesCompartment } from "./compartments/NotesCompartment";
 import { LibraryCompartment } from "./compartments/LibraryCompartment";
+import { OnboardingCoachMark } from "./OnboardingCoachMark";
 
 function TasksCompartment() {
   const tasks = useTasksStore((s) => s.tasks);
@@ -52,7 +53,13 @@ function CompartmentContent({ active }: { active: CompartmentName }) {
 /** The pull-tab compartment shell — must run inside a StoreProvider. */
 export function Dashboard() {
   const [active, setActive] = useState<CompartmentName>("tasks");
+  const [showOnboarding, setShowOnboarding] = useState(true);
   const controls = useWindowControls();
+
+  function replayOnboarding() {
+    if (controls.fullscreen) controls.exitFullscreen();
+    setShowOnboarding(true);
+  }
 
   useEffect(() => {
     if (!controls.fullscreen) return;
@@ -73,6 +80,7 @@ export function Dashboard() {
           onExit={controls.emergencyExit}
           onBackToPocket={controls.exitFullscreen}
           onSelectCompartment={setActive}
+          onReplayOnboarding={replayOnboarding}
         />
         <div className="relative flex flex-1 overflow-hidden">
           <div className="flex-1 overflow-hidden p-6 pr-12">
@@ -98,6 +106,9 @@ export function Dashboard() {
           <CompartmentContent active={active} />
         </div>
         <CompartmentTabs active={active} onSelect={setActive} />
+        {showOnboarding && (
+          <OnboardingCoachMark onDismiss={() => setShowOnboarding(false)} />
+        )}
       </div>
     </PocketShell>
   );
