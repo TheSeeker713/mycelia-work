@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useTasksStore } from "../store/StoreProvider";
 import { PocketShell } from "./PocketShell";
+import { DeviceBar } from "./DeviceBar";
 import { TaskCapture } from "./TaskCapture";
 import { TaskList } from "./TaskList";
 import { TaskWorkspace } from "./TaskWorkspace";
@@ -22,9 +23,12 @@ export function Dashboard() {
 
   return (
     <PocketShell>
-      <TaskCapture onAdd={addTask} />
-      <TaskList tasks={tasks} focusedTaskId={focusedTaskId} onFocus={focusTask} />
-      <TaskWorkspace task={focusedTask} onArchive={archiveTask} />
+      <DeviceBar />
+      <div className="flex flex-1 flex-col overflow-hidden p-5">
+        <TaskCapture onAdd={addTask} />
+        <TaskList tasks={tasks} focusedTaskId={focusedTaskId} onFocus={focusTask} />
+        <TaskWorkspace task={focusedTask} onArchive={archiveTask} />
+      </div>
     </PocketShell>
   );
 }

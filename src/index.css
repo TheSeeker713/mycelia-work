@@ -64,6 +64,13 @@
 body {
   margin: 0;
   font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
-  background: var(--paper-deep);
+  /*
+   * The window itself is configured transparent (tauri.conf.json) so
+   * only the rounded pocket-book card renders on the desktop — no
+   * rectangle, no blur, nothing painted outside the card's own shape.
+   * If this ever paints a solid color again, the whole point of the
+   * transparent window is gone.
+   */
+  background: transparent;
   color: var(--ink);
 }
