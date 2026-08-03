@@ -30,9 +30,20 @@ export function DeviceBar() {
     }
   }
 
+  async function minimizeToTray() {
+    try {
+      await getCurrentWindow().hide();
+    } catch {
+      // no Tauri bridge available; nothing to hide
+    }
+  }
+
   async function emergencyExit() {
     try {
-      await getCurrentWindow().close();
+      // destroy() skips the close-requested event entirely (which the
+      // Rust side intercepts to hide-to-tray instead of quitting) — this
+      // is the one path that actually ends the process.
+      await getCurrentWindow().destroy();
     } catch {
       // no Tauri bridge available; nothing to close
     }
@@ -96,6 +107,15 @@ export function DeviceBar() {
           }}
         >
           📌
+        </button>
+        <button
+          type="button"
+          title="Minimize to tray"
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={minimizeToTray}
+          className="ml-1 flex h-[26px] w-[26px] items-center justify-center rounded-[7px] text-[0.85rem] text-[var(--ink-soft)]"
+        >
+          ▁
         </button>
         <button
           type="button"

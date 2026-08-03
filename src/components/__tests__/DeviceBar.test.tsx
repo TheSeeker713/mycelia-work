@@ -20,6 +20,15 @@ describe("DeviceBar", () => {
     expect(pinBtn).toBeInTheDocument();
   });
 
+  it("the minimize-to-tray button doesn't throw when clicked without a Tauri bridge", async () => {
+    const user = userEvent.setup();
+    render(<DeviceBar />);
+
+    const minimizeBtn = screen.getByTitle("Minimize to tray");
+    await user.click(minimizeBtn);
+    expect(minimizeBtn).toBeInTheDocument();
+  });
+
   it("the emergency exit button doesn't throw when clicked without a Tauri bridge", async () => {
     const user = userEvent.setup();
     render(<DeviceBar />);
