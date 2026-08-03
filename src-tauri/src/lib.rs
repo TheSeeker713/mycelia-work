@@ -3,6 +3,7 @@ use tauri::{
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     Manager, WindowEvent,
 };
+use tauri_plugin_global_shortcut::ShortcutState;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
@@ -19,9 +20,24 @@ fn show_main_window(app: &tauri::AppHandle) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Ctrl+Shift+Q is the emergency exit's system-wide shortcut — it has
+    // to work even when the window is hidden to the tray, not just
+    // while it's focused, which is why this is a real OS-level global
+    // shortcut rather than an in-window keydown listener.
+    let global_shortcut_plugin = tauri_plugin_global_shortcut::Builder::new()
+        .with_handler(|app, _shortcut, event| {
+            if event.state() == ShortcutState::Pressed {
+                app.exit(0);
+            }
+        })
+        .with_shortcut("ctrl+shift+q")
+        .expect("ctrl+shift+q is a valid shortcut string")
+        .build();
+
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_sql::Builder::default().build())
+        .plugin(global_shortcut_plugin)
         .setup(|app| {
             let show_item = MenuItem::with_id(app, "show", "Show Mycelia Time", true, None::<&str>)?;
             let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
