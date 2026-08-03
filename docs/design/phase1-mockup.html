@@ -177,7 +177,7 @@
      writes `color: var(--ink)` itself just inherits body's already-
      resolved value, not a live re-evaluation scoped to #device's own
      theme. Every themed subtree needs its own explicit color anchor. */
-  .device, .zen-overlay, .library-overlay { color: var(--ink); }
+  .device, .zen-overlay, .library-overlay, .board-overlay { color: var(--ink); }
   .scene {
     position: absolute; inset: 0; display: none; flex-direction: column;
     padding: 24px 22px; overflow-y: auto; overflow-x: hidden;
@@ -240,10 +240,10 @@
   }
 
   /* --- Pull tabs + compartments --- */
-  .tab-stack { position: absolute; right: -1px; top: 84px; display: flex; flex-direction: column; gap: 8px; z-index: 5; }
+  .tab-stack { position: absolute; right: -1px; top: 58px; display: flex; flex-direction: column; gap: 5px; z-index: 5; }
   .pulltab {
-    background: var(--moss); color: #fff; font-size: 0.68rem; letter-spacing: 0.06em; text-transform: uppercase;
-    padding: 9px 5px; border-radius: 8px 0 0 8px; writing-mode: vertical-rl; cursor: pointer; border: none;
+    background: var(--moss); color: #fff; font-size: 0.6rem; letter-spacing: 0.04em; text-transform: uppercase;
+    padding: 6px 4px; border-radius: 7px 0 0 7px; writing-mode: vertical-rl; cursor: pointer; border: none;
   }
   .pulltab:hover { filter: brightness(1.08); }
 
@@ -446,6 +446,112 @@
   .recap-open .label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--ink-faint); margin-bottom: 8px; display: block; }
   .recap-row { display: flex; align-items: center; gap: 8px; font-size: 0.84rem; padding: 7px 0; border-bottom: 1px solid var(--line-soft); }
   .recap-row .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--amber); flex-shrink: 0; }
+
+  /* --- Projects: compact preview --- */
+  .proj-preview-row { border-bottom: 1px solid var(--line-soft); padding: 10px 0; }
+  .proj-preview-row .title { font-size: 0.85rem; font-weight: 600; }
+  .proj-preview-row .badges { display: flex; gap: 6px; margin-top: 5px; flex-wrap: wrap; }
+
+  .badge { font-size: 0.66rem; padding: 2px 8px; border-radius: 100px; letter-spacing: 0.02em; }
+  .badge-month { background: var(--line-soft); color: var(--ink-soft); }
+  .badge-priority-high { background: var(--rust-pale); color: var(--rust); }
+  .badge-priority-medium { background: var(--amber-pale); color: var(--amber); }
+  .badge-priority-low { background: var(--line-soft); color: var(--ink-faint); }
+  .badge-status-planned { background: var(--line-soft); color: var(--ink-soft); }
+  .badge-status-in_progress { background: var(--moss-pale); color: var(--moss-deep); }
+  .badge-status-done { background: var(--moss-pale); color: var(--moss-deep); }
+  .badge-progress { background: var(--paper-deep); color: var(--ink-soft); }
+
+  /* --- Projects: full board overlay --- */
+  .board-overlay {
+    position: fixed; inset: 0; background: var(--paper); z-index: 42; display: none;
+    flex-direction: column; padding: 32px min(6vw, 80px); color: var(--ink);
+  }
+  .board-overlay.on { display: flex; }
+  .board-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; gap: 12px; }
+  .board-top .left { display: flex; align-items: center; gap: 14px; }
+  .board-top .label { font-size: 0.78rem; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.08em; }
+  .view-toggle { display: flex; gap: 4px; background: var(--paper-deep); border-radius: 9px; padding: 3px; }
+  .view-toggle button {
+    all: unset; cursor: pointer; font-size: 0.78rem; padding: 6px 12px; border-radius: 7px; color: var(--ink-soft);
+  }
+  .view-toggle button[aria-pressed="true"] { background: var(--paper-card); color: var(--ink); font-weight: 600; box-shadow: 0 1px 3px var(--shadow); }
+  .board-right { display: flex; align-items: center; gap: 10px; }
+
+  .board-columns { flex: 1; display: flex; gap: 16px; overflow-x: auto; overflow-y: hidden; align-items: flex-start; }
+  .board-column { flex: 0 0 240px; display: flex; flex-direction: column; height: 100%; }
+  .board-column-head {
+    font-size: 0.78rem; font-weight: 600; padding: 8px 4px; border-bottom: 2px solid var(--line);
+    margin-bottom: 10px; display: flex; justify-content: space-between; color: var(--ink-soft);
+  }
+  .board-column-body { flex: 1; overflow-y: auto; padding-bottom: 12px; }
+  .board-column-body.drag-over { background: var(--moss-pale); border-radius: 10px; }
+
+  .project-card {
+    background: var(--paper-card); border: 1px solid var(--line); border-radius: 11px;
+    padding: 12px; margin-bottom: 10px; cursor: grab; box-shadow: 0 1px 3px var(--shadow);
+  }
+  .project-card:active { cursor: grabbing; }
+  .project-card.dragging { opacity: 0.4; }
+  .project-card .title { font-size: 0.86rem; font-weight: 600; margin-bottom: 6px; }
+  .project-card .badges { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 6px; }
+  .project-card .progress { font-size: 0.74rem; color: var(--ink-soft); }
+  .project-card .ai-btn {
+    all: unset; cursor: pointer; font-size: 0.7rem; color: var(--moss-deep); margin-top: 6px; display: inline-block;
+  }
+  .project-card .ai-btn:hover { text-decoration: underline; }
+
+  .new-project-btn {
+    all: unset; cursor: pointer; font-size: 0.8rem; padding: 8px 14px; border-radius: 9px;
+    background: var(--moss); color: #fff;
+  }
+
+  /* Card detail + new-project form (share the compact form look) */
+  .board-form {
+    display: none; flex-direction: column; gap: 8px; padding: 16px; border: 1px solid var(--line);
+    border-radius: 10px; margin-bottom: 16px; max-width: 420px;
+  }
+  .board-form.show { display: flex; }
+  .board-form input, .board-form textarea, .board-form select {
+    font: inherit; font-size: 0.85rem; padding: 9px 11px; border: 1px solid var(--line);
+    border-radius: 8px; background: var(--paper); color: var(--ink); outline: none;
+  }
+  .board-form textarea { resize: vertical; min-height: 60px; }
+  .board-form .row { display: flex; gap: 8px; }
+  .board-form .row > * { flex: 1; }
+
+  .card-detail { max-width: 480px; }
+  .card-detail .back { all: unset; cursor: pointer; font-size: 0.8rem; color: var(--ink-soft); margin-bottom: 14px; display: inline-block; }
+  .card-detail .back:hover { color: var(--ink); }
+  .card-detail .desc { font-size: 0.86rem; line-height: 1.55; margin-bottom: 16px; }
+  .card-detail .task-link-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--line-soft); font-size: 0.84rem; }
+  .card-detail .task-link-row .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ink-faint); }
+  .card-detail .add-link { margin-top: 10px; border: 1px dashed var(--line); border-radius: 9px; padding: 9px; font-size: 0.8rem; color: var(--ink-faint); text-align: center; cursor: pointer; }
+  .card-detail .add-link:hover { color: var(--ink); border-color: var(--moss); }
+
+  /* AI assist panel - reused pattern from notes AI-edit */
+  .ai-assist-panel {
+    display: none; flex-direction: column; gap: 8px; margin-top: 10px; padding: 12px;
+    border: 1px solid var(--moss); border-radius: 10px; background: var(--moss-pale);
+  }
+  .ai-assist-panel.show { display: flex; }
+  .ai-quick-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+  .ai-quick-actions button {
+    all: unset; cursor: pointer; font-size: 0.72rem; padding: 6px 10px; border-radius: 100px;
+    background: var(--paper-card); color: var(--moss-deep); border: 1px solid var(--moss);
+  }
+  .ai-quick-actions button:hover { background: var(--paper); }
+  .ai-assist-panel .freeform { display: flex; gap: 6px; }
+  .ai-assist-panel .freeform input {
+    flex: 1; font: inherit; font-size: 0.78rem; padding: 7px 10px; border: 1px solid var(--line);
+    border-radius: 8px; background: var(--paper-card); color: var(--ink); outline: none;
+  }
+  .ai-assist-panel .freeform button {
+    all: unset; cursor: pointer; font-size: 0.74rem; padding: 7px 11px; border-radius: 8px; background: var(--moss); color: #fff;
+  }
+  .ai-result { font-size: 0.78rem; line-height: 1.5; background: var(--paper-card); border-radius: 8px; padding: 10px; display: none; }
+  .ai-result.show { display: block; }
+  .ai-result ul { margin: 4px 0 0; padding-left: 18px; }
 </style>
 
 <div class="review">
@@ -505,6 +611,7 @@
               <button class="pulltab" data-compartment="tasks">Tasks</button>
               <button class="pulltab" data-compartment="notes">Notes</button>
               <button class="pulltab" data-compartment="todos">Todos</button>
+              <button class="pulltab" data-compartment="projects">Projects</button>
               <button class="pulltab" id="libraryPulltab">Library</button>
             </div>
 
@@ -557,6 +664,17 @@
                 <div class="todo-body"><div class="todo-text">Ask about the tray icon size on HiDPI</div></div>
               </div>
               <div class="add-todo">+ add a todo</div>
+            </div>
+
+            <!-- Projects compartment: compact READ-ONLY preview only -->
+            <div class="compartment" data-compartment="projects">
+              <div class="compartment-head">
+                <span class="label">Projects</span>
+                <button class="icon-btn close-compartment">✕</button>
+              </div>
+              <p style="font-size:0.76rem;color:var(--ink-faint);margin:0 0 12px;">A glance, read-only — expand for the real board.</p>
+              <div id="projectPreviewList"></div>
+              <button class="zen-launch" id="openBoardBtn">Expand to full board ↗</button>
             </div>
           </div>
 
@@ -685,6 +803,43 @@
             <button class="zen-launch" id="newBookSave" style="margin-top:8px;">Save book</button>
           </div>
           <div id="libraryList"></div>
+        </div>
+
+        <!-- Project board overlay - nested inside #device, same reason -->
+        <div class="board-overlay" id="boardOverlay">
+          <div class="board-top">
+            <div class="left">
+              <span class="label">Projects</span>
+              <div class="view-toggle" id="boardViewToggle">
+                <button data-view="board" aria-pressed="true">Board</button>
+                <button data-view="timeline" aria-pressed="false">Timeline</button>
+              </div>
+            </div>
+            <div class="board-right">
+              <button class="new-project-btn" id="newProjectBtn">+ New project</button>
+              <button class="zen-close" id="boardCloseBtn">✕ Close (Esc)</button>
+            </div>
+          </div>
+
+          <div class="board-form" id="newProjectForm">
+            <input id="newProjTitle" placeholder="Project title" />
+            <textarea id="newProjDesc" placeholder="Description (optional)"></textarea>
+            <div class="row">
+              <select id="newProjMonth">
+                <option value="2026-09">September</option>
+                <option value="2026-10">October</option>
+                <option value="2026-11">November</option>
+              </select>
+              <select id="newProjPriority">
+                <option value="high">High priority</option>
+                <option value="medium" selected>Medium priority</option>
+                <option value="low">Low priority</option>
+              </select>
+            </div>
+            <button class="zen-launch" id="newProjSave">Save project</button>
+          </div>
+
+          <div class="board-columns" id="boardColumns"></div>
         </div>
       </div>
     </div>
@@ -1104,6 +1259,8 @@
   document.getElementById("zenCloseBtn").addEventListener("click", closeZen);
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
+      const boardOv = document.getElementById("boardOverlay");
+      if (boardOv && boardOv.classList.contains("on")) { closeBoard(); return; }
       if (libraryOverlay.classList.contains("on")) { closeLibrary(); return; }
       if (zenOverlay.classList.contains("on")) closeZen();
     }
@@ -1278,5 +1435,295 @@
       this.setAttribute("aria-pressed", "true");
       document.getElementById("recapCard").textContent = recapCopy[this.dataset.span];
     });
+  });
+
+  // --- Projects / Kanban module ---
+  const MONTH_LABEL = { "2026-09": "September", "2026-10": "October", "2026-11": "November" };
+  const STATUS_LABEL = { planned: "Planned", in_progress: "In progress", done: "Done" };
+  const PRIORITY_ORDER = { high: 0, medium: 1, low: 2 };
+  let projects = [
+    {
+      id: "p1", title: "Redesign onboarding flow",
+      description: "Rework the first-run experience so a new user gets to their first tracked session in under a minute.",
+      status: "in_progress", month: "2026-09", priority: "high",
+      tasks: [{ id: "t1", title: "Sketch the welcome screen", done: true }, { id: "t2", title: "Wire up the sample task", done: false }]
+    },
+    {
+      id: "p2", title: "Client portal revamp",
+      description: "Same month as onboarding, but it can wait behind it.",
+      status: "planned", month: "2026-09", priority: "low",
+      tasks: [{ id: "t3", title: "Audit current portal pages", done: false }]
+    },
+    {
+      id: "p3", title: "Voice cue recording pass",
+      description: "Record the final ten voice cues once the design for that phase is locked.",
+      status: "planned", month: "2026-10", priority: "medium",
+      tasks: []
+    }
+  ];
+  let boardView = "board";
+  let boardDetailId = null;
+  let dragProjectId = null;
+
+  function progressLabel(p) {
+    if (!p.tasks.length) return "no tasks yet";
+    const done = p.tasks.filter(t => t.done).length;
+    return done + "/" + p.tasks.length + " tasks";
+  }
+
+  function renderProjectPreview() {
+    const list = document.getElementById("projectPreviewList");
+    list.innerHTML = "";
+    const sorted = [...projects].sort((a, b) => (a.month + PRIORITY_ORDER[a.priority]).localeCompare(b.month + PRIORITY_ORDER[b.priority]));
+    sorted.slice(0, 3).forEach(p => {
+      const row = document.createElement("div");
+      row.className = "proj-preview-row";
+      row.innerHTML =
+        '<div class="title">' + p.title + '</div>' +
+        '<div class="badges">' +
+          '<span class="badge badge-month">' + MONTH_LABEL[p.month] + '</span>' +
+          '<span class="badge badge-priority-' + p.priority + '">' + p.priority + '</span>' +
+          '<span class="badge badge-progress">' + progressLabel(p) + '</span>' +
+        '</div>';
+      list.appendChild(row);
+    });
+  }
+  renderProjectPreview();
+
+  function makeCard(p) {
+    const card = document.createElement("div");
+    card.className = "project-card";
+    card.draggable = true;
+    card.dataset.id = p.id;
+    const statusBadge = boardView === "timeline" ? '<span class="badge badge-status-' + p.status + '">' + STATUS_LABEL[p.status] + '</span>' : "";
+    card.innerHTML =
+      '<div class="title">' + p.title + '</div>' +
+      '<div class="badges">' +
+        '<span class="badge badge-month">' + MONTH_LABEL[p.month] + '</span>' +
+        '<span class="badge badge-priority-' + p.priority + '">' + p.priority + '</span>' +
+        statusBadge +
+      '</div>' +
+      '<div class="progress">' + progressLabel(p) + '</div>' +
+      '<button class="ai-btn" data-ai-for="' + p.id + '">✨ Ask AI</button>';
+    card.addEventListener("dragstart", () => { dragProjectId = p.id; card.classList.add("dragging"); });
+    card.addEventListener("dragend", () => card.classList.remove("dragging"));
+    card.addEventListener("click", (e) => {
+      if (e.target.closest(".ai-btn")) return;
+      openCardDetail(p.id);
+    });
+    card.querySelector(".ai-btn").addEventListener("click", (e) => {
+      e.stopPropagation();
+      openCardDetail(p.id, true);
+    });
+    return card;
+  }
+
+  function wireDropTarget(el, groupKey, groupValue) {
+    el.addEventListener("dragover", (e) => { e.preventDefault(); el.classList.add("drag-over"); });
+    el.addEventListener("dragleave", () => el.classList.remove("drag-over"));
+    el.addEventListener("drop", (e) => {
+      e.preventDefault();
+      el.classList.remove("drag-over");
+      const proj = projects.find(p => p.id === dragProjectId);
+      if (proj) proj[groupKey] = groupValue;
+      renderBoard();
+      renderProjectPreview();
+    });
+  }
+
+  function renderBoard() {
+    boardDetailId = null;
+    const cols = document.getElementById("boardColumns");
+    cols.innerHTML = "";
+    if (boardView === "board") {
+      ["planned", "in_progress", "done"].forEach(status => {
+        const col = document.createElement("div");
+        col.className = "board-column";
+        const items = projects.filter(p => p.status === status);
+        col.innerHTML = '<div class="board-column-head">' + STATUS_LABEL[status] + ' <span>' + items.length + '</span></div><div class="board-column-body"></div>';
+        const body = col.querySelector(".board-column-body");
+        items.forEach(p => body.appendChild(makeCard(p)));
+        wireDropTarget(body, "status", status);
+        cols.appendChild(col);
+      });
+    } else {
+      Object.keys(MONTH_LABEL).forEach(month => {
+        const col = document.createElement("div");
+        col.className = "board-column";
+        const items = projects.filter(p => p.month === month).sort((a, b) => PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority]);
+        col.innerHTML = '<div class="board-column-head">' + MONTH_LABEL[month] + ' <span>' + items.length + '</span></div><div class="board-column-body"></div>';
+        const body = col.querySelector(".board-column-body");
+        items.forEach(p => body.appendChild(makeCard(p)));
+        wireDropTarget(body, "month", month);
+        cols.appendChild(col);
+      });
+    }
+  }
+
+  function aiAssistPanelHTML(projectId) {
+    return (
+      '<div class="ai-assist-panel show" data-panel-for="' + projectId + '">' +
+        '<div class="ai-quick-actions">' +
+          '<button data-action="subtasks">Break into sub-tasks</button>' +
+          '<button data-action="schedule">Suggest scheduling</button>' +
+          '<button data-action="tighten">Tighten description</button>' +
+        '</div>' +
+        '<div class="freeform"><input placeholder="Ask anything about this project…" /><button class="ai-freeform-go">Ask</button></div>' +
+        '<div class="ai-result"></div>' +
+      '</div>'
+    );
+  }
+
+  function wireAiAssistPanel(panel, project) {
+    const result = panel.querySelector(".ai-result");
+    function think(cb) {
+      result.classList.remove("show");
+      result.innerHTML = "Thinking…";
+      result.classList.add("show");
+      setTimeout(cb, 800);
+    }
+    panel.querySelector('[data-action="subtasks"]').addEventListener("click", () => {
+      think(() => {
+        const suggestions = ["Draft the plan", "Get feedback from one real user", "Ship a first pass", "Revisit after a week of use"];
+        result.innerHTML = "Suggested breakdown:<ul>" + suggestions.map(s => "<li>" + s + "</li>").join("") + "</ul><button class=\"ai-btn\" id=\"applySubtasks\">+ Add these as tasks</button>";
+        result.querySelector("#applySubtasks").addEventListener("click", () => {
+          suggestions.forEach((s, i) => project.tasks.push({ id: "t" + Date.now() + i, title: s, done: false }));
+          openCardDetail(project.id);
+        });
+      });
+    });
+    panel.querySelector('[data-action="schedule"]').addEventListener("click", () => {
+      think(() => {
+        const busierMonth = projects.filter(p => p.month === project.month && p.id !== project.id).length >= 1;
+        const suggestedMonth = busierMonth ? "2026-10" : project.month;
+        result.innerHTML = "September's already got another project in it. " + MONTH_LABEL[suggestedMonth] + " at medium priority looks more realistic. <button class=\"ai-btn\" id=\"applySchedule\">Apply suggestion</button>";
+        result.querySelector("#applySchedule").addEventListener("click", () => {
+          project.month = suggestedMonth;
+          project.priority = "medium";
+          renderBoard();
+          renderProjectPreview();
+          openCardDetail(project.id);
+        });
+      });
+    });
+    panel.querySelector('[data-action="tighten"]').addEventListener("click", () => {
+      think(() => {
+        project.description = project.description.split(".")[0].trim() + " — tightened up, nothing else needed changing.";
+        result.innerHTML = "Description updated: “" + project.description + "”";
+        document.querySelector(".card-detail .desc").textContent = project.description;
+      });
+    });
+    panel.querySelector(".ai-freeform-go").addEventListener("click", () => {
+      const input = panel.querySelector(".freeform input");
+      const q = input.value.trim();
+      if (!q) return;
+      think(() => {
+        result.innerHTML = "On “" + q + "” — nothing's currently blocking this one, and progress looks steady given what's linked so far.";
+      });
+      input.value = "";
+    });
+  }
+
+  function openCardDetail(id, openAi) {
+    const project = projects.find(p => p.id === id);
+    boardDetailId = id;
+    const cols = document.getElementById("boardColumns");
+    cols.innerHTML =
+      '<div class="card-detail">' +
+        '<button class="back">← Back to board</button>' +
+        '<div class="title" style="font-size:1.1rem;font-weight:600;margin-bottom:8px;">' + project.title + '</div>' +
+        '<div class="badges" style="display:flex;gap:6px;margin-bottom:14px;">' +
+          '<span class="badge badge-month">' + MONTH_LABEL[project.month] + '</span>' +
+          '<span class="badge badge-priority-' + project.priority + '">' + project.priority + '</span>' +
+          '<span class="badge badge-status-' + project.status + '">' + STATUS_LABEL[project.status] + '</span>' +
+        '</div>' +
+        '<div class="desc">' + project.description + '</div>' +
+        '<div class="label" style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.07em;color:var(--ink-faint);margin-bottom:8px;">Linked tasks</div>' +
+        '<div id="cardTaskList"></div>' +
+        '<div class="add-link" id="addLinkedTask">+ link a task</div>' +
+        '<div class="board-form" id="linkTaskForm" style="max-width:none;">' +
+          '<input id="linkTaskInput" placeholder="Task title" />' +
+          '<button class="zen-launch" id="linkTaskSave">Add</button>' +
+        '</div>' +
+        (openAi ? "" : '<button class="ai-btn" id="openAiFromDetail" style="margin-top:14px;">✨ Ask AI about this project</button>') +
+        '<div id="aiPanelSlot"></div>' +
+      '</div>';
+    const taskList = cols.querySelector("#cardTaskList");
+    project.tasks.forEach(t => {
+      const row = document.createElement("div");
+      row.className = "task-link-row";
+      row.innerHTML = '<span class="dot" style="' + (t.done ? "background:var(--moss);" : "") + '"></span><span>' + t.title + (t.done ? " (done)" : "") + '</span>';
+      taskList.appendChild(row);
+    });
+    cols.querySelector(".back").addEventListener("click", renderBoard);
+    const linkForm = cols.querySelector("#linkTaskForm");
+    cols.querySelector("#addLinkedTask").addEventListener("click", () => {
+      linkForm.classList.toggle("show");
+      if (linkForm.classList.contains("show")) cols.querySelector("#linkTaskInput").focus();
+    });
+    cols.querySelector("#linkTaskSave").addEventListener("click", () => {
+      const title = cols.querySelector("#linkTaskInput").value.trim();
+      if (!title) return;
+      project.tasks.push({ id: "t" + Date.now(), title, done: false });
+      openCardDetail(id);
+    });
+    cols.querySelector("#linkTaskInput").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") cols.querySelector("#linkTaskSave").click();
+    });
+    function mountAiPanel() {
+      const slot = cols.querySelector("#aiPanelSlot");
+      slot.innerHTML = aiAssistPanelHTML(project.id);
+      wireAiAssistPanel(slot.querySelector(".ai-assist-panel"), project);
+    }
+    if (openAi) {
+      mountAiPanel();
+    } else {
+      cols.querySelector("#openAiFromDetail").addEventListener("click", mountAiPanel);
+    }
+  }
+
+  const boardOverlay = document.getElementById("boardOverlay");
+  function openBoard() {
+    boardView = "board";
+    document.getElementById("boardViewToggle").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", b.dataset.view === "board" ? "true" : "false"));
+    document.getElementById("newProjectForm").classList.remove("show");
+    renderBoard();
+    boardOverlay.classList.add("on");
+  }
+  function closeBoard() {
+    boardOverlay.classList.remove("on");
+    document.getElementById("newProjectForm").classList.remove("show");
+  }
+  document.getElementById("openBoardBtn").addEventListener("click", () => { closeAllCompartments(); openBoard(); });
+  document.getElementById("boardCloseBtn").addEventListener("click", closeBoard);
+
+  document.getElementById("boardViewToggle").querySelectorAll("button").forEach(btn => {
+    btn.addEventListener("click", function () {
+      boardView = this.dataset.view;
+      document.getElementById("boardViewToggle").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", "false"));
+      this.setAttribute("aria-pressed", "true");
+      renderBoard();
+    });
+  });
+
+  const newProjectForm = document.getElementById("newProjectForm");
+  document.getElementById("newProjectBtn").addEventListener("click", () => newProjectForm.classList.toggle("show"));
+  document.getElementById("newProjSave").addEventListener("click", () => {
+    const title = document.getElementById("newProjTitle").value.trim();
+    if (!title) return;
+    projects.unshift({
+      id: "p" + Date.now(),
+      title,
+      description: document.getElementById("newProjDesc").value.trim() || "No description yet.",
+      status: "planned",
+      month: document.getElementById("newProjMonth").value,
+      priority: document.getElementById("newProjPriority").value,
+      tasks: []
+    });
+    document.getElementById("newProjTitle").value = "";
+    document.getElementById("newProjDesc").value = "";
+    newProjectForm.classList.remove("show");
+    renderBoard();
+    renderProjectPreview();
   });
 </script>

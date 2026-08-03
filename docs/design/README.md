@@ -1,11 +1,13 @@
 # Phase 1 — Visual design mockup
 
 `phase1-mockup.html` is the approved design reference for the pocket-book
-shell, reviewed live with Jeremy across three revisions (also published as
+shell, reviewed live with Jeremy across four revisions (also published as
 a Claude Artifact during review — this file is the durable, version-controlled
 copy so the design doesn't only exist behind an external link).
 
-Open it directly in a browser to click through all ten states.
+Open it directly in a browser to click through all states, including the
+Projects/Kanban board (5th pull-tab, "Projects" — compact read-only preview
+in the pocket view, full board behind "Expand to full board").
 
 ## What it establishes
 
@@ -35,6 +37,20 @@ Open it directly in a browser to click through all ten states.
 - **Shell behavior**: always-on-top toggle and system tray minimization
   are core, not Phase-5 add-ons — the tray/pocket-book shell likely needs
   to be built before timer functionality is wired back in during Phase 4.
+- **Projects/Kanban (added rev 4)**: a fifth pull-tab, "Projects," alongside
+  Tasks/Notes/Todos/Library. The pocket view shows a compact, genuinely
+  read-only preview (top 3 projects by month then priority). "Expand to
+  full board" opens a full-screen view with two switchable views over the
+  same project data — **Board** (columns = planned/in progress/done,
+  drag-and-drop between columns) and **Timeline** (columns = month,
+  cards priority-sorted within each). Projects contain Tasks (a project
+  card shows linked-task progress, e.g. "1/2 tasks"). Clicking a card
+  opens a detail view with its description, linked tasks, an inline
+  "+ link a task" form, and a "✨ Ask AI" panel with four actions: break
+  into sub-tasks (with a real "add as tasks" apply), suggest
+  scheduling/priority, tighten the description, and a freeform ask-
+  anything box. A "+ New project" form creates projects with title,
+  description, target month, and priority.
 
 ## Known limitation carried into this file
 
