@@ -1,1 +1,69 @@
 @import "tailwindcss";
+
+/*
+ * Palette carried over exactly from the approved Phase 1 mockup
+ * (docs/design/phase1-mockup.html) — light is the default everywhere,
+ * dark is a real setting via [data-theme="dark"], not the OS default.
+ */
+:root {
+  --paper: #f5f3ec;
+  --paper-deep: #ece7d8;
+  --paper-card: #fbfaf5;
+  --ink: #262420;
+  --ink-soft: #6b675d;
+  --ink-faint: #9d988a;
+  --line: #ddd7c3;
+  --line-soft: #e8e3d2;
+  --moss: #3f6b4a;
+  --moss-deep: #2c4d35;
+  --moss-pale: #dce6da;
+  --amber: #ad7a26;
+  --amber-pale: #f1e3c6;
+  --rust: #a34b3c;
+  --rust-pale: #f0dcd6;
+}
+
+:root[data-theme="dark"] {
+  --paper: #1c1e1a;
+  --paper-deep: #14150f;
+  --paper-card: #23261f;
+  --ink: #eeeade;
+  --ink-soft: #b7b2a0;
+  --ink-faint: #85806c;
+  --line: #4c5240;
+  --line-soft: #383d2e;
+  --moss: #7ba889;
+  --moss-deep: #a8cbb2;
+  --moss-pale: #2c3d2e;
+  --amber: #d9ab5c;
+  --amber-pale: #3a301a;
+  --rust: #d38975;
+  --rust-pale: #3a241e;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #1c1e1a;
+    --paper-deep: #14150f;
+    --paper-card: #23261f;
+    --ink: #eeeade;
+    --ink-soft: #b7b2a0;
+    --ink-faint: #85806c;
+    --line: #4c5240;
+    --line-soft: #383d2e;
+    --moss: #7ba889;
+    --moss-deep: #a8cbb2;
+    --moss-pale: #2c3d2e;
+    --amber: #d9ab5c;
+    --amber-pale: #3a301a;
+    --rust: #d38975;
+    --rust-pale: #3a241e;
+  }
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+  background: var(--paper-deep);
+  color: var(--ink);
+}
