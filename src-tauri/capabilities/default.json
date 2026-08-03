@@ -10,6 +10,7 @@
     "core:window:allow-destroy",
     "core:window:allow-hide",
     "core:window:allow-set-size",
+    "core:window:allow-set-fullscreen",
     "opener:default",
     "sql:default",
     "sql:allow-load",

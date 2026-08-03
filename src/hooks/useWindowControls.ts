@@ -6,7 +6,6 @@ import { LogicalSize } from "@tauri-apps/api/dpi";
 // margin around the 340x480 card, enough for the shadow's blur to fully
 // fade before hitting the window edge (see PocketShell.tsx).
 const POCKET_SIZE = new LogicalSize(480, 620);
-const FULLSCREEN_SIZE = new LogicalSize(920, 640);
 
 /** Centralizes the window-level actions shared by DeviceBar (pocket mode) and MenuBar (full-screen mode). */
 export function useWindowControls() {
@@ -57,17 +56,24 @@ export function useWindowControls() {
   }
 
   async function enterFullscreen() {
+    // A real OS-level fullscreen, not just a bigger floating window —
+    // resizing to a larger size (the original approach) left a
+    // transparent, undersized window still floating over the desktop,
+    // with other windows visibly showing through around it.
+    // setFullscreen actually takes over the whole display.
     try {
-      await getCurrentWindow().setSize(FULLSCREEN_SIZE);
-      setFullscreen(true);
+      await getCurrentWindow().setFullscreen(true);
     } catch {
       // no Tauri bridge available; still flip the view so it's testable
-      setFullscreen(true);
     }
+    setFullscreen(true);
   }
 
   async function exitFullscreen() {
     try {
+      await getCurrentWindow().setFullscreen(false);
+      // Safety net: explicitly restore the pocket size rather than
+      // trusting the OS's "remembered" pre-fullscreen size to match.
       await getCurrentWindow().setSize(POCKET_SIZE);
     } catch {
       // no Tauri bridge available; nothing to resize

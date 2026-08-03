@@ -83,26 +83,34 @@ export function ProjectsCompartment() {
             className="rounded-lg border border-[var(--line)] bg-[var(--paper)] px-2.5 py-1.5 text-[0.82rem] text-[var(--ink)] outline-none placeholder:text-[var(--ink-faint)]"
           />
           <div className="flex gap-2">
-            <select
-              value={month}
-              onChange={(e) => setMonth(e.target.value)}
-              aria-label="Target month"
-              className="flex-1 rounded-lg border border-[var(--line)] bg-[var(--paper)] px-2 py-1.5 text-[0.78rem] text-[var(--ink)]"
-            >
-              <option value="2026-09">September</option>
-              <option value="2026-10">October</option>
-              <option value="2026-11">November</option>
-            </select>
-            <select
-              value={priority}
-              onChange={(e) => setPriority(e.target.value as ProjectPriority)}
-              aria-label="Priority"
-              className="flex-1 rounded-lg border border-[var(--line)] bg-[var(--paper)] px-2 py-1.5 text-[0.78rem] text-[var(--ink)]"
-            >
-              <option value="high">High priority</option>
-              <option value="medium">Medium priority</option>
-              <option value="low">Low priority</option>
-            </select>
+            <label className="flex flex-1 flex-col gap-1">
+              <span className="text-[0.68rem] tracking-wide text-[var(--ink-faint)] uppercase">
+                Target month
+              </span>
+              <select
+                value={month}
+                onChange={(e) => setMonth(e.target.value)}
+                className="rounded-lg border border-[var(--line)] bg-[var(--paper)] px-2 py-1.5 text-[0.78rem] text-[var(--ink)]"
+              >
+                <option value="2026-09">September</option>
+                <option value="2026-10">October</option>
+                <option value="2026-11">November</option>
+              </select>
+            </label>
+            <label className="flex flex-1 flex-col gap-1">
+              <span className="text-[0.68rem] tracking-wide text-[var(--ink-faint)] uppercase">
+                Priority
+              </span>
+              <select
+                value={priority}
+                onChange={(e) => setPriority(e.target.value as ProjectPriority)}
+                className="rounded-lg border border-[var(--line)] bg-[var(--paper)] px-2 py-1.5 text-[0.78rem] text-[var(--ink)]"
+              >
+                <option value="high">High priority</option>
+                <option value="medium">Medium priority</option>
+                <option value="low">Low priority</option>
+              </select>
+            </label>
           </div>
           <button
             type="submit"
