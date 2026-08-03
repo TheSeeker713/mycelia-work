@@ -12,6 +12,7 @@ import { createResourceEventsRepository } from "./repositories/resourceEventsRep
 export * from "./types";
 export * from "./sqlExecutor";
 export { applyMigrations, MIGRATIONS } from "./schema";
+export { createTauriSqlExecutor } from "./tauriSqlExecutor";
 
 export function createRepositories(executor: SqlExecutor) {
   return {
