@@ -154,7 +154,18 @@
   nav.rail button[aria-current="true"] .n { color: var(--moss-deep); }
   nav.rail button:focus-visible { outline: 2px solid var(--moss); outline-offset: 1px; }
 
-  .stage-wrap { display: flex; flex-direction: column; align-items: center; gap: 18px; padding-top: 12px; }
+  .stage-wrap {
+    display: flex; flex-direction: column; align-items: center; gap: 18px; padding-top: 12px;
+    padding-bottom: 12px;
+    /* Stands in for "your real desktop showing through" — in the actual
+       app the window itself paints nothing here at all, no blur, no
+       tint, just the rounded card. This patterned backdrop only exists
+       so a reviewer can tell the transparency is real and not a bug. */
+    background-image:
+      linear-gradient(135deg, #6b7a8f 0%, #37465c 45%, #232d3d 100%),
+      repeating-linear-gradient(45deg, rgba(255,255,255,0.035) 0 2px, transparent 2px 14px);
+    border-radius: 18px;
+  }
   .stage { position: relative; width: 340px; height: 480px; }
   .device {
     width: 340px; height: 480px; border-radius: 22px; background: var(--paper-card);
@@ -177,7 +188,58 @@
      writes `color: var(--ink)` itself just inherits body's already-
      resolved value, not a live re-evaluation scoped to #device's own
      theme. Every themed subtree needs its own explicit color anchor. */
-  .device, .zen-overlay, .library-overlay, .board-overlay { color: var(--ink); }
+  .device, .zen-overlay, .library-overlay, .board-overlay, .fullscreen-overlay { color: var(--ink); }
+  .icon-btn.danger { color: var(--rust); margin-left: 6px; }
+  .icon-btn.danger:hover { background: var(--rust-pale); color: var(--rust); }
+
+  .fullscreen-overlay {
+    position: fixed; inset: 0; background: var(--paper); z-index: 43; display: none;
+    flex-direction: column;
+  }
+  .fullscreen-overlay.on { display: flex; }
+  .menu-bar {
+    display: flex; align-items: center; gap: 2px; padding: 8px 14px;
+    border-bottom: 1px solid var(--line-soft); flex-shrink: 0;
+  }
+  .menu-item { position: relative; }
+  .menu-trigger {
+    all: unset; cursor: pointer; font-size: 0.82rem; padding: 6px 11px;
+    border-radius: 7px; color: var(--ink-soft);
+  }
+  .menu-trigger:hover, .menu-trigger.open { background: var(--paper-deep); color: var(--ink); }
+  .menu-dropdown {
+    position: absolute; top: 100%; left: 0; margin-top: 4px; background: var(--paper-card);
+    border: 1px solid var(--line); border-radius: 9px; box-shadow: 0 10px 24px -12px var(--shadow);
+    min-width: 190px; padding: 6px; display: none; flex-direction: column; gap: 1px; z-index: 5;
+  }
+  .menu-dropdown.open { display: flex; }
+  .menu-dropdown button {
+    all: unset; cursor: pointer; font-size: 0.82rem; padding: 8px 10px; border-radius: 6px;
+    color: var(--ink); display: flex; justify-content: space-between; gap: 10px;
+  }
+  .menu-dropdown button:hover { background: var(--moss-pale); color: var(--moss-deep); }
+  .menu-dropdown button.danger-item { color: var(--rust); }
+  .menu-dropdown button.danger-item:hover { background: var(--rust-pale); color: var(--rust); }
+  .menu-dropdown .shortcut { font-size: 0.7rem; color: var(--ink-faint); }
+  .fullscreen-body { flex: 1; padding: 24px 28px; overflow-y: auto; }
+
+  .onboard-card {
+    position: absolute; max-width: 190px; background: var(--paper-card); border: 1px solid var(--moss);
+    border-radius: 10px; padding: 10px 12px; font-size: 0.76rem; line-height: 1.4; color: var(--ink);
+    box-shadow: 0 10px 20px -10px var(--shadow); z-index: 6;
+  }
+  .onboard-card .dismiss {
+    all: unset; cursor: pointer; float: right; color: var(--ink-faint); font-size: 0.85rem;
+    line-height: 1; margin: -2px -2px 0 8px;
+  }
+  .onboard-card .dismiss:hover { color: var(--ink); }
+  .onboard-card.hidden { display: none; }
+  .shutdown-veil {
+    position: fixed; inset: 0; background: var(--ink); color: var(--paper); z-index: 50;
+    display: none; align-items: center; justify-content: center; font-size: 0.95rem;
+    opacity: 0; transition: opacity 0.25s ease;
+  }
+  .shutdown-veil.on { display: flex; opacity: 1; }
   .scene {
     position: absolute; inset: 0; display: none; flex-direction: column;
     padding: 24px 22px; overflow-y: auto; overflow-x: hidden;
@@ -582,8 +644,10 @@
           <div class="icons">
             <button class="icon-btn" title="Add a task" id="addTaskIconTop">＋</button>
             <button class="icon-btn" title="Always on top" id="pinIconTop">📌</button>
+            <button class="icon-btn" title="Expand to full screen" id="expandFullscreenBtn">⤢</button>
             <button class="icon-btn" title="Settings" id="gearIconTop">⚙</button>
             <button class="icon-btn" title="Minimize to tray">▁</button>
+            <button class="icon-btn danger" title="Emergency exit — fully closes the app (Ctrl+Shift+Q)" id="emergencyExitBtn">⏻</button>
           </div>
         </div>
         <div class="device-body" id="deviceBody">
@@ -592,6 +656,25 @@
           <div class="scene on" data-name="pocket">
             <div class="add-task-row" id="addTaskRow">
               <input id="addTaskInput" placeholder="What are you working on?" />
+            </div>
+
+            <!--
+              The only real full-width open space in this 340x480 card is
+              the gap `state-switch`'s flex margin-top:auto leaves above
+              it (roughly y:306-408) - every other row (task focus, timer,
+              status pill, primary button) spans nearly the full width.
+              Even one short tip barely fits that gap, and two side by
+              side don't - so tips cycle one at a time in a single slot
+              (coach-mark style) instead of floating several cards that
+              would have to cover a real control to coexist.
+            -->
+            <div class="onboard-card" id="onboardTip" style="top: 258px; left: 16px; right: 25px; max-width: none;">
+              <button class="dismiss" data-dismiss="onboardTip" title="Skip all">✕</button>
+              <div id="onboardTipText"></div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+                <span id="onboardTipDots" style="font-size:0.7rem; color:var(--ink-faint);"></span>
+                <button id="onboardTipNext" style="all:unset; cursor:pointer; font-size:0.74rem; color:var(--moss-deep); font-weight:600;">Next →</button>
+              </div>
             </div>
             <div class="task-focus" id="taskFocusBlock" title="Click to rename / add a task">
               <span class="label">Focused task</span>
@@ -841,10 +924,53 @@
 
           <div class="board-columns" id="boardColumns"></div>
         </div>
+
+        <div class="fullscreen-overlay" id="fullscreenOverlay">
+          <div class="menu-bar">
+            <div class="menu-item">
+              <button class="menu-trigger" data-menu="file">File</button>
+              <div class="menu-dropdown" data-dropdown="file">
+                <button id="menuNewTask"><span>New task</span><span class="shortcut">Ctrl+N</span></button>
+                <button id="menuExportJournal"><span>Export journal…</span></button>
+                <button id="menuExit" class="danger-item"><span>Exit Mycelia Time</span><span class="shortcut">Ctrl+Shift+Q</span></button>
+              </div>
+            </div>
+            <div class="menu-item">
+              <button class="menu-trigger" data-menu="edit">Edit</button>
+              <div class="menu-dropdown" data-dropdown="edit">
+                <button id="menuUndo"><span>Undo</span></button>
+                <button id="menuRedo"><span>Redo</span></button>
+              </div>
+            </div>
+            <div class="menu-item">
+              <button class="menu-trigger" data-menu="settings">Settings</button>
+              <div class="menu-dropdown" data-dropdown="settings">
+                <button id="menuTheme"><span>Theme &amp; always-on-top…</span></button>
+                <button id="menuNotifications"><span>Notifications…</span></button>
+              </div>
+            </div>
+            <div class="menu-item">
+              <button class="menu-trigger" data-menu="help">Help</button>
+              <div class="menu-dropdown" data-dropdown="help">
+                <button id="menuReplayOnboarding"><span>Replay onboarding tips</span></button>
+                <button id="menuAbout"><span>About Mycelia Time</span></button>
+              </div>
+            </div>
+            <button class="zen-close" id="fullscreenCloseBtn" style="margin-left:auto;">↙ Back to pocket view (Esc)</button>
+          </div>
+          <div class="fullscreen-body" id="fullscreenBody">
+            <p style="font-size:0.86rem; color:var(--ink-soft); max-width:440px; line-height:1.6;">
+              Full-screen mode gives the whole app room to breathe — same data as the pocket view, just laid out with space instead of pull-tabs. The menu bar above works like a real desktop app.
+            </p>
+          </div>
+        </div>
+
+        <div class="shutdown-veil" id="shutdownVeil">Mycelia Time has closed.</div>
       </div>
     </div>
 
     <p class="caption" id="caption">A small pocket-book window, not a dashboard — precise padding, nothing sprawling. Click a stop on the left to walk through each state.</p>
+    <p class="caption" style="color: var(--ink-faint); font-size: 0.72rem; max-width: 340px;">The dark patterned area above stands in for your real desktop — in the actual app the window paints nothing there at all: no blur, no tint, just the rounded card floating on top of whatever's really behind it.</p>
   </div>
 
   <aside class="notes" id="annotation">
@@ -1259,10 +1385,18 @@
   document.getElementById("zenCloseBtn").addEventListener("click", closeZen);
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
+      const openDropdown = document.querySelector(".menu-dropdown.open");
+      if (openDropdown) { closeAllMenus(); return; }
+      const fullscreenOv = document.getElementById("fullscreenOverlay");
+      if (fullscreenOv && fullscreenOv.classList.contains("on")) { closeFullscreen(); return; }
       const boardOv = document.getElementById("boardOverlay");
       if (boardOv && boardOv.classList.contains("on")) { closeBoard(); return; }
       if (libraryOverlay.classList.contains("on")) { closeLibrary(); return; }
       if (zenOverlay.classList.contains("on")) closeZen();
+    }
+    if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "q") {
+      e.preventDefault();
+      triggerEmergencyExit();
     }
   });
 
@@ -1726,4 +1860,134 @@
     renderBoard();
     renderProjectPreview();
   });
+
+  // --- Full-screen app mode (separate from Zen mode — the whole shell, not one compartment) ---
+  const fullscreenOverlay = document.getElementById("fullscreenOverlay");
+
+  function openFullscreen() {
+    closeAllCompartments();
+    fullscreenOverlay.classList.add("on");
+  }
+  function closeFullscreen() {
+    fullscreenOverlay.classList.remove("on");
+  }
+  document.getElementById("expandFullscreenBtn").addEventListener("click", openFullscreen);
+  document.getElementById("fullscreenCloseBtn").addEventListener("click", closeFullscreen);
+
+  // --- Menu bar (File / Edit / Settings / Help) ---
+  function closeAllMenus() {
+    document.querySelectorAll(".menu-dropdown.open").forEach(d => d.classList.remove("open"));
+    document.querySelectorAll(".menu-trigger.open").forEach(t => t.classList.remove("open"));
+  }
+  document.querySelectorAll(".menu-trigger").forEach(trigger => {
+    trigger.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const name = trigger.dataset.menu;
+      const dropdown = document.querySelector('.menu-dropdown[data-dropdown="' + name + '"]');
+      const alreadyOpen = dropdown.classList.contains("open");
+      closeAllMenus();
+      if (!alreadyOpen) {
+        dropdown.classList.add("open");
+        trigger.classList.add("open");
+      }
+    });
+  });
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest(".menu-item")) closeAllMenus();
+  });
+
+  function menuToast(message) {
+    const body = document.getElementById("fullscreenBody");
+    const note = document.createElement("p");
+    note.style.cssText = "font-size:0.8rem;color:var(--moss-deep);background:var(--moss-pale);display:inline-block;padding:8px 12px;border-radius:8px;margin-top:10px;";
+    note.textContent = message;
+    body.appendChild(note);
+    setTimeout(() => note.remove(), 3000);
+  }
+
+  document.getElementById("menuNewTask").addEventListener("click", () => {
+    closeAllMenus();
+    closeFullscreen();
+    openAddTask();
+  });
+  document.getElementById("menuExportJournal").addEventListener("click", () => {
+    closeAllMenus();
+    menuToast("Journal export isn't wired up yet — that's a later phase.");
+  });
+  document.getElementById("menuExit").addEventListener("click", () => {
+    closeAllMenus();
+    triggerEmergencyExit();
+  });
+  document.getElementById("menuUndo").addEventListener("click", () => {
+    closeAllMenus();
+    menuToast("Nothing to undo yet.");
+  });
+  document.getElementById("menuRedo").addEventListener("click", () => {
+    closeAllMenus();
+    menuToast("Nothing to redo yet.");
+  });
+  document.getElementById("menuTheme").addEventListener("click", () => {
+    closeAllMenus();
+    closeFullscreen();
+    setScene("settings");
+  });
+  document.getElementById("menuNotifications").addEventListener("click", () => {
+    closeAllMenus();
+    closeFullscreen();
+    setScene("settings");
+  });
+  document.getElementById("menuReplayOnboarding").addEventListener("click", () => {
+    closeAllMenus();
+    closeFullscreen();
+    showOnboarding();
+  });
+  document.getElementById("menuAbout").addEventListener("click", () => {
+    closeAllMenus();
+    menuToast("Mycelia Time — built with Jeremy Robards and Claude Code, in the open.");
+  });
+
+  // --- Onboarding: one coach-mark tip at a time in the single slot that's actually free ---
+  const ONBOARD_TIPS = [
+    "⤢ opens a full-screen view with a real menu bar. ⏻ is your emergency exit (also Ctrl+Shift+Q) — both live in the bar above.",
+    "Pull a tab on the right for Tasks, Notes, Todos, Projects, or your Library."
+  ];
+  let onboardStep = 0;
+  const onboardTip = document.getElementById("onboardTip");
+  const onboardTipText = document.getElementById("onboardTipText");
+  const onboardTipDots = document.getElementById("onboardTipDots");
+  const onboardTipNext = document.getElementById("onboardTipNext");
+
+  function renderOnboardTip() {
+    onboardTipText.textContent = ONBOARD_TIPS[onboardStep];
+    onboardTipDots.textContent = (onboardStep + 1) + " / " + ONBOARD_TIPS.length;
+    onboardTipNext.textContent = onboardStep === ONBOARD_TIPS.length - 1 ? "Done" : "Next →";
+  }
+  function showOnboarding() {
+    onboardStep = 0;
+    onboardTip.classList.remove("hidden");
+    renderOnboardTip();
+  }
+  onboardTipNext.addEventListener("click", () => {
+    if (onboardStep < ONBOARD_TIPS.length - 1) {
+      onboardStep += 1;
+      renderOnboardTip();
+    } else {
+      onboardTip.classList.add("hidden");
+    }
+  });
+  document.querySelector('[data-dismiss="onboardTip"]').addEventListener("click", () => {
+    onboardTip.classList.add("hidden");
+  });
+  renderOnboardTip();
+
+  // --- Emergency exit (icon, File > Exit, and Ctrl+Shift+Q all lead here) ---
+  function triggerEmergencyExit() {
+    closeAllMenus();
+    const veil = document.getElementById("shutdownVeil");
+    veil.classList.add("on");
+    // Mockup-only: a real build terminates the process here. Reset after
+    // a beat so reviewers can keep clicking through the rest of the demo.
+    setTimeout(() => veil.classList.remove("on"), 1800);
+  }
+  document.getElementById("emergencyExitBtn").addEventListener("click", triggerEmergencyExit);
 </script>

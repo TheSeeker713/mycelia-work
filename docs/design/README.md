@@ -1,7 +1,7 @@
 # Phase 1 — Visual design mockup
 
 `phase1-mockup.html` is the approved design reference for the pocket-book
-shell, reviewed live with Jeremy across four revisions (also published as
+shell, reviewed live with Jeremy across five revisions (also published as
 a Claude Artifact during review — this file is the durable, version-controlled
 copy so the design doesn't only exist behind an external link).
 
@@ -51,6 +51,22 @@ in the pocket view, full board behind "Expand to full board").
   scheduling/priority, tighten the description, and a freeform ask-
   anything box. A "+ New project" form creates projects with title,
   description, target month, and priority.
+- **Window transparency, full-screen mode, emergency exit, onboarding
+  (added rev 5)**: the pocket-book window itself is meant to be
+  transparent outside the rounded card — no blur, no tint, nothing
+  painted, just the card floating over the real desktop. An HTML mockup
+  can't prove OS-level transparency (represented here with a patterned
+  backdrop + caption instead); that only gets verified for real once
+  Phase 4 wires up the actual Tauri window. A new ⤢ icon opens a
+  **full-screen mode** distinct from Zen mode — the whole app shell, not
+  one compartment — with a real menu bar (File, Edit, Settings, Help),
+  every item wired to do something real rather than sit dead. A ⏻ icon
+  (plus `Ctrl+Shift+Q`, plus File → Exit) is a genuine emergency
+  full-shutdown path, distinct from the normal minimize-to-tray close.
+  Onboarding runs as a single-slot, sequential coach mark ("Next →" /
+  "Done") rather than several floating cards — the pocket view's only
+  genuinely open space (the gap `state-switch`'s flex margin-top:auto
+  leaves above it) is barely big enough for one short tip at a time.
 
 ## Known limitation carried into this file
 
