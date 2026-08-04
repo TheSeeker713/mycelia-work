@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useSessionsStore, useTasksStore } from "../store/StoreProvider";
 import { useWindowControls } from "../hooks/useWindowControls";
 import { useMultiCardWidth } from "../hooks/useMultiCardWidth";
+import { useIdleWatcher } from "../hooks/useIdleWatcher";
 import { PocketShell } from "./PocketShell";
 import { FullscreenShell } from "./FullscreenShell";
 import { DeviceBar } from "./DeviceBar";
@@ -11,6 +12,7 @@ import { TaskCapture } from "./TaskCapture";
 import { TaskList } from "./TaskList";
 import { TaskWorkspace } from "./TaskWorkspace";
 import { ActiveSessionsRow } from "./ActiveSessionsRow";
+import { ShortIdleToast } from "./ShortIdleToast";
 import { MAX_CONCURRENT_SESSIONS } from "../store/sessionsStore";
 import { TodosCompartment } from "./compartments/TodosCompartment";
 import { ProjectsCompartment } from "./compartments/ProjectsCompartment";
@@ -77,9 +79,18 @@ export function Dashboard() {
   const [active, setActive] = useState<CompartmentName>("tasks");
   const [showOnboarding, setShowOnboarding] = useState(true);
   const controls = useWindowControls();
-  const activeSessionCount = useSessionsStore((s) => s.activeSessions.length);
+  const activeSessions = useSessionsStore((s) => s.activeSessions);
   const loadActiveSessions = useSessionsStore((s) => s.loadActiveSessions);
-  const cardWidth = useMultiCardWidth(activeSessionCount, controls.fullscreen);
+  const startBreak = useSessionsStore((s) => s.startBreak);
+  const cardWidth = useMultiCardWidth(activeSessions.length, controls.fullscreen);
+
+  const runningSessions = activeSessions.filter((a) => a.session.status === "running");
+  const idle = useIdleWatcher(runningSessions.length > 0);
+
+  function logIdleAsBreak() {
+    for (const a of runningSessions) startBreak(a.session.id);
+    idle.dismiss();
+  }
 
   useEffect(() => {
     loadActiveSessions();
@@ -116,6 +127,13 @@ export function Dashboard() {
             <CompartmentContent active={active} />
           </div>
           <CompartmentTabs active={active} onSelect={setActive} />
+          {idle.showToast && (
+            <ShortIdleToast
+              idleSeconds={idle.idleSeconds}
+              onKeepAsWork={idle.dismiss}
+              onLogAsBreak={logIdleAsBreak}
+            />
+          )}
         </div>
       </FullscreenShell>
     );
@@ -135,8 +153,16 @@ export function Dashboard() {
           <CompartmentContent active={active} />
         </div>
         <CompartmentTabs active={active} onSelect={setActive} />
-        {showOnboarding && (
-          <OnboardingCoachMark onDismiss={() => setShowOnboarding(false)} />
+        {idle.showToast ? (
+          <ShortIdleToast
+            idleSeconds={idle.idleSeconds}
+            onKeepAsWork={idle.dismiss}
+            onLogAsBreak={logIdleAsBreak}
+          />
+        ) : (
+          showOnboarding && (
+            <OnboardingCoachMark onDismiss={() => setShowOnboarding(false)} />
+          )
         )}
       </div>
     </PocketShell>

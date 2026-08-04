@@ -11,6 +11,17 @@ fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
 }
 
+/// System-wide idle time (via GetLastInputInfo on Windows), not scoped
+/// to this app's own window — working in another app still counts as
+/// active, which the original DOM-events-only idle watcher draft got
+/// wrong.
+#[tauri::command]
+fn system_idle_seconds() -> Result<u64, String> {
+    user_idle::UserIdle::get_time()
+        .map(|idle| idle.as_seconds())
+        .map_err(|e| e.to_string())
+}
+
 fn show_main_window(app: &tauri::AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.show();
@@ -76,7 +87,7 @@ pub fn run() {
                 let _ = window.hide();
             }
         })
-        .invoke_handler(tauri::generate_handler![greet])
+        .invoke_handler(tauri::generate_handler![greet, system_idle_seconds])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
