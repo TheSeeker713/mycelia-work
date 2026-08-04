@@ -5,6 +5,9 @@ use tauri::{
 };
 use tauri_plugin_global_shortcut::ShortcutState;
 
+mod journal_export;
+mod openclaw;
+
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
 fn greet(name: &str) -> String {
@@ -87,7 +90,15 @@ pub fn run() {
                 let _ = window.hide();
             }
         })
-        .invoke_handler(tauri::generate_handler![greet, system_idle_seconds])
+        .invoke_handler(tauri::generate_handler![
+            greet,
+            system_idle_seconds,
+            openclaw::openclaw_ensure_daemon,
+            openclaw::openclaw_release_daemon,
+            openclaw::openclaw_call_agent,
+            openclaw::run_openclaw_agent,
+            journal_export::export_workjournal_file,
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
