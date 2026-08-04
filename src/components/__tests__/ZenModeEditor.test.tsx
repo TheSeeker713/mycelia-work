@@ -8,6 +8,7 @@ import { initDatabase, type Repositories } from "../../data";
 import { createTestExecutor } from "../../data/__tests__/testExecutor";
 import type { VoiceClient } from "../../services/voiceClient";
 import type { OllamaClient } from "../../services/ollamaClient";
+import type { ResourceWatchdogClient } from "../../services/resourceWatchdog";
 
 class FakeMediaRecorder {
   ondataavailable: ((e: { data: Blob }) => void) | null = null;
@@ -23,6 +24,7 @@ class FakeMediaRecorder {
 let repos: Repositories;
 let voiceClient: VoiceClient;
 let ollamaClient: OllamaClient;
+let resourceWatchdogClient: ResourceWatchdogClient;
 let sessionId: string;
 
 function CaptureSession({ onReady }: { onReady: (id: string) => void }) {
@@ -64,13 +66,21 @@ beforeEach(async () => {
     suggestContinuation: vi.fn().mockResolvedValue(null),
     classifyOnTopic: vi.fn().mockResolvedValue(true),
   };
+  resourceWatchdogClient = {
+    checkPressure: vi.fn().mockResolvedValue({ underPressure: false, cpuPercent: 10, memPercent: 20 }),
+  };
   sessionId = "";
 });
 
 async function renderZenMode(onExit = vi.fn()) {
   const user = userEvent.setup();
   render(
-    <StoreProvider repositories={repos} voiceClient={voiceClient} ollamaClient={ollamaClient}>
+    <StoreProvider
+      repositories={repos}
+      voiceClient={voiceClient}
+      ollamaClient={ollamaClient}
+      resourceWatchdogClient={resourceWatchdogClient}
+    >
       <CaptureSession onReady={(id) => (sessionId = id)} />
       <ZenModeEditorHarness onExit={onExit} />
     </StoreProvider>,
@@ -191,6 +201,28 @@ describe("ZenModeEditor", () => {
       // Give the debounce window a real chance to have fired if it were going to.
       await new Promise((resolve) => setTimeout(resolve, 700));
       expect(suggestFn).not.toHaveBeenCalled();
+    });
+
+    it("under resource pressure, skips the suggestion call entirely and logs a throttled event instead", async () => {
+      resourceWatchdogClient.checkPressure = vi
+        .fn()
+        .mockResolvedValue({ underPressure: true, cpuPercent: 92, memPercent: 30 });
+      const suggestFn = vi.fn().mockResolvedValue(" more text");
+      ollamaClient.suggestContinuation = suggestFn;
+      const { user } = await renderZenMode();
+      const textarea = screen.getByPlaceholderText("Write for Write the devlog entry...");
+
+      await user.type(textarea, "Sketched the layout");
+      await waitFor(() => expect(resourceWatchdogClient.checkPressure).toHaveBeenCalled());
+
+      // Give the debounce window a real chance to have fired if it were going to.
+      await new Promise((resolve) => setTimeout(resolve, 700));
+      expect(suggestFn).not.toHaveBeenCalled();
+      expect(screen.queryByText("more text")).not.toBeInTheDocument();
+
+      const events = await repos.resourceEvents.list();
+      expect(events).toHaveLength(1);
+      expect(events[0].kind).toBe("throttled");
     });
   });
 });

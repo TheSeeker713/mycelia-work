@@ -1,5 +1,11 @@
 import { useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent } from "react";
-import { useNotesStore, useOllamaClient, useSettingsStore } from "../store/StoreProvider";
+import {
+  useNotesStore,
+  useOllamaClient,
+  useResourceStore,
+  useResourceWatchdogClient,
+  useSettingsStore,
+} from "../store/StoreProvider";
 import { MicButton } from "./MicButton";
 
 const SUGGESTION_DEBOUNCE_MS = 600;
@@ -36,6 +42,8 @@ export function ZenModeEditor({
   const addNote = useNotesStore((s) => s.addNote);
   const aiSuggestionsEnabled = useSettingsStore((s) => s.aiSuggestionsEnabled);
   const ollamaClient = useOllamaClient();
+  const resourceWatchdogClient = useResourceWatchdogClient();
+  const logResourceEvent = useResourceStore((s) => s.logEvent);
 
   const [suggestion, setSuggestion] = useState<string | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -55,6 +63,20 @@ export function ZenModeEditor({
     if (debounceRef.current) clearTimeout(debounceRef.current);
     const myId = ++requestIdRef.current;
     debounceRef.current = setTimeout(async () => {
+      // A stale/late suggestion for text the user already moved past isn't
+      // useful, so under pressure this round is just skipped rather than
+      // deferred to run later — unlike a user-initiated action, there's no
+      // sensible "queue it and run when things calm down" for ghost text.
+      const pressure = await resourceWatchdogClient.checkPressure();
+      if (requestIdRef.current !== myId) return;
+      if (pressure.underPressure) {
+        logResourceEvent(
+          "throttled",
+          `ghost-text suggestion skipped (cpu ${pressure.cpuPercent.toFixed(0)}%, mem ${pressure.memPercent.toFixed(0)}%)`,
+        );
+        return;
+      }
+
       const result = await ollamaClient.suggestContinuation(text);
       if (requestIdRef.current !== myId || !result) return;
       setSuggestion(result);

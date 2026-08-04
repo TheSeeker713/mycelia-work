@@ -93,4 +93,21 @@ describe("CheckInDialog", () => {
 
     expect(onResolve).toHaveBeenCalledWith("2026-08-03T13:00:00.000Z", "");
   });
+
+  it("shows the optional notice line when given one, and nothing when not", () => {
+    const clockedInAt = new Date(Date.now() - 10 * 60 * 60 * 1000).toISOString();
+    const { rerender } = render(
+      <CheckInDialog activeSession={makeSession(clockedInAt)} onResolve={vi.fn()} />,
+    );
+    expect(screen.queryByText(/Couldn't reach/)).not.toBeInTheDocument();
+
+    rerender(
+      <CheckInDialog
+        activeSession={makeSession(clockedInAt)}
+        onResolve={vi.fn()}
+        notice="Couldn't reach the AI conversation right now — here are the usual options instead."
+      />,
+    );
+    expect(screen.getByText(/Couldn't reach the AI conversation/)).toBeInTheDocument();
+  });
 });

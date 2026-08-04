@@ -25,9 +25,12 @@ const LONG_DURATIONS = [
 export function CheckInDialog({
   activeSession,
   onResolve,
+  notice,
 }: {
   activeSession: ActiveSession;
   onResolve: (clockedOutAt: string, note: string) => void;
+  /** Phase 11's "tell the user plainly" rule — shown when this static dialogue is standing in for the adaptive AI conversation rather than being the only option, so falling back never reads as if nothing happened. */
+  notice?: string;
 }) {
   const [bucket, setBucket] = useState<Bucket | null>(null);
   const [durationMinutes, setDurationMinutes] = useState<number | null>(null);
@@ -72,6 +75,9 @@ export function CheckInDialog({
       <div className="mb-3 text-[0.72rem] tracking-wide text-[var(--ink-faint)] uppercase">
         Still clocked in
       </div>
+      {notice && (
+        <p className="mb-2 text-[0.74rem] text-[var(--ink-faint)] italic">{notice}</p>
+      )}
       <div className="mb-4 text-[0.85rem] leading-relaxed text-[var(--ink)]">
         <strong>{task.title}</strong> has been running since {clockedInLabel}.
       </div>

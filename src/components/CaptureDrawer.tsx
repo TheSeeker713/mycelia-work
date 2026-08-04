@@ -7,7 +7,7 @@ import {
   useSettingsStore,
 } from "../store/StoreProvider";
 import { useSelfVoicing } from "../hooks/useSelfVoicing";
-import { NO_SESSION_MESSAGE } from "../store/captureStore";
+import { NO_SESSION_MESSAGE, RESOURCE_PRESSURE_MESSAGE } from "../store/captureStore";
 import { MicButton } from "./MicButton";
 
 const CONFIRMED_AUTO_DISMISS_MS = 10_000;
@@ -40,6 +40,7 @@ export function CaptureDrawer({ activeSessionId }: { activeSessionId: string | n
   const respondToClarify = useCaptureStore((s) => s.respondToClarify);
   const pickProjectForMilestone = useCaptureStore((s) => s.pickProjectForMilestone);
   const correctTo = useCaptureStore((s) => s.correctTo);
+  const fileAsNoteAnyway = useCaptureStore((s) => s.fileAsNoteAnyway);
   const dismiss = useCaptureStore((s) => s.dismiss);
   const captureStoreApi = useCaptureStoreApi();
 
@@ -96,6 +97,8 @@ export function CaptureDrawer({ activeSessionId }: { activeSessionId: string | n
       }
     } else if (state.phase === "blocked_no_session") {
       selfVoicing.speak(NO_SESSION_MESSAGE);
+    } else if (state.phase === "resource_pressure") {
+      selfVoicing.speak(RESOURCE_PRESSURE_MESSAGE);
     }
   }
 
@@ -118,6 +121,11 @@ export function CaptureDrawer({ activeSessionId }: { activeSessionId: string | n
   async function handleCorrectTo(action: "create_note" | "create_todo" | "milestone") {
     await correctTo(action, activeSessionId);
     await logAndNarrate(confirmed?.rawText ?? "");
+  }
+
+  async function handleFileAsNoteAnyway() {
+    await fileAsNoteAnyway(activeSessionId);
+    await logAndNarrate("");
   }
 
   function handleClose() {
@@ -238,6 +246,22 @@ export function CaptureDrawer({ activeSessionId }: { activeSessionId: string | n
           <button type="button" onClick={handleClose} className="text-[0.75rem] text-[var(--ink-faint)]">
             OK
           </button>
+        </div>
+      ) : phase === "resource_pressure" ? (
+        <div className="flex flex-col gap-2">
+          <p className="text-[0.82rem] text-[var(--ink)]">{RESOURCE_PRESSURE_MESSAGE}</p>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => void handleFileAsNoteAnyway()}
+              className="rounded-lg bg-[var(--moss)] px-3 py-1.5 text-[0.78rem] text-white"
+            >
+              File as a note anyway
+            </button>
+            <button type="button" onClick={handleClose} className="text-[0.75rem] text-[var(--ink-faint)]">
+              Cancel
+            </button>
+          </div>
         </div>
       ) : phase === "confirmed" && confirmed ? (
         <div className="flex flex-col gap-2">

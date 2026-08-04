@@ -11,11 +11,21 @@ import { CheckInDialog } from "./CheckInDialog";
 import { MicButton } from "./MicButton";
 import { useSelfVoicing } from "../hooks/useSelfVoicing";
 import { useVoiceCues } from "../hooks/useVoiceCues";
+import { useResourceStore, useResourceWatchdogClient } from "../store/StoreProvider";
+
+type FallbackReason = "resource_pressure" | "unavailable";
 
 type FlowState =
   | { phase: "connecting" }
   | { phase: "adaptive"; turn: CheckinTurn; turnCount: number }
-  | { phase: "fallback" };
+  | { phase: "fallback"; reason: FallbackReason };
+
+/** Phase 11's confirmed refinement: a degraded/unavailable Tier-1 call tells the user plainly rather than the Tier-0 fallback silently taking over. */
+const FALLBACK_NOTICE: Record<FallbackReason, string> = {
+  resource_pressure:
+    "This machine's running heavy right now, so skipping the AI conversation for a moment — here are the usual options instead.",
+  unavailable: "Couldn't reach the AI conversation right now — here are the usual options instead.",
+};
 
 const DIALOG_CLASSES =
   "absolute inset-3 flex flex-col justify-center rounded-[14px] border p-4";
@@ -45,6 +55,8 @@ export function CheckInFlow({
   const daemonReleasedRef = useRef(false);
   const selfVoicing = useSelfVoicing();
   const voiceCues = useVoiceCues();
+  const resourceWatchdogClient = useResourceWatchdogClient();
+  const logResourceEvent = useResourceStore((s) => s.logEvent);
 
   async function releaseIfNeeded() {
     if (wasAlreadyRunningRef.current === null || daemonReleasedRef.current) return;
@@ -54,6 +66,11 @@ export function CheckInFlow({
     } catch {
       // Best-effort — nothing else can be done from here if this fails.
     }
+  }
+
+  function fallBackTo(reason: FallbackReason) {
+    selfVoicing.speak(FALLBACK_NOTICE[reason]);
+    setState({ phase: "fallback", reason });
   }
 
   async function finish(turn: CheckinTurn) {
@@ -67,11 +84,27 @@ export function CheckInFlow({
 
     async function begin() {
       voiceCues.play("please_wait");
+
+      // Proactive, not reactive — under real pressure, skip straight to
+      // the static dialogue rather than let an adaptive call potentially
+      // hang or degrade before failing. Real alternative either way: the
+      // static Tier-0 dialogue is a complete flow on its own, not a stub.
+      const pressure = await resourceWatchdogClient.checkPressure();
+      if (cancelled) return;
+      if (pressure.underPressure) {
+        logResourceEvent(
+          "throttled",
+          `check-in skipped the adaptive conversation (cpu ${pressure.cpuPercent.toFixed(0)}%, mem ${pressure.memPercent.toFixed(0)}%)`,
+        );
+        fallBackTo("resource_pressure");
+        return;
+      }
+
       let wasRunning: boolean;
       try {
         wasRunning = await client.ensureDaemon();
       } catch {
-        if (!cancelled) setState({ phase: "fallback" });
+        if (!cancelled) fallBackTo("unavailable");
         return;
       }
       wasAlreadyRunningRef.current = wasRunning;
@@ -93,7 +126,7 @@ export function CheckInFlow({
       }
       if (!turn) {
         await releaseIfNeeded();
-        setState({ phase: "fallback" });
+        fallBackTo("unavailable");
         return;
       }
       if (turn.final) {
@@ -118,7 +151,7 @@ export function CheckInFlow({
     const nextCount = state.turnCount + 1;
     if (nextCount > MAX_CHECKIN_TURNS) {
       await releaseIfNeeded();
-      setState({ phase: "fallback" });
+      fallBackTo("unavailable");
       return;
     }
     setState({ phase: "connecting" });
@@ -126,7 +159,7 @@ export function CheckInFlow({
     const turn = await continueCheckinConversation(client, sessionKeyRef.current, value);
     if (!turn) {
       await releaseIfNeeded();
-      setState({ phase: "fallback" });
+      fallBackTo("unavailable");
       return;
     }
     if (turn.final) {
@@ -138,7 +171,13 @@ export function CheckInFlow({
   }
 
   if (state.phase === "fallback") {
-    return <CheckInDialog activeSession={activeSession} onResolve={onResolve} />;
+    return (
+      <CheckInDialog
+        activeSession={activeSession}
+        onResolve={onResolve}
+        notice={FALLBACK_NOTICE[state.reason]}
+      />
+    );
   }
 
   if (state.phase === "connecting") {

@@ -9,12 +9,14 @@ import type { OllamaClient } from "../../services/ollamaClient";
 import type { OpenClawClient } from "../../services/openclawClient";
 import type { VoiceClient } from "../../services/voiceClient";
 import type { CaptureLogClient } from "../../services/captureLogClient";
+import type { ResourceWatchdogClient } from "../../services/resourceWatchdog";
 
 let repos: Repositories;
 let ollamaClient: OllamaClient;
 let openClawClient: OpenClawClient;
 let voiceClient: VoiceClient;
 let captureLogClient: CaptureLogClient;
+let resourceWatchdogClient: ResourceWatchdogClient;
 let sessionId: string;
 
 function layer1(text: string) {
@@ -43,6 +45,9 @@ beforeEach(async () => {
     log: vi.fn().mockResolvedValue(undefined),
     logAiAssist: vi.fn().mockResolvedValue(undefined),
   };
+  resourceWatchdogClient = {
+    checkPressure: vi.fn().mockResolvedValue({ underPressure: false, cpuPercent: 10, memPercent: 20 }),
+  };
 
   const task = await repos.tasks.create({ title: "Write the devlog entry" });
   const session = await repos.taskSessions.clockIn(task.id);
@@ -57,6 +62,7 @@ function renderDrawer(activeSessionId: string | null = sessionId) {
       openClawClient={openClawClient}
       voiceClient={voiceClient}
       captureLogClient={captureLogClient}
+      resourceWatchdogClient={resourceWatchdogClient}
     >
       <CaptureDrawer activeSessionId={activeSessionId} />
     </StoreProvider>,
@@ -193,5 +199,41 @@ describe("CaptureDrawer", () => {
     await user.click(screen.getByText("Redesign onboarding flow"));
 
     expect(await screen.findByText(/Filed as a milestone/)).toBeInTheDocument();
+  });
+
+  it("resource pressure: skips classification, tells the user plainly, and 'File as a note anyway' really files it", async () => {
+    resourceWatchdogClient.checkPressure = vi
+      .fn()
+      .mockResolvedValue({ underPressure: true, cpuPercent: 92, memPercent: 30 });
+    const user = userEvent.setup();
+    renderDrawer();
+    await user.click(screen.getByLabelText("Open capture"));
+    await user.type(screen.getByPlaceholderText(/A note, a todo/), "fed the cat early{Enter}");
+
+    expect(await screen.findByText(/running heavy right now/)).toBeInTheDocument();
+    expect(openClawClient.runOnce).not.toHaveBeenCalled();
+
+    await user.click(screen.getByText("File as a note anyway"));
+
+    expect(await screen.findByText(/Filed as a note/)).toBeInTheDocument();
+    const notes = await repos.notes.listBySession(sessionId);
+    expect(notes.map((n) => n.body)).toContain("fed the cat early");
+  });
+
+  it("resource pressure: Cancel closes the drawer without filing anything", async () => {
+    resourceWatchdogClient.checkPressure = vi
+      .fn()
+      .mockResolvedValue({ underPressure: true, cpuPercent: 92, memPercent: 30 });
+    const user = userEvent.setup();
+    renderDrawer();
+    await user.click(screen.getByLabelText("Open capture"));
+    await user.type(screen.getByPlaceholderText(/A note, a todo/), "fed the cat early{Enter}");
+    await screen.findByText(/running heavy right now/);
+
+    await user.click(screen.getByText("Cancel"));
+
+    expect(screen.getByLabelText("Open capture")).toBeInTheDocument();
+    const notes = await repos.notes.listBySession(sessionId);
+    expect(notes).toEqual([]);
   });
 });

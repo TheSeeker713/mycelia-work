@@ -5,11 +5,13 @@ import type { OllamaClient } from "../../services/ollamaClient";
 import type { OpenClawClient } from "../../services/openclawClient";
 import { createCaptureStore, NO_SESSION_MESSAGE, type CaptureStore } from "../captureStore";
 import { MAX_CLARIFY_ROUNDS } from "../../services/captureAgent";
+import type { ResourceWatchdogClient } from "../../services/resourceWatchdog";
 
 let executor: SqlExecutor;
 let repos: Repositories;
 let ollamaClient: OllamaClient;
 let openClawClient: OpenClawClient;
+let resourceWatchdogClient: ResourceWatchdogClient;
 let useCapture: CaptureStore;
 let sessionId: string;
 
@@ -31,12 +33,15 @@ beforeEach(async () => {
     call: vi.fn(),
     releaseDaemon: vi.fn(),
   };
+  resourceWatchdogClient = {
+    checkPressure: vi.fn().mockResolvedValue({ underPressure: false, cpuPercent: 10, memPercent: 20 }),
+  };
 
   const task = await repos.tasks.create({ title: "Write the devlog entry" });
   const session = await repos.taskSessions.clockIn(task.id);
   sessionId = session.id;
 
-  useCapture = createCaptureStore(repos, { ollamaClient, openClawClient });
+  useCapture = createCaptureStore(repos, { ollamaClient, openClawClient, resourceWatchdogClient });
 });
 
 function mockLayer1Once(text: string) {
@@ -230,5 +235,66 @@ describe("captureStore", () => {
 
   it("exports NO_SESSION_MESSAGE for the UI to render on blocked_no_session", () => {
     expect(NO_SESSION_MESSAGE).toContain("Clock into a task first");
+  });
+
+  describe("resource pressure", () => {
+    it("submit: under pressure, skips Layer 0/1 entirely, logs a throttled event, and offers fileAsNoteAnyway", async () => {
+      resourceWatchdogClient.checkPressure = vi
+        .fn()
+        .mockResolvedValue({ underPressure: true, cpuPercent: 92, memPercent: 30 });
+
+      await useCapture.getState().submit("fed the cat early", sessionId);
+
+      expect(useCapture.getState().phase).toBe("resource_pressure");
+      expect(ollamaClient.classifyOnTopic).not.toHaveBeenCalled();
+      expect(openClawClient.runOnce).not.toHaveBeenCalled();
+
+      const events = await repos.resourceEvents.list();
+      expect(events).toHaveLength(1);
+      expect(events[0].kind).toBe("throttled");
+
+      await useCapture.getState().fileAsNoteAnyway(sessionId);
+
+      expect(useCapture.getState().phase).toBe("confirmed");
+      expect(useCapture.getState().confirmed).toMatchObject({ action: "create_note", summary: "fed the cat early" });
+    });
+
+    it("fileAsNoteAnyway respects the no-session block like any other note filing", async () => {
+      resourceWatchdogClient.checkPressure = vi
+        .fn()
+        .mockResolvedValue({ underPressure: true, cpuPercent: 92, memPercent: 30 });
+      await useCapture.getState().submit("fed the cat early", null);
+      expect(useCapture.getState().phase).toBe("resource_pressure");
+
+      await useCapture.getState().fileAsNoteAnyway(null);
+
+      expect(useCapture.getState().phase).toBe("blocked_no_session");
+    });
+
+    it("respondToClarify: under pressure mid-clarify also skips straight to resource_pressure", async () => {
+      mockLayer1Once('{"action":"clarify","payload":{},"clarifying_question":"Todo or note?"}');
+      await useCapture.getState().submit("finish the thing", sessionId);
+      expect(useCapture.getState().phase).toBe("clarify");
+
+      resourceWatchdogClient.checkPressure = vi
+        .fn()
+        .mockResolvedValue({ underPressure: true, cpuPercent: 92, memPercent: 30 });
+      await useCapture.getState().respondToClarify("a todo", sessionId);
+
+      expect(useCapture.getState().phase).toBe("resource_pressure");
+      expect(openClawClient.runOnce).toHaveBeenCalledTimes(1); // only the original clarify call, not a second one
+    });
+
+    it("dismiss clears back to idle from resource_pressure too", async () => {
+      resourceWatchdogClient.checkPressure = vi
+        .fn()
+        .mockResolvedValue({ underPressure: true, cpuPercent: 92, memPercent: 30 });
+      await useCapture.getState().submit("fed the cat early", sessionId);
+      expect(useCapture.getState().phase).toBe("resource_pressure");
+
+      useCapture.getState().dismiss();
+
+      expect(useCapture.getState().phase).toBe("idle");
+    });
   });
 });

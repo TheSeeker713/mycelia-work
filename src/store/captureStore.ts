@@ -9,6 +9,7 @@ import {
 } from "../services/captureAgent";
 import type { OllamaClient } from "../services/ollamaClient";
 import type { OpenClawClient } from "../services/openclawClient";
+import type { ResourceWatchdogClient } from "../services/resourceWatchdog";
 
 export type CapturePhase =
   | "idle"
@@ -17,7 +18,8 @@ export type CapturePhase =
   | "project_pick"
   | "confirmed"
   | "declined"
-  | "blocked_no_session";
+  | "blocked_no_session"
+  | "resource_pressure";
 
 export type FiledAction = "create_note" | "create_todo" | "create_milestone";
 
@@ -46,16 +48,26 @@ export interface CaptureState {
   pickProjectForMilestone: (projectId: string) => Promise<void>;
   /** note<->todo, or todo/note -> milestone (which reopens project_pick) — never milestone -> milestone, there's nothing to correct to. */
   correctTo: (action: "create_note" | "create_todo" | "milestone", activeSessionId: string | null) => Promise<void>;
-  /** Back to idle from confirmed/declined/blocked_no_session. */
+  /** The real alternative offered on `resource_pressure` (per the plan: "offers real alternatives, rather than degrading invisibly") — bypasses classification entirely and files the raw text as a plain note. */
+  fileAsNoteAnyway: (activeSessionId: string | null) => Promise<void>;
+  /** Back to idle from confirmed/declined/blocked_no_session/resource_pressure. */
   dismiss: () => void;
 }
 
 /** Shown when the agent resolves to create_note (directly, via clarify fallback, or via a correction) but nothing's clocked in — notes have always required an active task_session (Phase 2's data model). */
 export const NO_SESSION_MESSAGE = "Clock into a task first — notes need something to attach to.";
 
+/** Shown on `resource_pressure` — per the plan's confirmed refinement: a degraded/skipped Tier-1 call tells the user plainly and offers a real alternative, rather than silently falling back or hanging. */
+export const RESOURCE_PRESSURE_MESSAGE =
+  "This machine's running heavy right now, so skipping the AI classification for a moment.";
+
 export function createCaptureStore(
   repos: Repositories,
-  deps: { ollamaClient: OllamaClient; openClawClient: OpenClawClient },
+  deps: {
+    ollamaClient: OllamaClient;
+    openClawClient: OpenClawClient;
+    resourceWatchdogClient: ResourceWatchdogClient;
+  },
 ): UseBoundStore<StoreApi<CaptureState>> {
   let originalText = "";
   let clarifyRound = 0;
@@ -148,6 +160,17 @@ export function createCaptureStore(
         originalText = text;
         clarifyRound = 0;
         set({ phase: "thinking", declineMessage: null, confirmed: null, clarifyQuestion: null });
+
+        const pressure = await deps.resourceWatchdogClient.checkPressure();
+        if (pressure.underPressure) {
+          await repos.resourceEvents.log(
+            "throttled",
+            `capture agent skipped classification (cpu ${pressure.cpuPercent.toFixed(0)}%, mem ${pressure.memPercent.toFixed(0)}%)`,
+          );
+          set({ phase: "resource_pressure" });
+          return;
+        }
+
         const result = await routeCapture(text, deps);
         await handleResult(result, activeSessionId);
       },
@@ -156,8 +179,23 @@ export function createCaptureStore(
         const question = get().clarifyQuestion;
         if (!question) return;
         set({ phase: "thinking" });
+
+        const pressure = await deps.resourceWatchdogClient.checkPressure();
+        if (pressure.underPressure) {
+          await repos.resourceEvents.log(
+            "throttled",
+            `capture agent skipped classification (cpu ${pressure.cpuPercent.toFixed(0)}%, mem ${pressure.memPercent.toFixed(0)}%)`,
+          );
+          set({ phase: "resource_pressure" });
+          return;
+        }
+
         const result = await routeCapture(text, deps, { originalText, question });
         await handleResult(result, activeSessionId);
+      },
+
+      async fileAsNoteAnyway(activeSessionId) {
+        await fileNote(originalText, activeSessionId);
       },
 
       async pickProjectForMilestone(projectId) {

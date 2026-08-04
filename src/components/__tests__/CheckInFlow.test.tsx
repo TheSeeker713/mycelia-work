@@ -7,6 +7,7 @@ import { initDatabase, type Repositories } from "../../data";
 import { createTestExecutor } from "../../data/__tests__/testExecutor";
 import type { OpenClawClient } from "../../services/openclawClient";
 import { DEFAULT_PIPER_VOICE_ID, type VoiceClient } from "../../services/voiceClient";
+import type { ResourceWatchdogClient } from "../../services/resourceWatchdog";
 import type { ActiveSession } from "../../store/sessionsStore";
 import type { Task, TaskSession } from "../../data";
 
@@ -55,10 +56,11 @@ function renderFlow(props: {
   onResolve: (clockedOutAt: string, note: string) => void;
   client: OpenClawClient;
   voiceClient?: VoiceClient;
+  resourceWatchdogClient?: ResourceWatchdogClient;
 }) {
-  const { voiceClient, ...flowProps } = props;
+  const { voiceClient, resourceWatchdogClient, ...flowProps } = props;
   return render(
-    <StoreProvider repositories={repos} voiceClient={voiceClient}>
+    <StoreProvider repositories={repos} voiceClient={voiceClient} resourceWatchdogClient={resourceWatchdogClient}>
       <CheckInFlow {...flowProps} />
     </StoreProvider>,
   );
@@ -188,5 +190,54 @@ describe("CheckInFlow", () => {
       "Did you keep working after clocking in?",
       DEFAULT_PIPER_VOICE_ID,
     );
+  });
+
+  it("Phase 11: falling back tells the user plainly, instead of the static dialogue silently taking over", async () => {
+    const client: OpenClawClient = {
+      runOnce: vi.fn(),
+      ensureDaemon: vi.fn().mockRejectedValue(new Error("no bridge")),
+      call: vi.fn(),
+      releaseDaemon: vi.fn().mockResolvedValue(undefined),
+    };
+    const voiceClient: VoiceClient = {
+      speak: vi.fn().mockResolvedValue(new Blob(["wav"])),
+      transcribe: vi.fn(),
+      isTtsAvailable: vi.fn(),
+      isSttAvailable: vi.fn(),
+    };
+    const clockedInAt = new Date(Date.now() - 10 * 60 * 60 * 1000).toISOString();
+    renderFlow({ activeSession: makeSession(clockedInAt), onResolve: vi.fn(), client, voiceClient });
+
+    expect(await screen.findByText(/Couldn't reach the AI conversation/)).toBeInTheDocument();
+    expect(voiceClient.speak).toHaveBeenCalledWith(
+      expect.stringContaining("Couldn't reach the AI conversation"),
+      DEFAULT_PIPER_VOICE_ID,
+    );
+  });
+
+  it("Phase 11: under resource pressure, skips straight to the fallback with the pressure-specific notice, and logs a throttled event", async () => {
+    const client: OpenClawClient = {
+      runOnce: vi.fn(),
+      ensureDaemon: vi.fn(),
+      call: vi.fn(),
+      releaseDaemon: vi.fn(),
+    };
+    const resourceWatchdogClient: ResourceWatchdogClient = {
+      checkPressure: vi.fn().mockResolvedValue({ underPressure: true, cpuPercent: 92, memPercent: 30 }),
+    };
+    const clockedInAt = new Date(Date.now() - 10 * 60 * 60 * 1000).toISOString();
+    renderFlow({
+      activeSession: makeSession(clockedInAt),
+      onResolve: vi.fn(),
+      client,
+      resourceWatchdogClient,
+    });
+
+    expect(await screen.findByText(/running heavy right now/)).toBeInTheDocument();
+    expect(client.ensureDaemon).not.toHaveBeenCalled();
+
+    const events = await repos.resourceEvents.list();
+    expect(events).toHaveLength(1);
+    expect(events[0].kind).toBe("throttled");
   });
 });

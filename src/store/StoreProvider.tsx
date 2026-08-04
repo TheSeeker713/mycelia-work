@@ -25,6 +25,11 @@ import { createTauriRewardsClient, type RewardsClient } from "../services/reward
 import { createHttpOllamaClient, type OllamaClient } from "../services/ollamaClient";
 import { createTauriCaptureLogClient, type CaptureLogClient } from "../services/captureLogClient";
 import { createCaptureStore, type CaptureState, type CaptureStore } from "./captureStore";
+import {
+  createTauriResourceWatchdogClient,
+  type ResourceWatchdogClient,
+} from "../services/resourceWatchdog";
+import { createResourceStore, type ResourceState, type ResourceStore } from "./resourceStore";
 
 interface StoresContextValue {
   useTasksStore: TasksStore;
@@ -35,11 +40,13 @@ interface StoresContextValue {
   useJournalsStore: JournalsStore;
   useSettingsStore: SettingsStore;
   useCaptureStore: CaptureStore;
+  useResourceStore: ResourceStore;
   openClawClient: OpenClawClient;
   voiceClient: VoiceClient;
   rewardsClient: RewardsClient;
   ollamaClient: OllamaClient;
   captureLogClient: CaptureLogClient;
+  resourceWatchdogClient: ResourceWatchdogClient;
 }
 
 const StoresContext = createContext<StoresContextValue | null>(null);
@@ -51,6 +58,7 @@ export function StoreProvider({
   rewardsClient,
   ollamaClient,
   captureLogClient,
+  resourceWatchdogClient,
   children,
 }: {
   repositories: Repositories;
@@ -64,6 +72,8 @@ export function StoreProvider({
   ollamaClient?: OllamaClient;
   /** Injectable, like `openClawClient` — tests pass a fake instead of hitting the real capture-log Tauri command. */
   captureLogClient?: CaptureLogClient;
+  /** Injectable, like `openClawClient` — tests pass a fake instead of hitting the real sysinfo watchdog command. */
+  resourceWatchdogClient?: ResourceWatchdogClient;
   children: ReactNode;
 }) {
   // Created once per `repositories` instance so remounts/tests don't
@@ -74,6 +84,7 @@ export function StoreProvider({
     const rewards = rewardsClient ?? createTauriRewardsClient();
     const ollama = ollamaClient ?? createHttpOllamaClient();
     const captureLog = captureLogClient ?? createTauriCaptureLogClient();
+    const watchdog = resourceWatchdogClient ?? createTauriResourceWatchdogClient();
     return {
       useTasksStore: createTasksStore(repositories),
       useProjectsStore: createProjectsStore(repositories, client),
@@ -82,12 +93,18 @@ export function StoreProvider({
       useNotesStore: createNotesStore(repositories),
       useJournalsStore: createJournalsStore(repositories, client),
       useSettingsStore: createSettingsStore(repositories),
-      useCaptureStore: createCaptureStore(repositories, { ollamaClient: ollama, openClawClient: client }),
+      useCaptureStore: createCaptureStore(repositories, {
+        ollamaClient: ollama,
+        openClawClient: client,
+        resourceWatchdogClient: watchdog,
+      }),
+      useResourceStore: createResourceStore(repositories),
       openClawClient: client,
       voiceClient: voice,
       rewardsClient: rewards,
       ollamaClient: ollama,
       captureLogClient: captureLog,
+      resourceWatchdogClient: watchdog,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [repositories]);
@@ -170,4 +187,13 @@ export function useCaptureStore<T>(selector: (state: CaptureState) => T): T {
 /** The raw bound store (not a reactive subscription) — for reading a point-in-time snapshot right after an action resolves, e.g. to log/narrate the outcome without waiting on a re-render. */
 export function useCaptureStoreApi(): CaptureStore {
   return useStoresContext().useCaptureStore;
+}
+
+export function useResourceStore<T>(selector: (state: ResourceState) => T): T {
+  const { useResourceStore: useStore } = useStoresContext();
+  return useStore(selector);
+}
+
+export function useResourceWatchdogClient(): ResourceWatchdogClient {
+  return useStoresContext().resourceWatchdogClient;
 }
