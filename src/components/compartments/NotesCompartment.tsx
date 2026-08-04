@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNotesStore, useSessionsStore } from "../../store/StoreProvider";
+import { MicButton } from "../MicButton";
 
 /** Notes attach to a running task_session — needs at least one active session to write into. */
 export function NotesCompartment() {
@@ -37,6 +38,10 @@ export function NotesCompartment() {
     if (!trimmed) return;
     addNote(selected!.session.id, trimmed);
     setDraft("");
+  }
+
+  function handleDictated(text: string) {
+    setDraft((prev) => (prev.trim() ? `${prev.trim()} ${text}` : text));
   }
 
   return (
@@ -92,15 +97,18 @@ export function NotesCompartment() {
           rows={3}
           className="resize-none rounded-lg border border-[var(--line)] bg-[var(--paper)] px-2.5 py-2 text-[0.82rem] text-[var(--ink)] outline-none placeholder:text-[var(--ink-faint)]"
         />
-        {draft.trim() && (
-          <button
-            type="button"
-            onClick={handleAdd}
-            className="self-end rounded-lg bg-[var(--moss)] px-3 py-1.5 text-[0.78rem] text-white"
-          >
-            Add
-          </button>
-        )}
+        <div className="flex items-center justify-between gap-2">
+          <MicButton onTranscribed={handleDictated} />
+          {draft.trim() && (
+            <button
+              type="button"
+              onClick={handleAdd}
+              className="rounded-lg bg-[var(--moss)] px-3 py-1.5 text-[0.78rem] text-white"
+            >
+              Add
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import type { NewTaskInput } from "../store/tasksStore";
+import { MicButton } from "./MicButton";
 
 /** Frictionless single-field capture — title and Enter is the whole flow. Tag/billable are opt-in, revealed only once there's something to attach them to. */
 export function TaskCapture({ onAdd }: { onAdd: (input: NewTaskInput) => void }) {
@@ -19,6 +20,10 @@ export function TaskCapture({ onAdd }: { onAdd: (input: NewTaskInput) => void })
     setShowDetails(false);
   }
 
+  function handleDictated(text: string) {
+    setTitle((prev) => (prev.trim() ? `${prev.trim()} ${text}` : text));
+  }
+
   return (
     <form onSubmit={handleSubmit} className="mb-3">
       <div className="flex items-center gap-2">
@@ -29,6 +34,7 @@ export function TaskCapture({ onAdd }: { onAdd: (input: NewTaskInput) => void })
           aria-label="New task title"
           className="w-full rounded-[10px] border border-[var(--moss)] bg-[var(--paper)] px-3 py-2.5 text-[0.92rem] text-[var(--ink)] outline-none placeholder:text-[var(--ink-faint)]"
         />
+        <MicButton onTranscribed={handleDictated} />
         {/*
           A form with two or more text fields has no implicit default
           button per the HTML spec, so once "+ tag / billable" adds a

@@ -8,6 +8,7 @@ import {
   type CheckinTurn,
 } from "../services/checkinConversation";
 import { CheckInDialog } from "./CheckInDialog";
+import { MicButton } from "./MicButton";
 import { useSelfVoicing } from "../hooks/useSelfVoicing";
 import { useVoiceCues } from "../hooks/useVoiceCues";
 
@@ -181,6 +182,9 @@ export function CheckInFlow({
             rows={2}
             className="resize-none rounded-lg border border-[var(--line)] bg-[var(--paper)] px-2.5 py-2 text-[0.8rem] text-[var(--ink)] outline-none"
           />
+          <div className="flex items-center gap-2">
+            <MicButton onTranscribed={(text) => setFreeText((prev) => (prev.trim() ? `${prev.trim()} ${text}` : text))} />
+          </div>
           <button
             type="button"
             onClick={() => {
