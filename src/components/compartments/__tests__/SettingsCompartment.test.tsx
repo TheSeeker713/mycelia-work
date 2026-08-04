@@ -74,6 +74,15 @@ describe("SettingsCompartment", () => {
     expect(await repos.settings.get("self_voicing_enabled")).toBeNull();
   });
 
+  it("toggling AI writing suggestions off persists it independently", async () => {
+    const user = userEvent.setup();
+    renderSettings();
+
+    await user.click(screen.getByLabelText(/AI writing suggestions/));
+    expect(await repos.settings.get("ai_suggestions_enabled")).toBe("false");
+    expect(await repos.settings.get("self_voicing_enabled")).toBeNull();
+  });
+
   it("running the voice performance check reports fast on a quick response", async () => {
     const user = userEvent.setup();
     renderSettings();

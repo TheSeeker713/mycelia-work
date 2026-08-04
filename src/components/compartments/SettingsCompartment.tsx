@@ -61,9 +61,11 @@ export function SettingsCompartment() {
   const selfVoicingEnabled = useSettingsStore((s) => s.selfVoicingEnabled);
   const sttEnabled = useSettingsStore((s) => s.sttEnabled);
   const piperVoiceId = useSettingsStore((s) => s.piperVoiceId);
+  const aiSuggestionsEnabled = useSettingsStore((s) => s.aiSuggestionsEnabled);
   const setSelfVoicingEnabled = useSettingsStore((s) => s.setSelfVoicingEnabled);
   const setSttEnabled = useSettingsStore((s) => s.setSttEnabled);
   const setPiperVoiceId = useSettingsStore((s) => s.setPiperVoiceId);
+  const setAiSuggestionsEnabled = useSettingsStore((s) => s.setAiSuggestionsEnabled);
   const rewardsUnlocked = useSettingsStore((s) => s.rewardsUnlocked);
   const voiceClient = useVoiceClient();
   const selfVoicing = useSelfVoicing();
@@ -108,6 +110,20 @@ export function SettingsCompartment() {
           Let me dictate instead of typing
           <span className="block text-[0.72rem] text-[var(--ink-faint)]">
             Adds a microphone icon to every text field in the app.
+          </span>
+        </span>
+      </label>
+      <label className="mb-3 flex items-start gap-2 text-[0.82rem] text-[var(--ink)]">
+        <input
+          type="checkbox"
+          checked={aiSuggestionsEnabled}
+          onChange={(e) => setAiSuggestionsEnabled(e.target.checked)}
+          className="mt-0.5"
+        />
+        <span>
+          AI writing suggestions
+          <span className="block text-[0.72rem] text-[var(--ink-faint)]">
+            Ghost-text continuations while writing in zen mode — Tab to accept.
           </span>
         </span>
       </label>

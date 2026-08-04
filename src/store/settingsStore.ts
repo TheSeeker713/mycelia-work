@@ -10,6 +10,8 @@ const PIPER_VOICE_ID_KEY = "piper_voice_id";
 /** Both default OFF/locked — the hidden-unlock flow and the 18+ toggle inside it, per Jeremy's explicit spec (2026-08-04). */
 const REWARDS_UNLOCKED_KEY = "rewards_unlocked";
 const EIGHTEEN_PLUS_KEY = "eighteen_plus_enabled";
+/** Defaults ON like the other AI/accessibility features (introduced with an opt-out, not opt-in) — Phase 8 ghost-text suggestions. */
+const AI_SUGGESTIONS_KEY = "ai_suggestions_enabled";
 
 export interface SettingsState {
   loaded: boolean;
@@ -19,6 +21,7 @@ export interface SettingsState {
   piperVoiceId: string;
   rewardsUnlocked: boolean;
   eighteenPlusEnabled: boolean;
+  aiSuggestionsEnabled: boolean;
   load: () => Promise<void>;
   setSelfVoicingEnabled: (enabled: boolean) => Promise<void>;
   setSttEnabled: (enabled: boolean) => Promise<void>;
@@ -26,6 +29,7 @@ export interface SettingsState {
   setPiperVoiceId: (voiceId: string) => Promise<void>;
   setRewardsUnlocked: (unlocked: boolean) => Promise<void>;
   setEighteenPlusEnabled: (enabled: boolean) => Promise<void>;
+  setAiSuggestionsEnabled: (enabled: boolean) => Promise<void>;
 }
 
 function parseBool(value: string | null, defaultValue: boolean): boolean {
@@ -42,6 +46,7 @@ export function createSettingsStore(repos: Repositories) {
     piperVoiceId: DEFAULT_PIPER_VOICE_ID,
     rewardsUnlocked: false,
     eighteenPlusEnabled: false,
+    aiSuggestionsEnabled: true,
 
     async load() {
       const all = await repos.settings.getAll();
@@ -52,6 +57,7 @@ export function createSettingsStore(repos: Repositories) {
         piperVoiceId: all[PIPER_VOICE_ID_KEY] ?? DEFAULT_PIPER_VOICE_ID,
         rewardsUnlocked: parseBool(all[REWARDS_UNLOCKED_KEY] ?? null, false),
         eighteenPlusEnabled: parseBool(all[EIGHTEEN_PLUS_KEY] ?? null, false),
+        aiSuggestionsEnabled: parseBool(all[AI_SUGGESTIONS_KEY] ?? null, true),
         loaded: true,
       });
     },
@@ -84,6 +90,11 @@ export function createSettingsStore(repos: Repositories) {
     async setEighteenPlusEnabled(enabled) {
       await repos.settings.set(EIGHTEEN_PLUS_KEY, String(enabled));
       set({ eighteenPlusEnabled: enabled });
+    },
+
+    async setAiSuggestionsEnabled(enabled) {
+      await repos.settings.set(AI_SUGGESTIONS_KEY, String(enabled));
+      set({ aiSuggestionsEnabled: enabled });
     },
   }));
 }

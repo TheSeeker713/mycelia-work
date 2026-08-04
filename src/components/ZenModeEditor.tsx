@@ -1,6 +1,12 @@
-import type { KeyboardEvent } from "react";
-import { useNotesStore } from "../store/StoreProvider";
+import { useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent } from "react";
+import { useNotesStore, useOllamaClient, useSettingsStore } from "../store/StoreProvider";
 import { MicButton } from "./MicButton";
+
+const SUGGESTION_DEBOUNCE_MS = 600;
+
+/** Shared so the ghost-text mirror div lines up pixel-for-pixel with the real textarea underneath it. */
+const EDITOR_TEXT_STYLE =
+  "whitespace-pre-wrap break-words border border-transparent p-8 text-[1.15rem] leading-relaxed";
 
 /**
  * The full-screen, distraction-free writing view for Notes (Phase 8) —
@@ -9,6 +15,12 @@ import { MicButton } from "./MicButton";
  * writing surface itself: no MenuBar, no compartment tabs, one obvious
  * way out. Reads/writes the same `draft` the compact Notes panel uses
  * (notesStore), so text carries over cleanly in both directions.
+ *
+ * Ghost-text suggestions (Phase 8.2) only fire when the cursor sits at
+ * the very end of the draft — writing forward is the whole use case
+ * here, and restricting to "end of text" avoids needing a full
+ * caret-position-tracking implementation for mid-document edits, which
+ * this feature was never meant to cover.
  */
 export function ZenModeEditor({
   sessionId,
@@ -22,13 +34,76 @@ export function ZenModeEditor({
   const draft = useNotesStore((s) => s.draft);
   const setDraft = useNotesStore((s) => s.setDraft);
   const addNote = useNotesStore((s) => s.addNote);
+  const aiSuggestionsEnabled = useSettingsStore((s) => s.aiSuggestionsEnabled);
+  const ollamaClient = useOllamaClient();
+
+  const [suggestion, setSuggestion] = useState<string | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const requestIdRef = useRef(0);
+  const mirrorRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(
+    () => () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      requestIdRef.current += 1; // invalidate any in-flight request
+    },
+    [],
+  );
+
+  function scheduleSuggestion(text: string) {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    const myId = ++requestIdRef.current;
+    debounceRef.current = setTimeout(async () => {
+      const result = await ollamaClient.suggestContinuation(text);
+      if (requestIdRef.current !== myId || !result) return;
+      setSuggestion(result);
+    }, SUGGESTION_DEBOUNCE_MS);
+  }
+
+  function handleChange(e: ChangeEvent<HTMLTextAreaElement>) {
+    const nextText = e.target.value;
+    const cursorAtEnd = e.target.selectionStart === nextText.length;
+    setDraft(nextText);
+    setSuggestion(null);
+    requestIdRef.current += 1; // any stale in-flight suggestion no longer applies
+
+    if (aiSuggestionsEnabled && cursorAtEnd && nextText.trim()) {
+      scheduleSuggestion(nextText);
+    } else if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+  }
+
+  function acceptSuggestion() {
+    if (!suggestion) return;
+    setDraft(draft + suggestion);
+    setSuggestion(null);
+  }
+
+  function handleKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key === "Escape") {
+      onExit();
+      return;
+    }
+    if (e.key === "Tab" && suggestion) {
+      e.preventDefault();
+      acceptSuggestion();
+      return;
+    }
+    // Per Phase 8's design: continuing to type or any other key dismisses
+    // whatever's showing — Tab is the one and only accept path.
+    if (suggestion) setSuggestion(null);
+  }
 
   function handleDictated(text: string) {
     setDraft(draft.trim() ? `${draft.trim()} ${text}` : text);
   }
 
-  function handleKeyDown(e: KeyboardEvent) {
-    if (e.key === "Escape") onExit();
+  function handleScroll() {
+    if (mirrorRef.current && textareaRef.current) {
+      mirrorRef.current.scrollTop = textareaRef.current.scrollTop;
+    }
   }
 
   async function handleSave() {
@@ -36,6 +111,7 @@ export function ZenModeEditor({
     if (!trimmed) return;
     await addNote(sessionId, trimmed);
     setDraft("");
+    setSuggestion(null);
   }
 
   return (
@@ -56,14 +132,27 @@ export function ZenModeEditor({
         </button>
       </div>
 
-      <textarea
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onKeyDown={handleKeyDown}
-        autoFocus
-        placeholder={`Write for ${taskTitle}...`}
-        className="flex-1 resize-none rounded-2xl border border-[var(--line)] bg-[var(--paper)] p-8 text-[1.15rem] leading-relaxed text-[var(--ink)] outline-none placeholder:text-[var(--ink-faint)]"
-      />
+      <div className="relative flex-1">
+        <div
+          ref={mirrorRef}
+          aria-hidden="true"
+          className={`absolute inset-0 overflow-hidden rounded-2xl ${EDITOR_TEXT_STYLE}`}
+        >
+          <span style={{ color: "transparent" }}>{draft}</span>
+          {suggestion && <span style={{ color: "var(--ink-faint)" }}>{suggestion}</span>}
+        </div>
+        <textarea
+          ref={textareaRef}
+          value={draft}
+          onChange={handleChange}
+          onKeyDown={handleKeyDown}
+          onScroll={handleScroll}
+          autoFocus
+          placeholder={`Write for ${taskTitle}...`}
+          className={`relative h-full w-full resize-none rounded-2xl bg-[var(--paper)] text-[var(--ink)] outline-none placeholder:text-[var(--ink-faint)] ${EDITOR_TEXT_STYLE}`}
+          style={{ borderColor: "var(--line)", caretColor: "var(--ink)" }}
+        />
+      </div>
 
       <div className="mt-4 flex items-center justify-between gap-2">
         <MicButton onTranscribed={handleDictated} />

@@ -22,6 +22,7 @@ import {
 import { createTauriOpenClawClient, type OpenClawClient } from "../services/openclawClient";
 import { createHttpVoiceClient, type VoiceClient } from "../services/voiceClient";
 import { createTauriRewardsClient, type RewardsClient } from "../services/rewardsClient";
+import { createHttpOllamaClient, type OllamaClient } from "../services/ollamaClient";
 
 interface StoresContextValue {
   useTasksStore: TasksStore;
@@ -34,6 +35,7 @@ interface StoresContextValue {
   openClawClient: OpenClawClient;
   voiceClient: VoiceClient;
   rewardsClient: RewardsClient;
+  ollamaClient: OllamaClient;
 }
 
 const StoresContext = createContext<StoresContextValue | null>(null);
@@ -43,6 +45,7 @@ export function StoreProvider({
   openClawClient,
   voiceClient,
   rewardsClient,
+  ollamaClient,
   children,
 }: {
   repositories: Repositories;
@@ -52,6 +55,8 @@ export function StoreProvider({
   voiceClient?: VoiceClient;
   /** Injectable, like `openClawClient` — tests pass a fake instead of hitting the real password/asset commands. */
   rewardsClient?: RewardsClient;
+  /** Injectable, like `openClawClient` — tests pass a fake instead of hitting the real local Ollama server. */
+  ollamaClient?: OllamaClient;
   children: ReactNode;
 }) {
   // Created once per `repositories` instance so remounts/tests don't
@@ -60,6 +65,7 @@ export function StoreProvider({
     const client = openClawClient ?? createTauriOpenClawClient();
     const voice = voiceClient ?? createHttpVoiceClient();
     const rewards = rewardsClient ?? createTauriRewardsClient();
+    const ollama = ollamaClient ?? createHttpOllamaClient();
     return {
       useTasksStore: createTasksStore(repositories),
       useProjectsStore: createProjectsStore(repositories),
@@ -71,6 +77,7 @@ export function StoreProvider({
       openClawClient: client,
       voiceClient: voice,
       rewardsClient: rewards,
+      ollamaClient: ollama,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [repositories]);
@@ -135,4 +142,8 @@ export function useVoiceClient(): VoiceClient {
 
 export function useRewardsClient(): RewardsClient {
   return useStoresContext().rewardsClient;
+}
+
+export function useOllamaClient(): OllamaClient {
+  return useStoresContext().ollamaClient;
 }

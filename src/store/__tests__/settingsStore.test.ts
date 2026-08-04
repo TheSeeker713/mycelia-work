@@ -87,4 +87,19 @@ describe("settingsStore", () => {
     expect(useSettings.getState().eighteenPlusEnabled).toBe(true);
     expect(useSettings.getState().rewardsUnlocked).toBe(false);
   });
+
+  it("defaults aiSuggestionsEnabled to on before and after load", async () => {
+    expect(useSettings.getState().aiSuggestionsEnabled).toBe(true);
+    await useSettings.getState().load();
+    expect(useSettings.getState().aiSuggestionsEnabled).toBe(true);
+  });
+
+  it("setAiSuggestionsEnabled persists the choice across reload", async () => {
+    await useSettings.getState().setAiSuggestionsEnabled(false);
+    expect(useSettings.getState().aiSuggestionsEnabled).toBe(false);
+
+    const freshStore = createSettingsStore(repos);
+    await freshStore.getState().load();
+    expect(freshStore.getState().aiSuggestionsEnabled).toBe(false);
+  });
 });
