@@ -62,10 +62,12 @@ export function SettingsCompartment() {
   const sttEnabled = useSettingsStore((s) => s.sttEnabled);
   const piperVoiceId = useSettingsStore((s) => s.piperVoiceId);
   const aiSuggestionsEnabled = useSettingsStore((s) => s.aiSuggestionsEnabled);
+  const captureLoggingEnabled = useSettingsStore((s) => s.captureLoggingEnabled);
   const setSelfVoicingEnabled = useSettingsStore((s) => s.setSelfVoicingEnabled);
   const setSttEnabled = useSettingsStore((s) => s.setSttEnabled);
   const setPiperVoiceId = useSettingsStore((s) => s.setPiperVoiceId);
   const setAiSuggestionsEnabled = useSettingsStore((s) => s.setAiSuggestionsEnabled);
+  const setCaptureLoggingEnabled = useSettingsStore((s) => s.setCaptureLoggingEnabled);
   const rewardsUnlocked = useSettingsStore((s) => s.rewardsUnlocked);
   const voiceClient = useVoiceClient();
   const selfVoicing = useSelfVoicing();
@@ -178,6 +180,28 @@ export function SettingsCompartment() {
         >
           {performance ? "Re-test" : "Test voice performance"}
         </button>
+      </div>
+
+      <div className="mt-2 border-t border-dashed border-[var(--line)] pt-3">
+        <div className="mb-1.5 text-[0.7rem] tracking-wide text-[var(--ink-faint)] uppercase">
+          Capture
+        </div>
+        <label className="flex items-start gap-2 text-[0.82rem] text-[var(--ink)]">
+          <input
+            type="checkbox"
+            checked={captureLoggingEnabled}
+            onChange={(e) => setCaptureLoggingEnabled(e.target.checked)}
+            className="mt-0.5"
+          />
+          <span>
+            Log capture-agent activity
+            <span className="block text-[0.72rem] text-[var(--ink-faint)]">
+              Every note/todo/milestone routed by the capture drawer — including declines
+              and clarify questions — is saved locally on this machine only, never sent
+              anywhere else.
+            </span>
+          </span>
+        </label>
       </div>
 
       {rewardsUnlocked && <RewardsSection />}

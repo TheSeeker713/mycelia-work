@@ -12,6 +12,8 @@ const REWARDS_UNLOCKED_KEY = "rewards_unlocked";
 const EIGHTEEN_PLUS_KEY = "eighteen_plus_enabled";
 /** Defaults ON like the other AI/accessibility features (introduced with an opt-out, not opt-in) — Phase 8 ghost-text suggestions. */
 const AI_SUGGESTIONS_KEY = "ai_suggestions_enabled";
+/** Defaults ON, disclosed in Settings — Phase 9 capture-agent logging, per the design doc's "configurable, disclosed plainly" requirement. */
+const CAPTURE_LOGGING_KEY = "capture_logging_enabled";
 
 export interface SettingsState {
   loaded: boolean;
@@ -22,6 +24,7 @@ export interface SettingsState {
   rewardsUnlocked: boolean;
   eighteenPlusEnabled: boolean;
   aiSuggestionsEnabled: boolean;
+  captureLoggingEnabled: boolean;
   load: () => Promise<void>;
   setSelfVoicingEnabled: (enabled: boolean) => Promise<void>;
   setSttEnabled: (enabled: boolean) => Promise<void>;
@@ -30,6 +33,7 @@ export interface SettingsState {
   setRewardsUnlocked: (unlocked: boolean) => Promise<void>;
   setEighteenPlusEnabled: (enabled: boolean) => Promise<void>;
   setAiSuggestionsEnabled: (enabled: boolean) => Promise<void>;
+  setCaptureLoggingEnabled: (enabled: boolean) => Promise<void>;
 }
 
 function parseBool(value: string | null, defaultValue: boolean): boolean {
@@ -47,6 +51,7 @@ export function createSettingsStore(repos: Repositories) {
     rewardsUnlocked: false,
     eighteenPlusEnabled: false,
     aiSuggestionsEnabled: true,
+    captureLoggingEnabled: true,
 
     async load() {
       const all = await repos.settings.getAll();
@@ -58,6 +63,7 @@ export function createSettingsStore(repos: Repositories) {
         rewardsUnlocked: parseBool(all[REWARDS_UNLOCKED_KEY] ?? null, false),
         eighteenPlusEnabled: parseBool(all[EIGHTEEN_PLUS_KEY] ?? null, false),
         aiSuggestionsEnabled: parseBool(all[AI_SUGGESTIONS_KEY] ?? null, true),
+        captureLoggingEnabled: parseBool(all[CAPTURE_LOGGING_KEY] ?? null, true),
         loaded: true,
       });
     },
@@ -95,6 +101,11 @@ export function createSettingsStore(repos: Repositories) {
     async setAiSuggestionsEnabled(enabled) {
       await repos.settings.set(AI_SUGGESTIONS_KEY, String(enabled));
       set({ aiSuggestionsEnabled: enabled });
+    },
+
+    async setCaptureLoggingEnabled(enabled) {
+      await repos.settings.set(CAPTURE_LOGGING_KEY, String(enabled));
+      set({ captureLoggingEnabled: enabled });
     },
   }));
 }

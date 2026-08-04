@@ -5,6 +5,7 @@ use tauri::{
 };
 use tauri_plugin_global_shortcut::ShortcutState;
 
+mod capture_log;
 mod journal_export;
 mod openclaw;
 mod rewards;
@@ -102,6 +103,7 @@ pub fn run() {
             rewards::verify_rewards_password,
             rewards::list_reward_assets,
             rewards::read_reward_asset,
+            capture_log::append_capture_log,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

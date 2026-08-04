@@ -23,6 +23,8 @@ import { createTauriOpenClawClient, type OpenClawClient } from "../services/open
 import { createHttpVoiceClient, type VoiceClient } from "../services/voiceClient";
 import { createTauriRewardsClient, type RewardsClient } from "../services/rewardsClient";
 import { createHttpOllamaClient, type OllamaClient } from "../services/ollamaClient";
+import { createTauriCaptureLogClient, type CaptureLogClient } from "../services/captureLogClient";
+import { createCaptureStore, type CaptureState, type CaptureStore } from "./captureStore";
 
 interface StoresContextValue {
   useTasksStore: TasksStore;
@@ -32,10 +34,12 @@ interface StoresContextValue {
   useNotesStore: NotesStore;
   useJournalsStore: JournalsStore;
   useSettingsStore: SettingsStore;
+  useCaptureStore: CaptureStore;
   openClawClient: OpenClawClient;
   voiceClient: VoiceClient;
   rewardsClient: RewardsClient;
   ollamaClient: OllamaClient;
+  captureLogClient: CaptureLogClient;
 }
 
 const StoresContext = createContext<StoresContextValue | null>(null);
@@ -46,6 +50,7 @@ export function StoreProvider({
   voiceClient,
   rewardsClient,
   ollamaClient,
+  captureLogClient,
   children,
 }: {
   repositories: Repositories;
@@ -57,6 +62,8 @@ export function StoreProvider({
   rewardsClient?: RewardsClient;
   /** Injectable, like `openClawClient` — tests pass a fake instead of hitting the real local Ollama server. */
   ollamaClient?: OllamaClient;
+  /** Injectable, like `openClawClient` — tests pass a fake instead of hitting the real capture-log Tauri command. */
+  captureLogClient?: CaptureLogClient;
   children: ReactNode;
 }) {
   // Created once per `repositories` instance so remounts/tests don't
@@ -66,6 +73,7 @@ export function StoreProvider({
     const voice = voiceClient ?? createHttpVoiceClient();
     const rewards = rewardsClient ?? createTauriRewardsClient();
     const ollama = ollamaClient ?? createHttpOllamaClient();
+    const captureLog = captureLogClient ?? createTauriCaptureLogClient();
     return {
       useTasksStore: createTasksStore(repositories),
       useProjectsStore: createProjectsStore(repositories),
@@ -74,10 +82,12 @@ export function StoreProvider({
       useNotesStore: createNotesStore(repositories),
       useJournalsStore: createJournalsStore(repositories, client),
       useSettingsStore: createSettingsStore(repositories),
+      useCaptureStore: createCaptureStore(repositories, { ollamaClient: ollama, openClawClient: client }),
       openClawClient: client,
       voiceClient: voice,
       rewardsClient: rewards,
       ollamaClient: ollama,
+      captureLogClient: captureLog,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [repositories]);
@@ -146,4 +156,13 @@ export function useRewardsClient(): RewardsClient {
 
 export function useOllamaClient(): OllamaClient {
   return useStoresContext().ollamaClient;
+}
+
+export function useCaptureLogClient(): CaptureLogClient {
+  return useStoresContext().captureLogClient;
+}
+
+export function useCaptureStore<T>(selector: (state: CaptureState) => T): T {
+  const { useCaptureStore: useStore } = useStoresContext();
+  return useStore(selector);
 }

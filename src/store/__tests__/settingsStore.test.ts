@@ -102,4 +102,19 @@ describe("settingsStore", () => {
     await freshStore.getState().load();
     expect(freshStore.getState().aiSuggestionsEnabled).toBe(false);
   });
+
+  it("defaults captureLoggingEnabled to on before and after load", async () => {
+    expect(useSettings.getState().captureLoggingEnabled).toBe(true);
+    await useSettings.getState().load();
+    expect(useSettings.getState().captureLoggingEnabled).toBe(true);
+  });
+
+  it("setCaptureLoggingEnabled persists the choice across reload", async () => {
+    await useSettings.getState().setCaptureLoggingEnabled(false);
+    expect(useSettings.getState().captureLoggingEnabled).toBe(false);
+
+    const freshStore = createSettingsStore(repos);
+    await freshStore.getState().load();
+    expect(freshStore.getState().captureLoggingEnabled).toBe(false);
+  });
 });

@@ -83,6 +83,15 @@ describe("SettingsCompartment", () => {
     expect(await repos.settings.get("self_voicing_enabled")).toBeNull();
   });
 
+  it("toggling capture-agent logging off persists it independently", async () => {
+    const user = userEvent.setup();
+    renderSettings();
+
+    await user.click(screen.getByLabelText(/Log capture-agent activity/));
+    expect(await repos.settings.get("capture_logging_enabled")).toBe("false");
+    expect(await repos.settings.get("self_voicing_enabled")).toBeNull();
+  });
+
   it("running the voice performance check reports fast on a quick response", async () => {
     const user = userEvent.setup();
     renderSettings();
