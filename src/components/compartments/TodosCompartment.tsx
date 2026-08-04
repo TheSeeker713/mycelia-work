@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useTodosStore } from "../../store/StoreProvider";
+import { MicButton } from "../MicButton";
 
 export function TodosCompartment() {
   const todos = useTodosStore((s) => s.todos);
@@ -18,6 +19,10 @@ export function TodosCompartment() {
     if (!trimmed) return;
     addTodo(trimmed);
     setText("");
+  }
+
+  function handleDictated(dictated: string) {
+    setText((prev) => (prev.trim() ? `${prev.trim()} ${dictated}` : dictated));
   }
 
   return (
@@ -50,6 +55,7 @@ export function TodosCompartment() {
           aria-label="New todo"
           className="flex-1 rounded-lg border border-[var(--line)] bg-[var(--paper)] px-2.5 py-1.5 text-[0.82rem] text-[var(--ink)] outline-none placeholder:text-[var(--ink-faint)]"
         />
+        <MicButton onTranscribed={handleDictated} />
         {text.trim() && (
           <button
             type="submit"
