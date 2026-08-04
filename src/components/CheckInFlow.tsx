@@ -8,6 +8,8 @@ import {
   type CheckinTurn,
 } from "../services/checkinConversation";
 import { CheckInDialog } from "./CheckInDialog";
+import { useSelfVoicing } from "../hooks/useSelfVoicing";
+import { useVoiceCues } from "../hooks/useVoiceCues";
 
 type FlowState =
   | { phase: "connecting" }
@@ -40,6 +42,8 @@ export function CheckInFlow({
   const sessionKeyRef = useRef(`agent:main:mycelia-time-checkin-${activeSession.session.id}`);
   const wasAlreadyRunningRef = useRef<boolean | null>(null);
   const daemonReleasedRef = useRef(false);
+  const selfVoicing = useSelfVoicing();
+  const voiceCues = useVoiceCues();
 
   async function releaseIfNeeded() {
     if (wasAlreadyRunningRef.current === null || daemonReleasedRef.current) return;
@@ -52,6 +56,7 @@ export function CheckInFlow({
   }
 
   async function finish(turn: CheckinTurn) {
+    selfVoicing.speak(turn.message);
     await releaseIfNeeded();
     onResolve(turn.resolvedCloseAt as string, turn.resolvedNote ?? "");
   }
@@ -60,6 +65,7 @@ export function CheckInFlow({
     let cancelled = false;
 
     async function begin() {
+      voiceCues.play("please_wait");
       let wasRunning: boolean;
       try {
         wasRunning = await client.ensureDaemon();
@@ -93,6 +99,7 @@ export function CheckInFlow({
         await finish(turn);
         return;
       }
+      selfVoicing.speak(turn.message);
       setState({ phase: "adaptive", turn, turnCount: 1 });
     }
 
@@ -114,6 +121,7 @@ export function CheckInFlow({
       return;
     }
     setState({ phase: "connecting" });
+    voiceCues.play("please_wait");
     const turn = await continueCheckinConversation(client, sessionKeyRef.current, value);
     if (!turn) {
       await releaseIfNeeded();
@@ -124,6 +132,7 @@ export function CheckInFlow({
       await finish(turn);
       return;
     }
+    selfVoicing.speak(turn.message);
     setState({ phase: "adaptive", turn, turnCount: nextCount });
   }
 

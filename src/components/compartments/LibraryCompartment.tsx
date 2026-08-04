@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useJournalsStore, useTasksStore } from "../../store/StoreProvider";
+import { useSelfVoicing } from "../../hooks/useSelfVoicing";
 import type { Journal } from "../../data";
 
 const STATUS_LABEL: Record<Journal["status"], string> = {
@@ -16,6 +17,7 @@ function JournalEntry({
   onRetry: (id: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const selfVoicing = useSelfVoicing();
   const label = journal.kind === "weekly" ? "Weekly roll-up" : "Session journal";
   const when = new Date(journal.generated_at).toLocaleString([], {
     month: "short",
@@ -53,13 +55,24 @@ function JournalEntry({
           >
             {journal.content}
           </p>
-          <button
-            type="button"
-            onClick={() => setExpanded((e) => !e)}
-            className="mt-1 text-[0.7rem] text-[var(--ink-faint)] underline"
-          >
-            {expanded ? "Show less" : "Read more"}
-          </button>
+          <div className="mt-1 flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setExpanded((e) => !e)}
+              className="text-[0.7rem] text-[var(--ink-faint)] underline"
+            >
+              {expanded ? "Show less" : "Read more"}
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                selfVoicing.speaking ? selfVoicing.stop() : selfVoicing.speak(journal.content ?? "")
+              }
+              className="text-[0.7rem] text-[var(--ink-faint)] underline"
+            >
+              {selfVoicing.speaking ? "Stop reading" : "🔊 Read aloud"}
+            </button>
+          </div>
         </div>
       )}
 
