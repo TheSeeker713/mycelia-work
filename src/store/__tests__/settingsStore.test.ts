@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { initDatabase, type Repositories } from "../../data";
 import { createTestExecutor } from "../../data/__tests__/testExecutor";
+import { DEFAULT_PIPER_VOICE_ID } from "../../services/voiceClient";
 import { createSettingsStore, type SettingsStore } from "../settingsStore";
 
 let repos: Repositories;
@@ -47,5 +48,20 @@ describe("settingsStore", () => {
     const freshStore = createSettingsStore(repos);
     await freshStore.getState().load();
     expect(freshStore.getState().accessibilityOnboardingSeen).toBe(true);
+  });
+
+  it("defaults piperVoiceId to the default voice before and after load", async () => {
+    expect(useSettings.getState().piperVoiceId).toBe(DEFAULT_PIPER_VOICE_ID);
+    await useSettings.getState().load();
+    expect(useSettings.getState().piperVoiceId).toBe(DEFAULT_PIPER_VOICE_ID);
+  });
+
+  it("setPiperVoiceId persists the choice across reload", async () => {
+    await useSettings.getState().setPiperVoiceId("en_US-amy-medium");
+    expect(useSettings.getState().piperVoiceId).toBe("en_US-amy-medium");
+
+    const freshStore = createSettingsStore(repos);
+    await freshStore.getState().load();
+    expect(freshStore.getState().piperVoiceId).toBe("en_US-amy-medium");
   });
 });

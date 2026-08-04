@@ -5,7 +5,7 @@ import { SettingsCompartment } from "../SettingsCompartment";
 import { StoreProvider } from "../../../store/StoreProvider";
 import { initDatabase, type Repositories } from "../../../data";
 import { createTestExecutor } from "../../../data/__tests__/testExecutor";
-import type { VoiceClient } from "../../../services/voiceClient";
+import { DEFAULT_PIPER_VOICE_ID, type VoiceClient } from "../../../services/voiceClient";
 
 let repos: Repositories;
 let voiceClient: VoiceClient;
@@ -67,6 +67,35 @@ describe("SettingsCompartment", () => {
 
     await waitFor(() =>
       expect(screen.getByText(/isn't reachable right now/)).toBeInTheDocument(),
+    );
+  });
+
+  it("defaults the voice picker to the default voice", () => {
+    renderSettings();
+    expect(screen.getByLabelText("Narration voice")).toHaveValue(DEFAULT_PIPER_VOICE_ID);
+  });
+
+  it("changing the voice picker persists the choice", async () => {
+    const user = userEvent.setup();
+    renderSettings();
+
+    await user.selectOptions(screen.getByLabelText("Narration voice"), "en_US-amy-medium");
+
+    expect(await repos.settings.get("piper_voice_id")).toBe("en_US-amy-medium");
+  });
+
+  it("Preview speaks a sample line using the currently selected voice", async () => {
+    const user = userEvent.setup();
+    renderSettings();
+
+    await user.selectOptions(screen.getByLabelText("Narration voice"), "en_US-amy-medium");
+    await user.click(screen.getByText("Preview"));
+
+    await waitFor(() =>
+      expect(voiceClient.speak).toHaveBeenCalledWith(
+        "This is what I sound like.",
+        "en_US-amy-medium",
+      ),
     );
   });
 });

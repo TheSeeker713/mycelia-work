@@ -6,7 +6,7 @@ import { StoreProvider } from "../../store/StoreProvider";
 import { initDatabase, type Repositories } from "../../data";
 import { createTestExecutor } from "../../data/__tests__/testExecutor";
 import type { OpenClawClient } from "../../services/openclawClient";
-import type { VoiceClient } from "../../services/voiceClient";
+import { DEFAULT_PIPER_VOICE_ID, type VoiceClient } from "../../services/voiceClient";
 import type { ActiveSession } from "../../store/sessionsStore";
 import type { Task, TaskSession } from "../../data";
 
@@ -184,6 +184,9 @@ describe("CheckInFlow", () => {
     // The fixed "please wait" cue is a bundled asset played via a plain
     // <audio> element, not this client — what's checkable here is the
     // live turn narration, which does go through the voice client.
-    expect(voiceClient.speak).toHaveBeenCalledWith("Did you keep working after clocking in?");
+    expect(voiceClient.speak).toHaveBeenCalledWith(
+      "Did you keep working after clocking in?",
+      DEFAULT_PIPER_VOICE_ID,
+    );
   });
 });

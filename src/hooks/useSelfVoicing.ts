@@ -17,6 +17,7 @@ export interface SelfVoicing {
  */
 export function useSelfVoicing(): SelfVoicing {
   const enabled = useSettingsStore((s) => s.selfVoicingEnabled);
+  const voiceId = useSettingsStore((s) => s.piperVoiceId);
   const client = useVoiceClient();
   const [speaking, setSpeaking] = useState(false);
 
@@ -31,7 +32,7 @@ export function useSelfVoicing(): SelfVoicing {
 
     while (queueRef.current.length > 0 && !stoppedRef.current) {
       const text = queueRef.current.shift() as string;
-      const blob = await client.speak(text);
+      const blob = await client.speak(text, voiceId);
       if (!blob || stoppedRef.current) continue;
 
       const url = URL.createObjectURL(blob);
@@ -55,7 +56,7 @@ export function useSelfVoicing(): SelfVoicing {
     audioRef.current = null;
     setSpeaking(false);
     processingRef.current = false;
-  }, [client]);
+  }, [client, voiceId]);
 
   const speak = useCallback(
     (text: string) => {

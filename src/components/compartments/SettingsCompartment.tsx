@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useSettingsStore, useVoiceClient } from "../../store/StoreProvider";
+import { useSelfVoicing } from "../../hooks/useSelfVoicing";
 import { classifyVoicePerformance, measureTtsLatencySeconds, type VoicePerformance } from "../../services/hardwareCheck";
+import { PIPER_VOICES } from "../../services/voiceClient";
 
 const PERFORMANCE_LABEL: Record<VoicePerformance | "checking", string> = {
   checking: "Checking…",
@@ -18,9 +20,12 @@ const PERFORMANCE_LABEL: Record<VoicePerformance | "checking", string> = {
 export function SettingsCompartment() {
   const selfVoicingEnabled = useSettingsStore((s) => s.selfVoicingEnabled);
   const sttEnabled = useSettingsStore((s) => s.sttEnabled);
+  const piperVoiceId = useSettingsStore((s) => s.piperVoiceId);
   const setSelfVoicingEnabled = useSettingsStore((s) => s.setSelfVoicingEnabled);
   const setSttEnabled = useSettingsStore((s) => s.setSttEnabled);
+  const setPiperVoiceId = useSettingsStore((s) => s.setPiperVoiceId);
   const voiceClient = useVoiceClient();
+  const selfVoicing = useSelfVoicing();
 
   const [performance, setPerformance] = useState<VoicePerformance | "checking" | null>(null);
 
@@ -65,6 +70,37 @@ export function SettingsCompartment() {
           </span>
         </span>
       </label>
+
+      <div className="mt-1 border-t border-dashed border-[var(--line)] pt-3">
+        <div className="mb-1.5 text-[0.7rem] tracking-wide text-[var(--ink-faint)] uppercase">
+          Voice
+        </div>
+        <div className="flex items-center gap-2">
+          <select
+            value={piperVoiceId}
+            onChange={(e) => setPiperVoiceId(e.target.value)}
+            aria-label="Narration voice"
+            className="flex-1 rounded-lg border border-[var(--line)] bg-[var(--paper)] px-2.5 py-1.5 text-[0.8rem] text-[var(--ink)] outline-none"
+          >
+            {PIPER_VOICES.map((v) => (
+              <option key={v.id} value={v.id}>
+                {v.label}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={() =>
+              selfVoicing.speaking
+                ? selfVoicing.stop()
+                : selfVoicing.speak("This is what I sound like.")
+            }
+            className="flex-shrink-0 rounded-full border border-[var(--line)] px-2.5 py-1 text-[0.7rem] text-[var(--ink-soft)]"
+          >
+            {selfVoicing.speaking ? "Stop" : "Preview"}
+          </button>
+        </div>
+      </div>
 
       <div className="mt-2 border-t border-dashed border-[var(--line)] pt-3">
         <div className="mb-1.5 text-[0.7rem] tracking-wide text-[var(--ink-faint)] uppercase">

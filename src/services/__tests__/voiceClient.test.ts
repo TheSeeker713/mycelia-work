@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createHttpVoiceClient } from "../voiceClient";
+import { DEFAULT_PIPER_VOICE_ID, createHttpVoiceClient } from "../voiceClient";
+
+async function formDataFromLastCall(fetchMock: ReturnType<typeof vi.fn>): Promise<FormData> {
+  const [, init] = fetchMock.mock.calls[fetchMock.mock.calls.length - 1];
+  return init.body as FormData;
+}
 
 const originalFetch = global.fetch;
 
@@ -41,6 +46,30 @@ describe("createHttpVoiceClient", () => {
       const client = createHttpVoiceClient();
       expect(await client.speak("   ")).toBeNull();
       expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    it("defaults to the default voice id when none is given", async () => {
+      const blob = new Blob(["wav"], { type: "audio/wav" });
+      const fetchMock = vi.fn().mockResolvedValue({ ok: true, blob: () => Promise.resolve(blob) });
+      global.fetch = fetchMock;
+
+      const client = createHttpVoiceClient();
+      await client.speak("Clocked in.");
+
+      const form = await formDataFromLastCall(fetchMock);
+      expect(form.get("voice")).toBe(DEFAULT_PIPER_VOICE_ID);
+    });
+
+    it("passes a specific voice id through to the server", async () => {
+      const blob = new Blob(["wav"], { type: "audio/wav" });
+      const fetchMock = vi.fn().mockResolvedValue({ ok: true, blob: () => Promise.resolve(blob) });
+      global.fetch = fetchMock;
+
+      const client = createHttpVoiceClient();
+      await client.speak("Clocked in.", "en_US-amy-medium");
+
+      const form = await formDataFromLastCall(fetchMock);
+      expect(form.get("voice")).toBe("en_US-amy-medium");
     });
   });
 

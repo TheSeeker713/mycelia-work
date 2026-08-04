@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { initDatabase, type Repositories } from "../../data";
 import { createTestExecutor } from "../../data/__tests__/testExecutor";
 import { StoreProvider, useSettingsStore } from "../../store/StoreProvider";
-import type { VoiceClient } from "../../services/voiceClient";
+import { DEFAULT_PIPER_VOICE_ID, type VoiceClient } from "../../services/voiceClient";
 import { useSelfVoicing } from "../useSelfVoicing";
 
 class FakeAudio {
@@ -62,7 +62,9 @@ describe("useSelfVoicing", () => {
       result.current.speak("Clocked in.");
     });
 
-    await waitFor(() => expect(fakeClient.speak).toHaveBeenCalledWith("Clocked in."));
+    await waitFor(() =>
+      expect(fakeClient.speak).toHaveBeenCalledWith("Clocked in.", DEFAULT_PIPER_VOICE_ID),
+    );
     await waitFor(() => expect(result.current.speaking).toBe(true));
 
     act(() => {
@@ -88,7 +90,7 @@ describe("useSelfVoicing", () => {
     });
 
     await waitFor(() => expect(instances.length).toBe(2));
-    expect(fakeClient.speak).toHaveBeenNthCalledWith(2, "Second.");
+    expect(fakeClient.speak).toHaveBeenNthCalledWith(2, "Second.", DEFAULT_PIPER_VOICE_ID);
   });
 
   it("does nothing when self-voicing is disabled", async () => {
@@ -145,6 +147,25 @@ describe("useSelfVoicing", () => {
     });
 
     await waitFor(() => expect(instances.length).toBe(1));
-    expect(fakeClient.speak).toHaveBeenNthCalledWith(2, "Succeeds.");
+    expect(fakeClient.speak).toHaveBeenNthCalledWith(2, "Succeeds.", DEFAULT_PIPER_VOICE_ID);
+  });
+
+  it("passes the settingsStore's chosen voice id through to each speak() call", async () => {
+    const { result } = renderHook(
+      () => ({ voicing: useSelfVoicing(), settings: useSettingsStore((s) => s) }),
+      { wrapper },
+    );
+
+    await act(async () => {
+      await result.current.settings.setPiperVoiceId("en_US-amy-medium");
+    });
+
+    act(() => {
+      result.current.voicing.speak("Clocked in.");
+    });
+
+    await waitFor(() =>
+      expect(fakeClient.speak).toHaveBeenCalledWith("Clocked in.", "en_US-amy-medium"),
+    );
   });
 });

@@ -5,7 +5,7 @@ import { LibraryCompartment } from "../LibraryCompartment";
 import { StoreProvider } from "../../../store/StoreProvider";
 import { initDatabase, type Repositories } from "../../../data";
 import { createTestExecutor } from "../../../data/__tests__/testExecutor";
-import type { VoiceClient } from "../../../services/voiceClient";
+import { DEFAULT_PIPER_VOICE_ID, type VoiceClient } from "../../../services/voiceClient";
 
 let repos: Repositories;
 let voiceClient: VoiceClient;
@@ -79,7 +79,10 @@ describe("LibraryCompartment — Read aloud", () => {
     const readAloud = await screen.findByText("🔊 Read aloud");
     await user.click(readAloud);
 
-    expect(voiceClient.speak).toHaveBeenCalledWith("Spent the afternoon on the devlog entry.");
+    expect(voiceClient.speak).toHaveBeenCalledWith(
+      "Spent the afternoon on the devlog entry.",
+      DEFAULT_PIPER_VOICE_ID,
+    );
     await waitFor(() => expect(screen.getByText("Stop reading")).toBeInTheDocument());
   });
 });
