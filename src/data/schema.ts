@@ -84,7 +84,17 @@ export const MIGRATIONS: string[] = [
 
 /**
  * Applies every migration that hasn't already run, tracked by row count
- * in `migrations`. Safe to call on every app start.
+ * in `migrations`. Safe to call on every app start — including when
+ * another instance of the app (e.g. one still resident in the tray from
+ * a prior session, since closing the window hides rather than exits)
+ * is running the same migration concurrently against the same on-disk
+ * database. The window between this call's own SELECT and INSERT is
+ * exactly where two processes can race to record the same migration id
+ * first; the loser's INSERT hits `migrations.id`'s primary key and
+ * fails with a unique-constraint error. The table itself is already
+ * correct either way (`CREATE TABLE IF NOT EXISTS` is idempotent), so
+ * a duplicate tracking row is the only failure mode, and it's benign —
+ * swallowed here rather than left to crash the app on launch.
  */
 export async function applyMigrations(executor: SqlExecutor): Promise<void> {
   await executor.execute(MIGRATIONS[0]);
@@ -96,9 +106,14 @@ export async function applyMigrations(executor: SqlExecutor): Promise<void> {
   for (let i = 1; i < MIGRATIONS.length; i += 1) {
     if (appliedIds.has(i)) continue;
     await executor.execute(MIGRATIONS[i]);
-    await executor.execute(
-      "INSERT INTO migrations (id, applied_at) VALUES (?, ?)",
-      [i, new Date().toISOString()],
-    );
+    try {
+      await executor.execute(
+        "INSERT INTO migrations (id, applied_at) VALUES (?, ?)",
+        [i, new Date().toISOString()],
+      );
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (!/unique/i.test(message)) throw err;
+    }
   }
 }
