@@ -1,10 +1,13 @@
 import { create } from "zustand";
 import type { CreateProjectInput, UpdateProjectInput } from "../data/repositories/projectsRepository";
-import type { Milestone, Project, Repositories } from "../data";
+import type { Milestone, Project, ProjectReport, Repositories } from "../data";
+import type { OpenClawClient } from "../services/openclawClient";
+import { runProjectReportGeneration } from "../services/projectAssist";
 
 export interface ProjectsState {
   projects: Project[];
   milestonesByProject: Record<string, Milestone[]>;
+  reportsByProject: Record<string, ProjectReport[]>;
   loading: boolean;
   loadProjects: () => Promise<void>;
   addProject: (input: CreateProjectInput) => Promise<void>;
@@ -14,12 +17,15 @@ export interface ProjectsState {
   loadMilestones: (projectId: string) => Promise<void>;
   completeMilestone: (projectId: string, milestoneId: string) => Promise<void>;
   deleteMilestone: (projectId: string, milestoneId: string) => Promise<void>;
+  loadReports: (projectId: string) => Promise<void>;
+  generateReport: (project: Project) => Promise<void>;
 }
 
-export function createProjectsStore(repos: Repositories) {
+export function createProjectsStore(repos: Repositories, client: OpenClawClient) {
   return create<ProjectsState>((set, get) => ({
     projects: [],
     milestonesByProject: {},
+    reportsByProject: {},
     loading: false,
 
     async loadProjects() {
@@ -61,6 +67,23 @@ export function createProjectsStore(repos: Repositories) {
     async deleteMilestone(projectId, milestoneId) {
       await repos.milestones.delete(milestoneId);
       await get().loadMilestones(projectId);
+    },
+
+    async loadReports(projectId) {
+      const reports = await repos.projectReports.listByProject(projectId);
+      set({ reportsByProject: { ...get().reportsByProject, [projectId]: reports } });
+    },
+
+    async generateReport(project) {
+      const pending = await repos.projectReports.createPending(project.id);
+      set({
+        reportsByProject: {
+          ...get().reportsByProject,
+          [project.id]: [pending, ...(get().reportsByProject[project.id] ?? [])],
+        },
+      });
+      await runProjectReportGeneration({ repos, client, reportId: pending.id, project });
+      await get().loadReports(project.id);
     },
   }));
 }

@@ -76,7 +76,7 @@ export function StoreProvider({
     const captureLog = captureLogClient ?? createTauriCaptureLogClient();
     return {
       useTasksStore: createTasksStore(repositories),
-      useProjectsStore: createProjectsStore(repositories),
+      useProjectsStore: createProjectsStore(repositories, client),
       useTodosStore: createTodosStore(repositories),
       useSessionsStore: createSessionsStore(repositories),
       useNotesStore: createNotesStore(repositories),

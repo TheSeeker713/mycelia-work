@@ -1,7 +1,8 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { useProjectsStore } from "../../store/StoreProvider";
-import type { Milestone, Project, ProjectPriority, ProjectStatus } from "../../data";
+import { useCaptureLogClient, useOpenClawClient, useProjectsStore } from "../../store/StoreProvider";
+import type { Milestone, Project, ProjectPriority, ProjectReport, ProjectStatus } from "../../data";
 import { DateTimePicker } from "../DateTimePicker";
+import { ASSIST_ACTION_LABEL, runProjectAssist, type AssistAction } from "../../services/projectAssist";
 
 const PRIORITY_LABEL: Record<ProjectPriority, string> = { high: "high", medium: "medium", low: "low" };
 const STATUS_LABEL: Record<ProjectStatus, string> = {
@@ -65,13 +66,167 @@ function ProjectCard({
   );
 }
 
+const ASSIST_ACTIONS: AssistAction[] = ["sub_tasks", "scheduling_suggestion", "tighten_description"];
+
+/**
+ * Sub-tasks, scheduling suggestion, tighten description, and freeform
+ * ask are all transient (docs plan: "toast, then discard from view,
+ * but still logged locally per Phase 9's logging policy") — shown once
+ * here, never written to the database, but every run (including the
+ * result) gets logged the same way capture-agent interactions do.
+ */
+function AssistPanel({ project }: { project: Project }) {
+  const openClawClient = useOpenClawClient();
+  const captureLogClient = useCaptureLogClient();
+  const [running, setRunning] = useState<AssistAction | null>(null);
+  const [result, setResult] = useState<{ action: AssistAction; text: string } | null>(null);
+  const [showAsk, setShowAsk] = useState(false);
+  const [askText, setAskText] = useState("");
+
+  async function runAction(action: AssistAction, question?: string) {
+    setRunning(action);
+    setResult(null);
+    const text = await runProjectAssist(action, project, openClawClient, question);
+    setRunning(null);
+    setResult({ action, text: text ?? "Couldn't get an answer just now — try again in a moment." });
+    await captureLogClient.logAiAssist({
+      occurredAt: new Date().toISOString(),
+      projectId: project.id,
+      action,
+      resultSummary: text ?? undefined,
+    });
+  }
+
+  return (
+    <div className="mt-3 border-t border-dashed border-[var(--line)] pt-3">
+      <div className="mb-1.5 text-[0.7rem] tracking-wide text-[var(--ink-faint)] uppercase">AI assist</div>
+      <div className="flex flex-wrap gap-1.5">
+        {ASSIST_ACTIONS.map((action) => (
+          <button
+            key={action}
+            type="button"
+            onClick={() => void runAction(action)}
+            disabled={running !== null}
+            className="rounded-full border border-[var(--line)] px-2.5 py-1 text-[0.72rem] text-[var(--ink-soft)] disabled:opacity-50"
+          >
+            {ASSIST_ACTION_LABEL[action]}
+          </button>
+        ))}
+        <button
+          type="button"
+          onClick={() => setShowAsk(true)}
+          disabled={running !== null}
+          className="rounded-full border border-[var(--line)] px-2.5 py-1 text-[0.72rem] text-[var(--ink-soft)] disabled:opacity-50"
+        >
+          Ask
+        </button>
+      </div>
+
+      {showAsk && (
+        <div className="mt-2 flex items-center gap-1.5">
+          <input
+            value={askText}
+            onChange={(e) => setAskText(e.target.value)}
+            placeholder="Ask about this project..."
+            aria-label="Ask about this project"
+            className="flex-1 rounded-lg border border-[var(--line)] bg-[var(--paper)] px-2 py-1 text-[0.76rem] text-[var(--ink)] outline-none"
+          />
+          <button
+            type="button"
+            onClick={() => {
+              const q = askText.trim();
+              if (!q) return;
+              setAskText("");
+              setShowAsk(false);
+              void runAction("freeform_ask", q);
+            }}
+            className="rounded-lg bg-[var(--moss)] px-2.5 py-1 text-[0.72rem] text-white"
+          >
+            Go
+          </button>
+        </div>
+      )}
+
+      {running && <p className="mt-2 text-[0.76rem] text-[var(--ink-faint)]">Thinking…</p>}
+
+      {result && (
+        <div className="mt-2 rounded-lg border border-[var(--line)] p-2">
+          <p className="text-[0.8rem] whitespace-pre-wrap text-[var(--ink)]">{result.text}</p>
+          <button
+            type="button"
+            onClick={() => setResult(null)}
+            className="mt-1 text-[0.7rem] text-[var(--ink-faint)]"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Status reports are real kept content (unlike the assist panel above) — this is their actual in-app home, per the plan. */
+function ReportsSection({ project, reports }: { project: Project; reports: ProjectReport[] | undefined }) {
+  const generateReport = useProjectsStore((s) => s.generateReport);
+  const [generating, setGenerating] = useState(false);
+
+  async function handleGenerate() {
+    setGenerating(true);
+    await generateReport(project);
+    setGenerating(false);
+  }
+
+  const list = reports ?? [];
+
+  return (
+    <div className="mt-3 border-t border-dashed border-[var(--line)] pt-3">
+      <div className="mb-1.5 flex items-center justify-between">
+        <span className="text-[0.7rem] tracking-wide text-[var(--ink-faint)] uppercase">Status reports</span>
+        <button
+          type="button"
+          onClick={() => void handleGenerate()}
+          disabled={generating}
+          className="rounded-full border border-[var(--line)] px-2.5 py-1 text-[0.7rem] text-[var(--ink-soft)] disabled:opacity-50"
+        >
+          {generating ? "Writing…" : "Write status report"}
+        </button>
+      </div>
+      {list.length === 0 ? (
+        <p className="text-[0.78rem] text-[var(--ink-faint)]">None yet.</p>
+      ) : (
+        <ul className="flex flex-col gap-2">
+          {list.map((r) => (
+            <li key={r.id} className="rounded-lg border border-[var(--line)] p-2 text-[0.8rem]">
+              <div className="mb-1 text-[0.66rem] text-[var(--ink-faint)] tabular-nums">
+                {new Date(r.generated_at).toLocaleString([], {
+                  month: "short",
+                  day: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </div>
+              {r.status === "pending" && <span className="text-[var(--ink-faint)]">Writing…</span>}
+              {r.status === "failed" && (
+                <span className="text-[var(--rust)]">Failed{r.failure_reason ? ` — ${r.failure_reason}` : ""}</span>
+              )}
+              {r.status === "ok" && <p className="whitespace-pre-wrap text-[var(--ink)]">{r.content}</p>}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 function ProjectDetail({
   project,
   milestones,
+  reports,
   onBack,
 }: {
   project: Project;
   milestones: Milestone[] | undefined;
+  reports: ProjectReport[] | undefined;
   onBack: () => void;
 }) {
   const updateProject = useProjectsStore((s) => s.updateProject);
@@ -79,6 +234,12 @@ function ProjectDetail({
   const deleteProject = useProjectsStore((s) => s.deleteProject);
   const completeMilestone = useProjectsStore((s) => s.completeMilestone);
   const deleteMilestone = useProjectsStore((s) => s.deleteMilestone);
+  const loadReports = useProjectsStore((s) => s.loadReports);
+
+  useEffect(() => {
+    loadReports(project.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project.id]);
 
   const [title, setTitle] = useState(project.title);
   const [description, setDescription] = useState(project.description ?? "");
@@ -234,6 +395,9 @@ function ProjectDetail({
         )}
       </div>
 
+      <AssistPanel project={project} />
+      <ReportsSection project={project} reports={reports} />
+
       <div className="mt-3 flex items-center gap-2 border-t border-dashed border-[var(--line)] pt-3">
         <button
           type="button"
@@ -282,6 +446,7 @@ export function ProjectsCompartment() {
   const addProject = useProjectsStore((s) => s.addProject);
   const milestonesByProject = useProjectsStore((s) => s.milestonesByProject);
   const loadMilestones = useProjectsStore((s) => s.loadMilestones);
+  const reportsByProject = useProjectsStore((s) => s.reportsByProject);
   const [showForm, setShowForm] = useState(false);
   const [title, setTitle] = useState("");
   const [month, setMonth] = useState("2026-09");
@@ -314,6 +479,7 @@ export function ProjectsCompartment() {
       <ProjectDetail
         project={expanded}
         milestones={milestonesByProject[expanded.id]}
+        reports={reportsByProject[expanded.id]}
         onBack={() => setExpandedProjectId(null)}
       />
     );

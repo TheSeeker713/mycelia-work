@@ -1,20 +1,34 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ProjectsCompartment } from "../ProjectsCompartment";
 import { StoreProvider } from "../../../store/StoreProvider";
 import { initDatabase, type Repositories } from "../../../data";
 import { createTestExecutor } from "../../../data/__tests__/testExecutor";
+import type { OpenClawClient } from "../../../services/openclawClient";
+import type { CaptureLogClient } from "../../../services/captureLogClient";
 
 let repos: Repositories;
+let openClawClient: OpenClawClient;
+let captureLogClient: CaptureLogClient;
 
 beforeEach(async () => {
   repos = await initDatabase(createTestExecutor());
+  openClawClient = {
+    runOnce: vi.fn().mockResolvedValue({ text: "- Wireframe the flow\n- Write copy", model: "test" }),
+    ensureDaemon: vi.fn(),
+    call: vi.fn(),
+    releaseDaemon: vi.fn(),
+  };
+  captureLogClient = {
+    log: vi.fn().mockResolvedValue(undefined),
+    logAiAssist: vi.fn().mockResolvedValue(undefined),
+  };
 });
 
 function renderProjects() {
   return render(
-    <StoreProvider repositories={repos}>
+    <StoreProvider repositories={repos} openClawClient={openClawClient} captureLogClient={captureLogClient}>
       <ProjectsCompartment />
     </StoreProvider>,
   );
@@ -175,5 +189,55 @@ describe("ProjectsCompartment", () => {
     expect(screen.queryByText("Kickoff")).not.toBeInTheDocument();
     const list = await repos.milestones.listByProject(project.id);
     expect(list.find((m) => m.id === milestone.id)).toBeUndefined();
+  });
+
+  it("AI assist: running Sub-tasks shows the result and logs it, without persisting anything", async () => {
+    const user = userEvent.setup();
+    await repos.projects.create({ title: "Client portal revamp", targetMonth: "2026-09", priority: "low" });
+    renderProjects();
+
+    await user.click(await screen.findByText("Client portal revamp"));
+    await user.click(screen.getByText("Sub-tasks"));
+
+    expect(await screen.findByText(/Wireframe the flow/)).toBeInTheDocument();
+    await waitFor(() => expect(captureLogClient.logAiAssist).toHaveBeenCalled());
+
+    await user.click(screen.getByText("Dismiss"));
+    expect(screen.queryByText(/Wireframe the flow/)).not.toBeInTheDocument();
+  });
+
+  it("AI assist: Ask sends the freeform question through project context", async () => {
+    const user = userEvent.setup();
+    await repos.projects.create({ title: "Client portal revamp", targetMonth: "2026-09", priority: "low" });
+    renderProjects();
+
+    await user.click(await screen.findByText("Client portal revamp"));
+    await user.click(screen.getByText("Ask"));
+    await user.type(screen.getByLabelText("Ask about this project"), "What's the biggest risk?");
+    await user.click(screen.getByText("Go"));
+
+    await waitFor(() => expect(openClawClient.runOnce).toHaveBeenCalled());
+    const call = (openClawClient.runOnce as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(call.message).toContain("Client portal revamp");
+    expect(call.message).toContain("What's the biggest risk?");
+  });
+
+  it("status report: Write status report persists a real report shown in the list", async () => {
+    const user = userEvent.setup();
+    openClawClient.runOnce = vi.fn().mockResolvedValue({ text: "Made real progress this week.", model: "test" });
+    const project = await repos.projects.create({
+      title: "Client portal revamp",
+      targetMonth: "2026-09",
+      priority: "low",
+    });
+    renderProjects();
+
+    await user.click(await screen.findByText("Client portal revamp"));
+    await user.click(screen.getByText("Write status report"));
+
+    expect(await screen.findByText("Made real progress this week.")).toBeInTheDocument();
+    const stored = await repos.projectReports.listByProject(project.id);
+    expect(stored).toHaveLength(1);
+    expect(stored[0]).toMatchObject({ status: "ok", content: "Made real progress this week." });
   });
 });

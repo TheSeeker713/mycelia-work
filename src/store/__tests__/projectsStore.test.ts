@@ -1,15 +1,23 @@
 // @vitest-environment node
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { initDatabase, type Repositories } from "../../data";
 import { createTestExecutor } from "../../data/__tests__/testExecutor";
 import { createProjectsStore, type ProjectsStore } from "../projectsStore";
+import type { OpenClawClient } from "../../services/openclawClient";
 
 let repos: Repositories;
+let openClawClient: OpenClawClient;
 let useProjectsStore: ProjectsStore;
 
 beforeEach(async () => {
   repos = await initDatabase(createTestExecutor());
-  useProjectsStore = createProjectsStore(repos);
+  openClawClient = {
+    runOnce: vi.fn().mockResolvedValue({ text: "Real progress this week.", model: "test" }),
+    ensureDaemon: vi.fn(),
+    call: vi.fn(),
+    releaseDaemon: vi.fn(),
+  };
+  useProjectsStore = createProjectsStore(repos, openClawClient);
 });
 
 describe("projectsStore", () => {
@@ -107,5 +115,48 @@ describe("projectsStore", () => {
     await useProjectsStore.getState().deleteMilestone(projectId, milestone.id);
 
     expect(useProjectsStore.getState().milestonesByProject[projectId]).toEqual([]);
+  });
+
+  it("generateReport creates a pending report immediately, then resolves it to ok", async () => {
+    await useProjectsStore.getState().addProject({
+      title: "Client portal revamp",
+      targetMonth: "2026-09",
+      priority: "low",
+    });
+    const project = useProjectsStore.getState().projects[0];
+
+    // Block the model call so the intermediate "pending" state is
+    // deterministically observable, rather than racing microtask timing.
+    let resolveRunOnce: (v: { text: string; model: string }) => void = () => {};
+    openClawClient.runOnce = vi.fn(
+      () => new Promise<{ text: string; model: string }>((resolve) => { resolveRunOnce = resolve; }),
+    );
+
+    const promise = useProjectsStore.getState().generateReport(project);
+    await vi.waitFor(() =>
+      expect(useProjectsStore.getState().reportsByProject[project.id]?.[0]?.status).toBe("pending"),
+    );
+
+    resolveRunOnce({ text: "Real progress this week.", model: "test" });
+    await promise;
+
+    expect(useProjectsStore.getState().reportsByProject[project.id]?.[0]).toMatchObject({
+      status: "ok",
+      content: "Real progress this week.",
+    });
+  });
+
+  it("loadReports reads existing reports for a project", async () => {
+    await useProjectsStore.getState().addProject({
+      title: "Client portal revamp",
+      targetMonth: "2026-09",
+      priority: "low",
+    });
+    const project = useProjectsStore.getState().projects[0];
+    await repos.projectReports.createPending(project.id);
+
+    await useProjectsStore.getState().loadReports(project.id);
+
+    expect(useProjectsStore.getState().reportsByProject[project.id]).toHaveLength(1);
   });
 });

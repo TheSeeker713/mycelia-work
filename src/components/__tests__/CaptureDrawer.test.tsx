@@ -39,7 +39,10 @@ beforeEach(async () => {
     isTtsAvailable: vi.fn(),
     isSttAvailable: vi.fn(),
   };
-  captureLogClient = { log: vi.fn().mockResolvedValue(undefined) };
+  captureLogClient = {
+    log: vi.fn().mockResolvedValue(undefined),
+    logAiAssist: vi.fn().mockResolvedValue(undefined),
+  };
 
   const task = await repos.tasks.create({ title: "Write the devlog entry" });
   const session = await repos.taskSessions.clockIn(task.id);
