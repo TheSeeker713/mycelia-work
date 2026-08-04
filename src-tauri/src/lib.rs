@@ -8,6 +8,7 @@ use tauri_plugin_global_shortcut::ShortcutState;
 mod capture_log;
 mod journal_export;
 mod openclaw;
+mod resource_watchdog;
 mod rewards;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
@@ -54,6 +55,9 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_sql::Builder::default().build())
         .plugin(global_shortcut_plugin)
+        .manage(resource_watchdog::WatchdogState(std::sync::Mutex::new(
+            sysinfo::System::new(),
+        )))
         .setup(|app| {
             let show_item = MenuItem::with_id(app, "show", "Show Mycelia Time", true, None::<&str>)?;
             let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
@@ -104,6 +108,7 @@ pub fn run() {
             rewards::list_reward_assets,
             rewards::read_reward_asset,
             capture_log::append_capture_log,
+            resource_watchdog::check_resource_pressure,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

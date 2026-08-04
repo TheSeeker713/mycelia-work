@@ -16,8 +16,10 @@
 
 use serde::Serialize;
 use serde_json::Value;
+use std::io::Read;
 use std::path::PathBuf;
-use std::process::Command;
+use std::process::{Command, Stdio};
+use std::sync::mpsc;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 #[derive(Serialize, Debug, Clone, PartialEq)]
@@ -26,23 +28,75 @@ pub struct OpenClawAgentResult {
     pub model: String,
 }
 
+/// A hard backstop the CLI's own `--timeout` flag can't be trusted to
+/// enforce on its own (Phase 11) — if the CLI hangs before it even gets
+/// to honoring its own timeout, the old `.output()`-based call blocked
+/// this Rust process forever with no way to cancel it. `daemon status/
+/// start/stop` calls are short and don't take a `--timeout` arg of
+/// their own, so they get one flat ceiling here.
+const DAEMON_COMMAND_TIMEOUT: Duration = Duration::from_secs(30);
+
 /// Runs `openclaw <args>` via `cmd /C` — required on Windows since
 /// npm-installed CLIs ship as `.cmd` shims, which `CreateProcess` can't
 /// launch directly without going through the command interpreter.
-fn run_cli(args: &[&str]) -> Result<Value, String> {
-    let output = Command::new("cmd")
+///
+/// Unlike `Command::output()` (which blocks unconditionally until the
+/// child exits), this polls `try_wait()` against a real deadline and
+/// kills the child if it's exceeded — a genuinely cancellable
+/// subprocess, not just a timeout argument handed to the child and
+/// hoped for. Stdout/stderr are drained on their own threads while
+/// polling, same as `output()` does internally, so a chatty child can't
+/// deadlock by filling its pipe buffer while nothing's reading it.
+fn run_cli(args: &[&str], hard_timeout: Duration) -> Result<Value, String> {
+    let mut child = Command::new("cmd")
         .arg("/C")
         .arg("openclaw")
         .args(args)
-        .output()
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
         .map_err(|e| format!("failed to launch openclaw: {e}"))?;
 
-    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    let mut stdout_pipe = child.stdout.take().expect("stdout was piped");
+    let mut stderr_pipe = child.stderr.take().expect("stderr was piped");
+    let (stdout_tx, stdout_rx) = mpsc::channel();
+    let (stderr_tx, stderr_rx) = mpsc::channel();
+    std::thread::spawn(move || {
+        let mut buf = String::new();
+        let _ = stdout_pipe.read_to_string(&mut buf);
+        let _ = stdout_tx.send(buf);
+    });
+    std::thread::spawn(move || {
+        let mut buf = String::new();
+        let _ = stderr_pipe.read_to_string(&mut buf);
+        let _ = stderr_tx.send(buf);
+    });
 
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
+    let start = Instant::now();
+    let success = loop {
+        match child.try_wait() {
+            Ok(Some(status)) => break status.success(),
+            Ok(None) => {
+                if start.elapsed() >= hard_timeout {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    return Err(format!(
+                        "openclaw {} didn't finish within {hard_timeout:?} and was killed",
+                        args.join(" "),
+                    ));
+                }
+                std::thread::sleep(Duration::from_millis(200));
+            }
+            Err(e) => return Err(format!("failed to poll the openclaw process: {e}")),
+        }
+    };
+
+    let stdout = stdout_rx.recv().unwrap_or_default();
+    let stderr = stderr_rx.recv().unwrap_or_default();
+
+    if !success {
         let detail = if stderr.trim().is_empty() { stdout.trim() } else { stderr.trim() };
-        return Err(format!("openclaw {} failed: {}", args.join(" "), detail));
+        return Err(format!("openclaw {} failed: {detail}", args.join(" ")));
     }
 
     serde_json::from_str(&stdout)
@@ -57,16 +111,19 @@ fn is_daemon_running(status_json: &Value) -> bool {
 }
 
 fn daemon_running() -> Result<bool, String> {
-    let json = run_cli(&["daemon", "status", "--json", "--no-probe", "--timeout", "5000"])?;
+    let json = run_cli(
+        &["daemon", "status", "--json", "--no-probe", "--timeout", "5000"],
+        DAEMON_COMMAND_TIMEOUT,
+    )?;
     Ok(is_daemon_running(&json))
 }
 
 fn daemon_start() -> Result<(), String> {
-    run_cli(&["daemon", "start", "--json"]).map(|_| ())
+    run_cli(&["daemon", "start", "--json"], DAEMON_COMMAND_TIMEOUT).map(|_| ())
 }
 
 fn daemon_stop() -> Result<(), String> {
-    run_cli(&["daemon", "stop", "--json"]).map(|_| ())
+    run_cli(&["daemon", "stop", "--json"], DAEMON_COMMAND_TIMEOUT).map(|_| ())
 }
 
 fn wait_for_daemon_running(max_wait: Duration) -> Result<(), String> {
@@ -125,18 +182,26 @@ fn call_agent(session_key: &str, message: &str, timeout_secs: u64) -> Result<Ope
 
     let path_str = temp_path.to_string_lossy().to_string();
     let timeout_arg = timeout_secs.to_string();
-    let json_result = run_cli(&[
-        "agent",
-        "--agent",
-        "main",
-        "--session-key",
-        session_key,
-        "--message-file",
-        &path_str,
-        "--json",
-        "--timeout",
-        &timeout_arg,
-    ]);
+    // The CLI's own --timeout should fire first under normal conditions;
+    // this Rust-level deadline is the backstop for when it doesn't (a
+    // hang before the CLI ever reaches its own timeout logic) — a real
+    // grace window, not a race against the CLI's own clock.
+    let hard_timeout = Duration::from_secs(timeout_secs) + Duration::from_secs(15);
+    let json_result = run_cli(
+        &[
+            "agent",
+            "--agent",
+            "main",
+            "--session-key",
+            session_key,
+            "--message-file",
+            &path_str,
+            "--json",
+            "--timeout",
+            &timeout_arg,
+        ],
+        hard_timeout,
+    );
 
     let _ = std::fs::remove_file(&temp_path);
 
