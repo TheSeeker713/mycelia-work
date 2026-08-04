@@ -20,6 +20,7 @@ import {
   type SettingsStore,
 } from "./settingsStore";
 import { createTauriOpenClawClient, type OpenClawClient } from "../services/openclawClient";
+import { createHttpVoiceClient, type VoiceClient } from "../services/voiceClient";
 
 interface StoresContextValue {
   useTasksStore: TasksStore;
@@ -30,6 +31,7 @@ interface StoresContextValue {
   useJournalsStore: JournalsStore;
   useSettingsStore: SettingsStore;
   openClawClient: OpenClawClient;
+  voiceClient: VoiceClient;
 }
 
 const StoresContext = createContext<StoresContextValue | null>(null);
@@ -37,17 +39,21 @@ const StoresContext = createContext<StoresContextValue | null>(null);
 export function StoreProvider({
   repositories,
   openClawClient,
+  voiceClient,
   children,
 }: {
   repositories: Repositories;
   /** Injectable, like `repositories` — tests pass a fake instead of hitting a real Tauri bridge. */
   openClawClient?: OpenClawClient;
+  /** Injectable, like `openClawClient` — tests pass a fake instead of hitting the real local voice servers. */
+  voiceClient?: VoiceClient;
   children: ReactNode;
 }) {
   // Created once per `repositories` instance so remounts/tests don't
   // silently share state across a fresh database.
   const stores = useMemo<StoresContextValue>(() => {
     const client = openClawClient ?? createTauriOpenClawClient();
+    const voice = voiceClient ?? createHttpVoiceClient();
     return {
       useTasksStore: createTasksStore(repositories),
       useProjectsStore: createProjectsStore(repositories),
@@ -57,6 +63,7 @@ export function StoreProvider({
       useJournalsStore: createJournalsStore(repositories, client),
       useSettingsStore: createSettingsStore(repositories),
       openClawClient: client,
+      voiceClient: voice,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [repositories]);
@@ -113,4 +120,8 @@ export function useSettingsStore<T>(selector: (state: SettingsState) => T): T {
 
 export function useOpenClawClient(): OpenClawClient {
   return useStoresContext().openClawClient;
+}
+
+export function useVoiceClient(): VoiceClient {
+  return useStoresContext().voiceClient;
 }
