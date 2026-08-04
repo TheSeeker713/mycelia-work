@@ -86,3 +86,25 @@ describe("LibraryCompartment — Read aloud", () => {
     await waitFor(() => expect(screen.getByText("Stop reading")).toBeInTheDocument());
   });
 });
+
+describe("LibraryCompartment — failed journals", () => {
+  it("shows the failure reason next to a failed journal, and Retry re-runs it", async () => {
+    const task = await repos.tasks.create({ title: "Write the devlog entry" });
+    const session = await repos.taskSessions.clockIn(task.id);
+    const journal = await repos.journals.createPending({
+      taskId: task.id,
+      taskSessionId: session.id,
+      kind: "session",
+    });
+    await repos.journals.markResult(journal.id, "failed", {
+      failureReason: "Generation didn't finish — the app was likely closed or reloaded mid-run.",
+    });
+
+    renderLibrary();
+
+    expect(
+      await screen.findByText(/Generation didn't finish — the app was likely closed/),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
+  });
+});

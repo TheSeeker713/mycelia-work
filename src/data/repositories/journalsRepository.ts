@@ -22,6 +22,7 @@ export function createJournalsRepository(executor: SqlExecutor) {
         content: null,
         exported_path: null,
         kind: input.kind,
+        failure_reason: null,
       };
       await executor.execute(
         `INSERT INTO journals (id, task_id, task_session_id, generated_at, model_used, status, content, exported_path, kind)
@@ -44,15 +45,16 @@ export function createJournalsRepository(executor: SqlExecutor) {
     async markResult(
       id: string,
       status: JournalStatus,
-      patch: { modelUsed?: string; content?: string; exportedPath?: string } = {},
+      patch: { modelUsed?: string; content?: string; exportedPath?: string; failureReason?: string } = {},
     ): Promise<void> {
       await executor.execute(
-        `UPDATE journals SET status = ?, model_used = ?, content = ?, exported_path = ? WHERE id = ?`,
+        `UPDATE journals SET status = ?, model_used = ?, content = ?, exported_path = ?, failure_reason = ? WHERE id = ?`,
         [
           status,
           patch.modelUsed ?? null,
           patch.content ?? null,
           patch.exportedPath ?? null,
+          patch.failureReason ?? null,
           id,
         ],
       );
@@ -79,6 +81,23 @@ export function createJournalsRepository(executor: SqlExecutor) {
         "SELECT * FROM journals ORDER BY generated_at DESC, rowid DESC LIMIT ?",
         [limit],
       );
+    },
+
+    /**
+     * A journal stuck on `pending` past a reasonable generation window
+     * (real calls finish in well under a minute) is orphaned — almost
+     * always an interrupted app process (a reload during dev, or the
+     * freeze bug that predates the async-command fix), not still
+     * running. Sweeping these to `failed` is what turns "Generating…"
+     * forever into an honest, retryable state. Returns how many rows
+     * it touched.
+     */
+    async markStalePendingAsFailed(olderThanIso: string, reason: string): Promise<number> {
+      const result = await executor.execute(
+        `UPDATE journals SET status = 'failed', failure_reason = ? WHERE status = 'pending' AND generated_at < ?`,
+        [reason, olderThanIso],
+      );
+      return result.rowsAffected;
     },
   };
 }

@@ -4,11 +4,13 @@ import { initDatabase, type Repositories } from "../../data";
 import { createTestExecutor } from "../../data/__tests__/testExecutor";
 import type { OpenClawClient } from "../openclawClient";
 import {
+  STALE_PENDING_THRESHOLD_MS,
   buildSessionJournalPrompt,
   buildWeeklyRollupPrompt,
   runJournalGeneration,
   sessionJournalFilename,
   slugify,
+  sweepStalePendingJournals,
   weeklyRollupFilename,
 } from "../journalGeneration";
 
@@ -99,6 +101,7 @@ describe("buildWeeklyRollupPrompt", () => {
           content: "Fixed the shadow clipping bug today.",
           exported_path: null,
           kind: "session",
+          failure_reason: null,
         },
       ],
       "this week",
@@ -170,6 +173,7 @@ describe("runJournalGeneration", () => {
 
     expect(result.status).toBe("failed");
     expect(result.content).toBeNull();
+    expect(result.failure_reason).toBe("Gateway unreachable");
   });
 
   it("fails closed when the model call succeeds but the file export fails", async () => {
@@ -186,5 +190,37 @@ describe("runJournalGeneration", () => {
     });
 
     expect(result.status).toBe("failed");
+  });
+});
+
+describe("sweepStalePendingJournals", () => {
+  it("marks a pending journal older than the threshold as failed, with a clear reason", async () => {
+    const executor = createTestExecutor();
+    const repos = await initDatabase(executor);
+    const realTask = await repos.tasks.create({ title: "Old task" });
+    const pending = await repos.journals.createPending({ taskId: realTask.id, kind: "session" });
+
+    // createPending always stamps "now" — backdate directly so this
+    // journal is genuinely past the staleness threshold.
+    const staleAt = new Date(Date.now() - STALE_PENDING_THRESHOLD_MS - 1000).toISOString();
+    await executor.execute("UPDATE journals SET generated_at = ? WHERE id = ?", [staleAt, pending.id]);
+
+    const touched = await sweepStalePendingJournals(repos);
+
+    expect(touched).toBe(1);
+    const swept = await repos.journals.getById(pending.id);
+    expect(swept?.status).toBe("failed");
+    expect(swept?.failure_reason).toContain("didn't finish");
+  });
+
+  it("leaves a recently-created pending journal alone", async () => {
+    const repos = await initDatabase(createTestExecutor());
+    const realTask = await repos.tasks.create({ title: "Fresh task" });
+    const pending = await repos.journals.createPending({ taskId: realTask.id, kind: "session" });
+
+    const touched = await sweepStalePendingJournals(repos);
+
+    expect(touched).toBe(0);
+    expect((await repos.journals.getById(pending.id))?.status).toBe("pending");
   });
 });

@@ -6,6 +6,7 @@ import {
   buildWeeklyRollupPrompt,
   runJournalGeneration,
   sessionJournalFilename,
+  sweepStalePendingJournals,
   weeklyRollupFilename,
 } from "../services/journalGeneration";
 
@@ -38,6 +39,7 @@ export function createJournalsStore(repos: Repositories, client: OpenClawClient)
     journals: [],
 
     async loadRecent() {
+      await sweepStalePendingJournals(repos);
       const journals = await repos.journals.listRecent(RECENT_JOURNALS_LIMIT);
       set({ journals });
     },

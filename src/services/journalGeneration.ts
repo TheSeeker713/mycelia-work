@@ -138,6 +138,28 @@ export function exportWorkJournalFile(filename: string, content: string): Promis
 }
 
 /**
+ * Real generation calls finish in well under a minute (session journal
+ * ~5-15s for the model turn, plus a fast local file write) — anything
+ * still `pending` past this is orphaned, not slow. Generous on purpose:
+ * this should never mistake a genuinely in-flight call for a stuck one.
+ */
+export const STALE_PENDING_THRESHOLD_MS = 3 * 60 * 1000;
+const STALE_PENDING_REASON =
+  "Generation didn't finish — the app was likely closed or reloaded mid-run.";
+
+/**
+ * Sweeps journals stuck on `pending` from an interrupted process (a dev
+ * reload, or the app-freeze bug fixed in Phase 7's test pass) into a
+ * real `failed` state, so "Generating…" forever becomes an honest,
+ * retryable "Failed" instead. Safe to call on every load — a no-op when
+ * nothing's actually stale.
+ */
+export function sweepStalePendingJournals(repos: Repositories, now: Date = new Date()): Promise<number> {
+  const cutoff = new Date(now.getTime() - STALE_PENDING_THRESHOLD_MS).toISOString();
+  return repos.journals.markStalePendingAsFailed(cutoff, STALE_PENDING_REASON);
+}
+
+/**
  * Runs one generation attempt against an already-`pending` journal row
  * and always resolves it to `ok` or `failed` — never leaves it dangling
  * `pending` on a thrown error, so the UI's retry affordance always has
@@ -160,10 +182,11 @@ export async function runJournalGeneration(params: {
       content: result.text,
       exportedPath,
     });
-  } catch {
+  } catch (err) {
     // Raw log is untouched either way — the journal row is the only
     // thing that moves to `failed`, so retrying just re-runs generation.
-    await repos.journals.markResult(journalId, "failed");
+    const failureReason = err instanceof Error ? err.message : String(err);
+    await repos.journals.markResult(journalId, "failed", { failureReason });
   }
   const updated = await repos.journals.getById(journalId);
   if (!updated) {

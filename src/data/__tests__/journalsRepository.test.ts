@@ -48,6 +48,39 @@ describe("journalsRepository", () => {
     expect(found?.content).toBeNull();
   });
 
+  it("markResult records a failure reason when given one", async () => {
+    const journal = await journals.createPending({ taskId, kind: "session" });
+    await journals.markResult(journal.id, "failed", { failureReason: "Gateway unreachable" });
+
+    const found = await journals.getById(journal.id);
+    expect(found?.failure_reason).toBe("Gateway unreachable");
+  });
+
+  it("markStalePendingAsFailed only touches pending rows older than the cutoff", async () => {
+    const stale = await journals.createPending({ taskId, kind: "session" });
+    const fresh = await journals.createPending({ taskId, kind: "session" });
+    const alreadyOk = await journals.createPending({ taskId, kind: "session" });
+    await journals.markResult(alreadyOk.id, "ok", { content: "done" });
+
+    // createPending always stamps "now" — backdate the stale one directly,
+    // same approach used elsewhere in this repo's tests for this exact need.
+    await executor.execute("UPDATE journals SET generated_at = ? WHERE id = ?", [
+      new Date(Date.now() - 10 * 60 * 1000).toISOString(),
+      stale.id,
+    ]);
+
+    const touched = await journals.markStalePendingAsFailed(
+      new Date(Date.now() - 3 * 60 * 1000).toISOString(),
+      "Generation didn't finish — the app was likely closed or reloaded mid-run.",
+    );
+
+    expect(touched).toBe(1);
+    expect((await journals.getById(stale.id))?.status).toBe("failed");
+    expect((await journals.getById(stale.id))?.failure_reason).toContain("didn't finish");
+    expect((await journals.getById(fresh.id))?.status).toBe("pending");
+    expect((await journals.getById(alreadyOk.id))?.status).toBe("ok");
+  });
+
   it("listByTask returns every journal for that task", async () => {
     await journals.createPending({ taskId, kind: "session" });
     await journals.createPending({ taskId, kind: "session" });

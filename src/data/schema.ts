@@ -80,6 +80,7 @@ export const MIGRATIONS: string[] = [
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
   )`,
+  `ALTER TABLE journals ADD COLUMN failure_reason TEXT`,
 ];
 
 /**

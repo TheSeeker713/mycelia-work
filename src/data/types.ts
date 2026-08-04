@@ -78,6 +78,7 @@ export interface Journal {
   content: string | null;
   exported_path: string | null;
   kind: JournalKind;
+  failure_reason: string | null;
 }
 
 export type ResourceEventKind =

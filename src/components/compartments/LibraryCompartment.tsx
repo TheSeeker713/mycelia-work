@@ -77,13 +77,18 @@ function JournalEntry({
       )}
 
       {journal.status === "failed" && (
-        <button
-          type="button"
-          onClick={() => onRetry(journal.id)}
-          className="mt-1.5 rounded-full border border-[var(--line)] px-2.5 py-1 text-[0.7rem] text-[var(--ink-soft)]"
-        >
-          Retry
-        </button>
+        <div className="mt-1.5">
+          {journal.failure_reason && (
+            <p className="mb-1 text-[0.72rem] text-[var(--ink-faint)]">{journal.failure_reason}</p>
+          )}
+          <button
+            type="button"
+            onClick={() => onRetry(journal.id)}
+            className="rounded-full border border-[var(--line)] px-2.5 py-1 text-[0.7rem] text-[var(--ink-soft)]"
+          >
+            Retry
+          </button>
+        </div>
       )}
     </li>
   );

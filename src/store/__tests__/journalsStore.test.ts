@@ -65,6 +65,18 @@ describe("journalsStore", () => {
     expect(useJournals.getState().journals.length).toBe(1);
   });
 
+  it("loadRecent sweeps orphaned pending journals to failed before listing", async () => {
+    const stuck = await repos.journals.createPending({ taskId, taskSessionId: sessionId, kind: "session" });
+    const staleAt = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+    await executor.execute("UPDATE journals SET generated_at = ? WHERE id = ?", [staleAt, stuck.id]);
+
+    await useJournals.getState().loadRecent();
+
+    const found = useJournals.getState().journals.find((j) => j.id === stuck.id);
+    expect(found?.status).toBe("failed");
+    expect(found?.failure_reason).toContain("didn't finish");
+  });
+
   it("generateWeeklyRollup only folds in ok session journals from the last 7 days", async () => {
     const task = await repos.tasks.getById(taskId);
     if (!task) throw new Error("test setup: task missing");
