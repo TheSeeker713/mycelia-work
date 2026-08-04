@@ -291,10 +291,14 @@ describe("Dashboard", () => {
     renderDashboard();
 
     expect(await screen.findByText(/Old forgotten task/)).toBeInTheDocument();
-    expect(screen.getByText(/has been running since/)).toBeInTheDocument();
+    // The adaptive AI check-in tries first and falls back to the static
+    // dialogue once it fails (no live Tauri bridge/OpenClaw in this
+    // test environment) — that fallback is async, so this has to wait
+    // rather than assert synchronously.
+    expect(await screen.findByText(/has been running since/)).toBeInTheDocument();
 
     await user.click(
-      screen.getByText(/That clock-in should just be closed out right at the time it started/),
+      await screen.findByText(/That clock-in should just be closed out right at the time it started/),
     );
 
     // Resolved: dialog gone, session no longer shows as an active card.

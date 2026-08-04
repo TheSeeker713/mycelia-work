@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import {
   useJournalsStore,
   useNotesStore,
+  useOpenClawClient,
   useSessionsStore,
   useTasksStore,
 } from "../store/StoreProvider";
@@ -18,7 +19,7 @@ import { TaskList } from "./TaskList";
 import { TaskWorkspace } from "./TaskWorkspace";
 import { ActiveSessionsRow } from "./ActiveSessionsRow";
 import { ShortIdleToast } from "./ShortIdleToast";
-import { CheckInDialog } from "./CheckInDialog";
+import { CheckInFlow } from "./CheckInFlow";
 import { MAX_CONCURRENT_SESSIONS, isDangling } from "../store/sessionsStore";
 import { TodosCompartment } from "./compartments/TodosCompartment";
 import { ProjectsCompartment } from "./compartments/ProjectsCompartment";
@@ -98,6 +99,7 @@ export function Dashboard() {
   const resolveDanglingSession = useSessionsStore((s) => s.resolveDanglingSession);
   const addNote = useNotesStore((s) => s.addNote);
   const generateSessionJournal = useJournalsStore((s) => s.generateSessionJournal);
+  const openClawClient = useOpenClawClient();
   const cardWidth = useMultiCardWidth(activeSessions.length, controls.fullscreen);
 
   const runningSessions = activeSessions.filter((a) => a.session.status === "running");
@@ -157,7 +159,11 @@ export function Dashboard() {
           </div>
           <CompartmentTabs active={active} onSelect={setActive} />
           {danglingSession ? (
-            <CheckInDialog activeSession={danglingSession} onResolve={resolveCheckIn} />
+            <CheckInFlow
+              activeSession={danglingSession}
+              onResolve={resolveCheckIn}
+              client={openClawClient}
+            />
           ) : (
             idle.showToast && (
               <ShortIdleToast
@@ -187,7 +193,11 @@ export function Dashboard() {
         </div>
         <CompartmentTabs active={active} onSelect={setActive} />
         {danglingSession ? (
-          <CheckInDialog activeSession={danglingSession} onResolve={resolveCheckIn} />
+          <CheckInFlow
+            activeSession={danglingSession}
+            onResolve={resolveCheckIn}
+            client={openClawClient}
+          />
         ) : idle.showToast ? (
           <ShortIdleToast
             idleSeconds={idle.idleSeconds}

@@ -23,6 +23,7 @@ interface StoresContextValue {
   useSessionsStore: SessionsStore;
   useNotesStore: NotesStore;
   useJournalsStore: JournalsStore;
+  openClawClient: OpenClawClient;
 }
 
 const StoresContext = createContext<StoresContextValue | null>(null);
@@ -39,18 +40,19 @@ export function StoreProvider({
 }) {
   // Created once per `repositories` instance so remounts/tests don't
   // silently share state across a fresh database.
-  const stores = useMemo<StoresContextValue>(
-    () => ({
+  const stores = useMemo<StoresContextValue>(() => {
+    const client = openClawClient ?? createTauriOpenClawClient();
+    return {
       useTasksStore: createTasksStore(repositories),
       useProjectsStore: createProjectsStore(repositories),
       useTodosStore: createTodosStore(repositories),
       useSessionsStore: createSessionsStore(repositories),
       useNotesStore: createNotesStore(repositories),
-      useJournalsStore: createJournalsStore(repositories, openClawClient ?? createTauriOpenClawClient()),
-    }),
+      useJournalsStore: createJournalsStore(repositories, client),
+      openClawClient: client,
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [repositories],
-  );
+  }, [repositories]);
 
   return (
     <StoresContext.Provider value={stores}>{children}</StoresContext.Provider>
@@ -95,4 +97,8 @@ export function useNotesStore<T>(selector: (state: NotesState) => T): T {
 export function useJournalsStore<T>(selector: (state: JournalsState) => T): T {
   const { useJournalsStore: useStore } = useStoresContext();
   return useStore(selector);
+}
+
+export function useOpenClawClient(): OpenClawClient {
+  return useStoresContext().openClawClient;
 }
