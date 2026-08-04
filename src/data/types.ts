@@ -7,6 +7,8 @@ export interface Project {
   description: string | null;
   status: ProjectStatus;
   target_month: string;
+  /** Precise completion-goal date+time (ISO 8601), set via the two-tab calendar/time picker — separate from target_month, which stays the coarser board-column grouping. */
+  target_datetime: string | null;
   priority: ProjectPriority;
   created_at: string;
   archived_at: string | null;
@@ -78,6 +80,18 @@ export interface Journal {
   content: string | null;
   exported_path: string | null;
   kind: JournalKind;
+  failure_reason: string | null;
+}
+
+export type ProjectReportStatus = "pending" | "ok" | "failed";
+
+export interface ProjectReport {
+  id: string;
+  project_id: string;
+  generated_at: string;
+  model_used: string | null;
+  status: ProjectReportStatus;
+  content: string | null;
   failure_reason: string | null;
 }
 

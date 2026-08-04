@@ -16,6 +16,7 @@ function project(title: string): Project {
     description: null,
     status: "planned",
     target_month: "2026-09",
+    target_datetime: null,
     priority: "medium",
     created_at: "2026-08-01T00:00:00.000Z",
     archived_at: null,

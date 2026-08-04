@@ -89,6 +89,16 @@ export const MIGRATIONS: string[] = [
     created_at TEXT NOT NULL,
     completed_at TEXT
   )`,
+  `ALTER TABLE projects ADD COLUMN target_datetime TEXT`,
+  `CREATE TABLE IF NOT EXISTS project_reports (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL REFERENCES projects(id),
+    generated_at TEXT NOT NULL,
+    model_used TEXT,
+    status TEXT NOT NULL CHECK (status IN ('pending', 'ok', 'failed')),
+    content TEXT,
+    failure_reason TEXT
+  )`,
 ];
 
 /**

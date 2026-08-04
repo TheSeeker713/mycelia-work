@@ -7,6 +7,7 @@ export interface CreateProjectInput {
   description?: string | null;
   status?: ProjectStatus;
   targetMonth: string;
+  targetDatetime?: string | null;
   priority: ProjectPriority;
 }
 
@@ -15,6 +16,7 @@ export interface UpdateProjectInput {
   description?: string | null;
   status?: ProjectStatus;
   targetMonth?: string;
+  targetDatetime?: string | null;
   priority?: ProjectPriority;
 }
 
@@ -27,19 +29,21 @@ export function createProjectsRepository(executor: SqlExecutor) {
         description: input.description ?? null,
         status: input.status ?? "planned",
         target_month: input.targetMonth,
+        target_datetime: input.targetDatetime ?? null,
         priority: input.priority,
         created_at: nowIso(),
         archived_at: null,
       };
       await executor.execute(
-        `INSERT INTO projects (id, title, description, status, target_month, priority, created_at, archived_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO projects (id, title, description, status, target_month, target_datetime, priority, created_at, archived_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           project.id,
           project.title,
           project.description,
           project.status,
           project.target_month,
+          project.target_datetime,
           project.priority,
           project.created_at,
           project.archived_at,
@@ -89,6 +93,10 @@ export function createProjectsRepository(executor: SqlExecutor) {
         fields.push("target_month = ?");
         params.push(patch.targetMonth);
       }
+      if (patch.targetDatetime !== undefined) {
+        fields.push("target_datetime = ?");
+        params.push(patch.targetDatetime);
+      }
       if (patch.priority !== undefined) {
         fields.push("priority = ?");
         params.push(patch.priority);
@@ -106,6 +114,13 @@ export function createProjectsRepository(executor: SqlExecutor) {
         nowIso(),
         id,
       ]);
+    },
+
+    /** Permanent removal, distinct from archive() — SQLite FK enforcement isn't on in this app (no PRAGMA foreign_keys anywhere), so milestones and reports are deleted explicitly rather than relying on a cascade that wouldn't fire. */
+    async delete(id: string): Promise<void> {
+      await executor.execute("DELETE FROM milestones WHERE project_id = ?", [id]);
+      await executor.execute("DELETE FROM project_reports WHERE project_id = ?", [id]);
+      await executor.execute("DELETE FROM projects WHERE id = ?", [id]);
     },
   };
 }

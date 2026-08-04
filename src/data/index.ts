@@ -10,6 +10,7 @@ import { createJournalsRepository } from "./repositories/journalsRepository";
 import { createResourceEventsRepository } from "./repositories/resourceEventsRepository";
 import { createSettingsRepository } from "./repositories/settingsRepository";
 import { createMilestonesRepository } from "./repositories/milestonesRepository";
+import { createProjectReportsRepository } from "./repositories/projectReportsRepository";
 
 export * from "./types";
 export * from "./sqlExecutor";
@@ -28,6 +29,7 @@ export function createRepositories(executor: SqlExecutor) {
     resourceEvents: createResourceEventsRepository(executor),
     settings: createSettingsRepository(executor),
     milestones: createMilestonesRepository(executor),
+    projectReports: createProjectReportsRepository(executor),
   };
 }
 

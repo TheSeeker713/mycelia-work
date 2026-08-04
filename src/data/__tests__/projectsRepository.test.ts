@@ -2,16 +2,19 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { applyMigrations } from "../schema";
 import { createProjectsRepository } from "../repositories/projectsRepository";
+import { createMilestonesRepository } from "../repositories/milestonesRepository";
 import type { SqlExecutor } from "../sqlExecutor";
 import { createTestExecutor } from "./testExecutor";
 
 let executor: SqlExecutor;
 let projects: ReturnType<typeof createProjectsRepository>;
+let milestones: ReturnType<typeof createMilestonesRepository>;
 
 beforeEach(async () => {
   executor = createTestExecutor();
   await applyMigrations(executor);
   projects = createProjectsRepository(executor);
+  milestones = createMilestonesRepository(executor);
 });
 
 describe("projectsRepository", () => {
@@ -78,5 +81,42 @@ describe("projectsRepository", () => {
     expect(updated?.status).toBe("in_progress");
     expect(updated?.priority).toBe("high");
     expect(updated?.title).toBe("Client portal revamp");
+  });
+
+  it("defaults target_datetime to null, and update() can set it", async () => {
+    const created = await projects.create({
+      title: "Client portal revamp",
+      targetMonth: "2026-09",
+      priority: "low",
+    });
+    expect(created.target_datetime).toBeNull();
+
+    await projects.update(created.id, { targetDatetime: "2026-09-15T14:30:00.000Z" });
+    const updated = await projects.getById(created.id);
+    expect(updated?.target_datetime).toBe("2026-09-15T14:30:00.000Z");
+  });
+
+  it("create() accepts targetDatetime directly", async () => {
+    const created = await projects.create({
+      title: "Client portal revamp",
+      targetMonth: "2026-09",
+      priority: "low",
+      targetDatetime: "2026-09-15T14:30:00.000Z",
+    });
+    expect(created.target_datetime).toBe("2026-09-15T14:30:00.000Z");
+  });
+
+  it("delete() permanently removes the project and its milestones", async () => {
+    const project = await projects.create({
+      title: "Client portal revamp",
+      targetMonth: "2026-09",
+      priority: "low",
+    });
+    await milestones.create(project.id, "Kickoff");
+
+    await projects.delete(project.id);
+
+    expect(await projects.getById(project.id)).toBeNull();
+    expect(await milestones.listByProject(project.id)).toEqual([]);
   });
 });
