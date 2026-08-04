@@ -17,13 +17,26 @@ import type { ReactNode } from "react";
  * This wrapper must also stay background-free, or it repaints the
  * "invisible" margin as a solid rectangle and defeats the whole point
  * of the transparent window.
+ *
+ * `width` grows beyond 340 when multiple tasks are clocked in at once —
+ * per the approved design, that's an *extension* of this same card, not
+ * separate windows glued together (see MULTI_CARD_WIDTH in
+ * useWindowControls, which keeps the outer window's margin in sync with
+ * whatever width is passed here).
  */
-export function PocketShell({ children }: { children: ReactNode }) {
+export function PocketShell({
+  children,
+  width = 340,
+}: {
+  children: ReactNode;
+  width?: number;
+}) {
   return (
     <div className="flex h-screen w-screen items-center justify-center">
       <div
-        className="flex h-[480px] w-[340px] flex-col overflow-hidden rounded-[22px] border border-[var(--line)] bg-[var(--paper-card)] text-[var(--ink)]"
+        className="flex h-[480px] flex-col overflow-hidden rounded-[22px] border border-[var(--line)] bg-[var(--paper-card)] text-[var(--ink)]"
         style={{
+          width: `${width}px`,
           boxShadow:
             "0 1px 2px rgba(0,0,0,0.14), 0 6px 12px -2px rgba(0,0,0,0.16), 0 24px 44px -12px rgba(0,0,0,0.30)",
         }}

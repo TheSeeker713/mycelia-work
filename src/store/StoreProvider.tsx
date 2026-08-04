@@ -7,11 +7,17 @@ import {
   type ProjectsStore,
 } from "./projectsStore";
 import { createTodosStore, type TodosState, type TodosStore } from "./todosStore";
+import {
+  createSessionsStore,
+  type SessionsState,
+  type SessionsStore,
+} from "./sessionsStore";
 
 interface StoresContextValue {
   useTasksStore: TasksStore;
   useProjectsStore: ProjectsStore;
   useTodosStore: TodosStore;
+  useSessionsStore: SessionsStore;
 }
 
 const StoresContext = createContext<StoresContextValue | null>(null);
@@ -30,6 +36,7 @@ export function StoreProvider({
       useTasksStore: createTasksStore(repositories),
       useProjectsStore: createProjectsStore(repositories),
       useTodosStore: createTodosStore(repositories),
+      useSessionsStore: createSessionsStore(repositories),
     }),
     [repositories],
   );
@@ -43,7 +50,7 @@ function useStoresContext(): StoresContextValue {
   const ctx = useContext(StoresContext);
   if (!ctx) {
     throw new Error(
-      "useTasksStore/useProjectsStore/useTodosStore must be used within StoreProvider",
+      "useTasksStore/useProjectsStore/useTodosStore/useSessionsStore must be used within StoreProvider",
     );
   }
   return ctx;
@@ -61,5 +68,10 @@ export function useProjectsStore<T>(selector: (state: ProjectsState) => T): T {
 
 export function useTodosStore<T>(selector: (state: TodosState) => T): T {
   const { useTodosStore: useStore } = useStoresContext();
+  return useStore(selector);
+}
+
+export function useSessionsStore<T>(selector: (state: SessionsState) => T): T {
+  const { useSessionsStore: useStore } = useStoresContext();
   return useStore(selector);
 }

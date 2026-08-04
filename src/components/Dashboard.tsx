@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { useTasksStore } from "../store/StoreProvider";
+import { useSessionsStore, useTasksStore } from "../store/StoreProvider";
 import { useWindowControls } from "../hooks/useWindowControls";
+import { useMultiCardWidth } from "../hooks/useMultiCardWidth";
 import { PocketShell } from "./PocketShell";
 import { FullscreenShell } from "./FullscreenShell";
 import { DeviceBar } from "./DeviceBar";
@@ -9,6 +10,8 @@ import { CompartmentTabs, type CompartmentName } from "./CompartmentTabs";
 import { TaskCapture } from "./TaskCapture";
 import { TaskList } from "./TaskList";
 import { TaskWorkspace } from "./TaskWorkspace";
+import { ActiveSessionsRow } from "./ActiveSessionsRow";
+import { MAX_CONCURRENT_SESSIONS } from "../store/sessionsStore";
 import { TodosCompartment } from "./compartments/TodosCompartment";
 import { ProjectsCompartment } from "./compartments/ProjectsCompartment";
 import { NotesCompartment } from "./compartments/NotesCompartment";
@@ -23,17 +26,36 @@ function TasksCompartment() {
   const focusedTaskId = useTasksStore((s) => s.focusedTaskId);
   const focusTask = useTasksStore((s) => s.focusTask);
 
+  const activeSessions = useSessionsStore((s) => s.activeSessions);
+  const clockIn = useSessionsStore((s) => s.clockIn);
+  const startBreak = useSessionsStore((s) => s.startBreak);
+  const resumeFromBreak = useSessionsStore((s) => s.resumeFromBreak);
+  const clockOut = useSessionsStore((s) => s.clockOut);
+
   useEffect(() => {
     loadTasks();
   }, [loadTasks]);
 
   const focusedTask = tasks.find((t) => t.id === focusedTaskId) ?? null;
+  const focusedHasSession = activeSessions.some((a) => a.task.id === focusedTaskId);
 
   return (
     <div className="flex h-full flex-col">
       <TaskCapture onAdd={addTask} />
       <TaskList tasks={tasks} focusedTaskId={focusedTaskId} onFocus={focusTask} />
-      <TaskWorkspace task={focusedTask} onArchive={archiveTask} />
+      <ActiveSessionsRow
+        activeSessions={activeSessions}
+        onStartBreak={startBreak}
+        onResume={resumeFromBreak}
+        onClockOut={clockOut}
+      />
+      <TaskWorkspace
+        task={focusedTask}
+        hasActiveSession={focusedHasSession}
+        onArchive={archiveTask}
+        onClockIn={clockIn}
+        clockInDisabled={activeSessions.length >= MAX_CONCURRENT_SESSIONS}
+      />
     </div>
   );
 }
@@ -55,6 +77,13 @@ export function Dashboard() {
   const [active, setActive] = useState<CompartmentName>("tasks");
   const [showOnboarding, setShowOnboarding] = useState(true);
   const controls = useWindowControls();
+  const activeSessionCount = useSessionsStore((s) => s.activeSessions.length);
+  const loadActiveSessions = useSessionsStore((s) => s.loadActiveSessions);
+  const cardWidth = useMultiCardWidth(activeSessionCount, controls.fullscreen);
+
+  useEffect(() => {
+    loadActiveSessions();
+  }, [loadActiveSessions]);
 
   function replayOnboarding() {
     if (controls.fullscreen) controls.exitFullscreen();
@@ -93,7 +122,7 @@ export function Dashboard() {
   }
 
   return (
-    <PocketShell>
+    <PocketShell width={cardWidth}>
       <DeviceBar
         pinned={controls.pinned}
         onTogglePin={controls.togglePin}

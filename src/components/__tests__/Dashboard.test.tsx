@@ -204,4 +204,71 @@ describe("Dashboard", () => {
     expect(screen.getByTitle("Expand to full screen")).toBeInTheDocument();
     expect(await screen.findByText("1 / 2")).toBeInTheDocument();
   });
+
+  it("clocking in a task shows it as a running session card, replacing the Clock in button", async () => {
+    const user = userEvent.setup();
+    renderDashboard();
+
+    const input = await screen.findByPlaceholderText("What are you working on?");
+    await user.type(input, "Write the devlog entry{Enter}");
+    await user.click(await screen.findByText("Write the devlog entry"));
+
+    await user.click(screen.getByRole("button", { name: "Clock in" }));
+
+    expect(screen.queryByRole("button", { name: "Clock in" })).not.toBeInTheDocument();
+    expect(screen.getByText("Running")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Take a break" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Clock out" })).toBeInTheDocument();
+  });
+
+  it("Take a break / Resume toggles the session's status", async () => {
+    const user = userEvent.setup();
+    renderDashboard();
+
+    const input = await screen.findByPlaceholderText("What are you working on?");
+    await user.type(input, "Old task{Enter}");
+    await user.click(await screen.findByText("Old task"));
+    await user.click(screen.getByRole("button", { name: "Clock in" }));
+
+    await user.click(screen.getByRole("button", { name: "Take a break" }));
+    expect(screen.getByText("On break")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Resume" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Resume" }));
+    expect(await screen.findByText("Running")).toBeInTheDocument();
+  });
+
+  it("clocking out removes the session card entirely", async () => {
+    const user = userEvent.setup();
+    renderDashboard();
+
+    const input = await screen.findByPlaceholderText("What are you working on?");
+    await user.type(input, "Old task{Enter}");
+    await user.click(await screen.findByText("Old task"));
+    await user.click(screen.getByRole("button", { name: "Clock in" }));
+
+    await user.click(screen.getByRole("button", { name: "Clock out" }));
+
+    expect(screen.queryByText("Running")).not.toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Clock in" })).toBeInTheDocument();
+  });
+
+  it("enforces the 3-concurrent-task limit — the 4th Clock in is disabled", async () => {
+    const user = userEvent.setup();
+    renderDashboard();
+
+    const input = await screen.findByPlaceholderText("What are you working on?");
+    for (const title of ["Task A", "Task B", "Task C", "Task D"]) {
+      await user.type(input, `${title}{Enter}`);
+    }
+
+    for (const title of ["Task A", "Task B", "Task C"]) {
+      await user.click(await screen.findByText(title));
+      await user.click(screen.getByRole("button", { name: "Clock in" }));
+    }
+
+    await user.click(await screen.findByText("Task D"));
+    const clockInBtn = screen.getByRole("button", { name: "Clock in" });
+    expect(clockInBtn).toBeDisabled();
+  });
 });
