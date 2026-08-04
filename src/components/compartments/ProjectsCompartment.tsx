@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useProjectsStore } from "../../store/StoreProvider";
 import type { Milestone, Project, ProjectPriority, ProjectStatus } from "../../data";
+import { DateTimePicker } from "../DateTimePicker";
 
 const PRIORITY_LABEL: Record<ProjectPriority, string> = { high: "high", medium: "medium", low: "low" };
 const STATUS_LABEL: Record<ProjectStatus, string> = {
@@ -84,6 +85,7 @@ function ProjectDetail({
   const [status, setStatus] = useState<ProjectStatus>(project.status);
   const [priority, setPriority] = useState<ProjectPriority>(project.priority);
   const [targetMonth, setTargetMonth] = useState(project.target_month);
+  const [targetDatetime, setTargetDatetime] = useState(project.target_datetime);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   async function handleSave() {
@@ -93,6 +95,7 @@ function ProjectDetail({
       status,
       priority,
       targetMonth,
+      targetDatetime,
     });
   }
 
@@ -172,6 +175,12 @@ function ProjectDetail({
             <option value="2026-12">December</option>
           </select>
         </label>
+        <div className="flex flex-col gap-1">
+          <span className="text-[0.66rem] tracking-wide text-[var(--ink-faint)] uppercase">
+            Completion goal (optional)
+          </span>
+          <DateTimePicker value={targetDatetime} onChange={setTargetDatetime} />
+        </div>
         <button
           type="button"
           onClick={() => void handleSave()}

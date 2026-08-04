@@ -134,6 +134,31 @@ describe("ProjectsCompartment", () => {
     expect(await screen.findByText("Kickoff")).toHaveStyle({ textDecoration: "line-through" });
   });
 
+  it("setting a completion goal via the date/time picker persists target_datetime", async () => {
+    const user = userEvent.setup();
+    const project = await repos.projects.create({
+      title: "Client portal revamp",
+      targetMonth: "2026-09",
+      priority: "low",
+    });
+    renderProjects();
+
+    const monthLabels = [
+      "January", "February", "March", "April", "May", "June",
+      "July", "August", "September", "October", "November", "December",
+    ];
+    const now = new Date();
+    const dayLabel = `${monthLabels[now.getMonth()]} 15, ${now.getFullYear()}`;
+
+    await user.click(await screen.findByText("Client portal revamp"));
+    await user.click(screen.getByRole("button", { name: dayLabel }));
+    await user.click(screen.getByText("Save changes"));
+
+    const updated = await repos.projects.getById(project.id);
+    expect(updated?.target_datetime).not.toBeNull();
+    expect(new Date(updated!.target_datetime!).getDate()).toBe(15);
+  });
+
   it("removing a milestone deletes it", async () => {
     const user = userEvent.setup();
     const project = await repos.projects.create({
