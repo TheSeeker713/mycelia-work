@@ -198,18 +198,26 @@ pub async fn openclaw_call_agent(
 }
 
 /// Single-shot convenience for one-off calls (the session journal, the
-/// weekly roll-up): wakes the Gateway if needed, makes one call, puts
-/// it back to sleep if this call is what woke it.
+/// weekly roll-up): wakes the Gateway if it's down, makes one call.
+///
+/// Deliberately does *not* stop the Gateway again afterward — that used
+/// to happen here, and it was the single biggest cost in a burst of
+/// clock-outs (each one paying the ~4-9s daemon-start cost again,
+/// because the previous call had just shut it back down). The
+/// architecture doc's own reasoning already covers why this is safe to
+/// leave running: "an idle Gateway process and Ollama's own idle-unload
+/// behavior already mean 'no call in flight' costs ~nothing." Multi-turn
+/// callers (the adaptive check-in) still explicitly ensure/release
+/// around their whole exchange via the two commands above — this only
+/// changes the single-shot path.
 #[tauri::command]
 pub async fn run_openclaw_agent(
     session_key: String,
     message: String,
     timeout_secs: Option<u64>,
 ) -> Result<OpenClawAgentResult, String> {
-    let was_running = openclaw_ensure_daemon().await?;
-    let result = openclaw_call_agent(session_key, message, timeout_secs).await;
-    let _ = openclaw_release_daemon(was_running).await;
-    result
+    openclaw_ensure_daemon().await?;
+    openclaw_call_agent(session_key, message, timeout_secs).await
 }
 
 #[cfg(test)]
