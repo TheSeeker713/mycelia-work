@@ -42,7 +42,10 @@ export function useSelfVoicing(): SelfVoicing {
           audioRef.current = audio;
           audio.onended = () => resolve();
           audio.onerror = () => resolve();
-          audio.play().catch(() => resolve());
+          // play() isn't guaranteed to return a real Promise in every
+          // environment (jsdom's stub returns undefined) — guard before
+          // chaining .catch(), which would otherwise throw synchronously.
+          audio.play()?.catch(() => resolve());
         });
       } finally {
         URL.revokeObjectURL(url);

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { Task } from "../data";
 import {
   useJournalsStore,
   useNotesStore,
@@ -9,6 +10,7 @@ import {
 import { useWindowControls } from "../hooks/useWindowControls";
 import { useMultiCardWidth } from "../hooks/useMultiCardWidth";
 import { useIdleWatcher } from "../hooks/useIdleWatcher";
+import { useVoiceCues } from "../hooks/useVoiceCues";
 import { PocketShell } from "./PocketShell";
 import { FullscreenShell } from "./FullscreenShell";
 import { DeviceBar } from "./DeviceBar";
@@ -41,6 +43,7 @@ function TasksCompartment() {
   const resumeFromBreak = useSessionsStore((s) => s.resumeFromBreak);
   const clockOut = useSessionsStore((s) => s.clockOut);
   const generateSessionJournal = useJournalsStore((s) => s.generateSessionJournal);
+  const voiceCues = useVoiceCues();
 
   useEffect(() => {
     loadTasks();
@@ -49,9 +52,26 @@ function TasksCompartment() {
   const focusedTask = tasks.find((t) => t.id === focusedTaskId) ?? null;
   const focusedHasSession = activeSessions.some((a) => a.task.id === focusedTaskId);
 
+  async function handleClockIn(task: Task) {
+    const result = await clockIn(task);
+    if (result.ok) voiceCues.play("clock_in");
+    return result;
+  }
+
+  async function handleStartBreak(sessionId: string) {
+    await startBreak(sessionId);
+    voiceCues.play("break_start");
+  }
+
+  async function handleResume(sessionId: string) {
+    await resumeFromBreak(sessionId);
+    voiceCues.play("break_resume");
+  }
+
   async function handleClockOut(sessionId: string) {
     const active = activeSessions.find((a) => a.session.id === sessionId);
     await clockOut(sessionId);
+    voiceCues.play("clock_out");
     if (active) await generateSessionJournal(active.task, sessionId);
   }
 
@@ -61,15 +81,15 @@ function TasksCompartment() {
       <TaskList tasks={tasks} focusedTaskId={focusedTaskId} onFocus={focusTask} />
       <ActiveSessionsRow
         activeSessions={activeSessions}
-        onStartBreak={startBreak}
-        onResume={resumeFromBreak}
+        onStartBreak={handleStartBreak}
+        onResume={handleResume}
         onClockOut={handleClockOut}
       />
       <TaskWorkspace
         task={focusedTask}
         hasActiveSession={focusedHasSession}
         onArchive={archiveTask}
-        onClockIn={clockIn}
+        onClockIn={handleClockIn}
         clockInDisabled={activeSessions.length >= MAX_CONCURRENT_SESSIONS}
       />
     </div>
