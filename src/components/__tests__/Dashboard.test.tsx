@@ -1,15 +1,17 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
-import { initDatabase, type Repositories } from "../../data";
+import { initDatabase, type Repositories, type SqlExecutor } from "../../data";
 import { createTestExecutor } from "../../data/__tests__/testExecutor";
 import { StoreProvider } from "../../store/StoreProvider";
 import { Dashboard } from "../Dashboard";
 
+let executor: SqlExecutor;
 let repos: Repositories;
 
 beforeEach(async () => {
-  repos = await initDatabase(createTestExecutor());
+  executor = createTestExecutor();
+  repos = await initDatabase(executor);
 });
 
 function renderDashboard() {
@@ -270,5 +272,36 @@ describe("Dashboard", () => {
     await user.click(await screen.findByText("Task D"));
     const clockInBtn = screen.getByRole("button", { name: "Clock in" });
     expect(clockInBtn).toBeDisabled();
+  });
+
+  it("a session running 8+ hours triggers the forgot-to-clock-out check-in on load", async () => {
+    const user = userEvent.setup();
+    const task = await repos.tasks.create({ title: "Old forgotten task" });
+    const session = await repos.taskSessions.clockIn(task.id);
+
+    // clockIn() always stamps "now" — backdating past the dangling
+    // threshold needs a direct SQL update, since nothing in the
+    // repository interface lets you claim a session started 9 hours ago.
+    const backdated = new Date(Date.now() - 9 * 60 * 60 * 1000).toISOString();
+    await executor.execute("UPDATE task_sessions SET clocked_in_at = ? WHERE id = ?", [
+      backdated,
+      session.id,
+    ]);
+
+    renderDashboard();
+
+    expect(await screen.findByText(/Old forgotten task/)).toBeInTheDocument();
+    expect(screen.getByText(/has been running since/)).toBeInTheDocument();
+
+    await user.click(
+      screen.getByText(/That clock-in should just be closed out right at the time it started/),
+    );
+
+    // Resolved: dialog gone, session no longer shows as an active card.
+    expect(screen.queryByText(/has been running since/)).not.toBeInTheDocument();
+    const resolved = await repos.taskSessions.getById(session.id);
+    expect(resolved?.status).toBe("stopped");
+    expect(resolved?.is_estimated).toBe(true);
+    expect(resolved?.clocked_out_at).toBe(backdated);
   });
 });

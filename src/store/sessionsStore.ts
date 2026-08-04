@@ -22,6 +22,8 @@ export interface SessionsState {
   startBreak: (sessionId: string) => Promise<void>;
   resumeFromBreak: (sessionId: string) => Promise<void>;
   clockOut: (sessionId: string) => Promise<void>;
+  /** The forgot-to-clock-out check-in's resolution — always is_estimated, never a live clock-out. */
+  resolveDanglingSession: (sessionId: string, clockedOutAt: string) => Promise<void>;
 }
 
 export function createSessionsStore(repos: Repositories) {
@@ -86,10 +88,25 @@ export function createSessionsStore(repos: Repositories) {
         activeSessions: get().activeSessions.filter((a) => a.session.id !== sessionId),
       });
     },
+
+    async resolveDanglingSession(sessionId, clockedOutAt) {
+      await repos.taskSessions.clockOut(sessionId, { isEstimated: true, clockedOutAt });
+      set({
+        activeSessions: get().activeSessions.filter((a) => a.session.id !== sessionId),
+      });
+    },
   }));
 }
 
 export type SessionsStore = ReturnType<typeof createSessionsStore>;
+
+/** CLAUDE.md: a session still running 8+ (especially 16+) hours later is a clear forgot-to-clock-out signal, not just a long day. */
+export const DANGLING_HOURS_THRESHOLD = 8;
+
+export function isDangling(clockedInAt: string, now: Date = new Date()): boolean {
+  const hours = (now.getTime() - new Date(clockedInAt).getTime()) / (1000 * 60 * 60);
+  return hours >= DANGLING_HOURS_THRESHOLD;
+}
 
 /**
  * Elapsed *active* seconds since clock-in — wall-clock time minus every

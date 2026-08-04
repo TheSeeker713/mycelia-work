@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useSessionsStore, useTasksStore } from "../store/StoreProvider";
+import { useNotesStore, useSessionsStore, useTasksStore } from "../store/StoreProvider";
 import { useWindowControls } from "../hooks/useWindowControls";
 import { useMultiCardWidth } from "../hooks/useMultiCardWidth";
 import { useIdleWatcher } from "../hooks/useIdleWatcher";
@@ -13,7 +13,8 @@ import { TaskList } from "./TaskList";
 import { TaskWorkspace } from "./TaskWorkspace";
 import { ActiveSessionsRow } from "./ActiveSessionsRow";
 import { ShortIdleToast } from "./ShortIdleToast";
-import { MAX_CONCURRENT_SESSIONS } from "../store/sessionsStore";
+import { CheckInDialog } from "./CheckInDialog";
+import { MAX_CONCURRENT_SESSIONS, isDangling } from "../store/sessionsStore";
 import { TodosCompartment } from "./compartments/TodosCompartment";
 import { ProjectsCompartment } from "./compartments/ProjectsCompartment";
 import { NotesCompartment } from "./compartments/NotesCompartment";
@@ -82,6 +83,8 @@ export function Dashboard() {
   const activeSessions = useSessionsStore((s) => s.activeSessions);
   const loadActiveSessions = useSessionsStore((s) => s.loadActiveSessions);
   const startBreak = useSessionsStore((s) => s.startBreak);
+  const resolveDanglingSession = useSessionsStore((s) => s.resolveDanglingSession);
+  const addNote = useNotesStore((s) => s.addNote);
   const cardWidth = useMultiCardWidth(activeSessions.length, controls.fullscreen);
 
   const runningSessions = activeSessions.filter((a) => a.session.status === "running");
@@ -90,6 +93,18 @@ export function Dashboard() {
   function logIdleAsBreak() {
     for (const a of runningSessions) startBreak(a.session.id);
     idle.dismiss();
+  }
+
+  // Forgot-to-clock-out: a session still running 8+ hours later takes
+  // priority over everything else — resolved one at a time if more than
+  // one has gone dangling.
+  const danglingSession = activeSessions.find((a) => isDangling(a.session.clocked_in_at));
+
+  function resolveCheckIn(clockedOutAt: string, note: string) {
+    if (!danglingSession) return;
+    const sessionId = danglingSession.session.id;
+    resolveDanglingSession(sessionId, clockedOutAt);
+    if (note) addNote(sessionId, note);
   }
 
   useEffect(() => {
@@ -127,12 +142,16 @@ export function Dashboard() {
             <CompartmentContent active={active} />
           </div>
           <CompartmentTabs active={active} onSelect={setActive} />
-          {idle.showToast && (
-            <ShortIdleToast
-              idleSeconds={idle.idleSeconds}
-              onKeepAsWork={idle.dismiss}
-              onLogAsBreak={logIdleAsBreak}
-            />
+          {danglingSession ? (
+            <CheckInDialog activeSession={danglingSession} onResolve={resolveCheckIn} />
+          ) : (
+            idle.showToast && (
+              <ShortIdleToast
+                idleSeconds={idle.idleSeconds}
+                onKeepAsWork={idle.dismiss}
+                onLogAsBreak={logIdleAsBreak}
+              />
+            )
           )}
         </div>
       </FullscreenShell>
@@ -153,7 +172,9 @@ export function Dashboard() {
           <CompartmentContent active={active} />
         </div>
         <CompartmentTabs active={active} onSelect={setActive} />
-        {idle.showToast ? (
+        {danglingSession ? (
+          <CheckInDialog activeSession={danglingSession} onResolve={resolveCheckIn} />
+        ) : idle.showToast ? (
           <ShortIdleToast
             idleSeconds={idle.idleSeconds}
             onKeepAsWork={idle.dismiss}

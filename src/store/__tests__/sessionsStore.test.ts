@@ -5,6 +5,8 @@ import { createTestExecutor } from "../../data/__tests__/testExecutor";
 import {
   computeElapsedSeconds,
   createSessionsStore,
+  DANGLING_HOURS_THRESHOLD,
+  isDangling,
   MAX_CONCURRENT_SESSIONS,
   type SessionsStore,
 } from "../sessionsStore";
@@ -136,5 +138,35 @@ describe("sessionsStore", () => {
     expect(fresh.getState().activeSessions.length).toBe(1);
     expect(fresh.getState().activeSessions[0].task.title).toBe("Task A");
     expect(fresh.getState().activeSessions[0].session.status).toBe("on_break");
+  });
+
+  it("resolveDanglingSession closes the session as estimated at the given time", async () => {
+    await useSessionsStore.getState().clockIn(tasks[0]);
+    const sessionId = useSessionsStore.getState().activeSessions[0].session.id;
+    const resolvedAt = new Date().toISOString();
+
+    await useSessionsStore.getState().resolveDanglingSession(sessionId, resolvedAt);
+
+    expect(useSessionsStore.getState().activeSessions).toEqual([]);
+    const found = await repos.taskSessions.getById(sessionId);
+    expect(found?.status).toBe("stopped");
+    expect(found?.is_estimated).toBe(true);
+    expect(found?.clocked_out_at).toBe(resolvedAt);
+  });
+});
+
+describe("isDangling", () => {
+  it("is not dangling just under the threshold", () => {
+    const clockedInAt = new Date(
+      Date.now() - (DANGLING_HOURS_THRESHOLD * 60 * 60 * 1000 - 60_000),
+    ).toISOString();
+    expect(isDangling(clockedInAt)).toBe(false);
+  });
+
+  it("is dangling at or past the threshold", () => {
+    const clockedInAt = new Date(
+      Date.now() - DANGLING_HOURS_THRESHOLD * 60 * 60 * 1000,
+    ).toISOString();
+    expect(isDangling(clockedInAt)).toBe(true);
   });
 });
