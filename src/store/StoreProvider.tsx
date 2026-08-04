@@ -166,3 +166,8 @@ export function useCaptureStore<T>(selector: (state: CaptureState) => T): T {
   const { useCaptureStore: useStore } = useStoresContext();
   return useStore(selector);
 }
+
+/** The raw bound store (not a reactive subscription) — for reading a point-in-time snapshot right after an action resolves, e.g. to log/narrate the outcome without waiting on a re-render. */
+export function useCaptureStoreApi(): CaptureStore {
+  return useStoresContext().useCaptureStore;
+}

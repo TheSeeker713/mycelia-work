@@ -387,6 +387,32 @@ describe("Dashboard", () => {
     ).toHaveValue("Sketched the zen mode layout.");
   });
 
+  it("the capture drawer's pull-tab is reachable regardless of which compartment is open", async () => {
+    const user = userEvent.setup();
+    renderDashboard();
+
+    await user.click(screen.getByRole("button", { name: "Todos" }));
+    expect(screen.getByLabelText("Open capture")).toBeInTheDocument();
+
+    await user.click(screen.getByLabelText("Open capture"));
+    expect(screen.getByPlaceholderText(/A note, a todo/)).toBeInTheDocument();
+  });
+
+  it("the capture drawer's pull-tab is suppressed while the forgot-to-clock-out check-in is up", async () => {
+    const task = await repos.tasks.create({ title: "Old forgotten task" });
+    const session = await repos.taskSessions.clockIn(task.id);
+    const backdated = new Date(Date.now() - 9 * 60 * 60 * 1000).toISOString();
+    await executor.execute("UPDATE task_sessions SET clocked_in_at = ? WHERE id = ?", [
+      backdated,
+      session.id,
+    ]);
+
+    renderDashboard();
+
+    expect(await screen.findByText(/has been running since/)).toBeInTheDocument();
+    expect(screen.queryByLabelText("Open capture")).not.toBeInTheDocument();
+  });
+
   it("zen mode: opening it while already full screen exits back to full screen, not pocket view", async () => {
     const user = userEvent.setup();
     renderDashboard();

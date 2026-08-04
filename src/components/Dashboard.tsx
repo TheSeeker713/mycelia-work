@@ -14,6 +14,7 @@ import { useIdleWatcher } from "../hooks/useIdleWatcher";
 import { useVoiceCues } from "../hooks/useVoiceCues";
 import { useSelfVoicing } from "../hooks/useSelfVoicing";
 import { ZenModeEditor } from "./ZenModeEditor";
+import { CaptureDrawer } from "./CaptureDrawer";
 import { PocketShell } from "./PocketShell";
 import { FullscreenShell } from "./FullscreenShell";
 import { DeviceBar } from "./DeviceBar";
@@ -161,6 +162,10 @@ export function Dashboard() {
   // priority over everything else — resolved one at a time if more than
   // one has gone dangling.
   const danglingSession = activeSessions.find((a) => isDangling(a.session.clocked_in_at));
+  // The capture drawer needs one session to attach notes to when
+  // multiple are running at once — same "first/only" default
+  // NotesCompartment already uses for its own session picker.
+  const primarySessionId = activeSessions[0]?.session.id ?? null;
 
   async function resolveCheckIn(clockedOutAt: string, note: string) {
     if (!danglingSession) return;
@@ -275,6 +280,9 @@ export function Dashboard() {
               />
             )
           )}
+          {!showHiddenUnlock && !danglingSession && (
+            <CaptureDrawer activeSessionId={primarySessionId} />
+          )}
         </div>
       </FullscreenShell>
     );
@@ -317,6 +325,7 @@ export function Dashboard() {
             <OnboardingCoachMark onDismiss={() => setShowOnboarding(false)} />
           )
         )}
+        {!danglingSession && <CaptureDrawer activeSessionId={primarySessionId} />}
       </div>
     </PocketShell>
   );
