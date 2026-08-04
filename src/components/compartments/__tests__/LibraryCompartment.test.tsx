@@ -28,6 +28,37 @@ function renderLibrary() {
   );
 }
 
+describe("LibraryCompartment — accordion", () => {
+  it("shows Work Journal expanded and the other two sections collapsed into buttons by default", async () => {
+    renderLibrary();
+
+    expect(await screen.findByText("Work journal")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Archived tasks" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Books" })).toBeInTheDocument();
+    // Not present as section headers while collapsed.
+    expect(screen.queryByText("Archived tasks", { selector: "div" })).not.toBeInTheDocument();
+  });
+
+  it("clicking Archived tasks expands it and collapses Work Journal into a button", async () => {
+    const user = userEvent.setup();
+    renderLibrary();
+
+    await user.click(screen.getByRole("button", { name: "Archived tasks" }));
+
+    expect(screen.getByText("Nothing archived yet.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Work journal" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Books" })).toBeInTheDocument();
+  });
+
+  it("shows a count badge on the Archived tasks button once something's archived", async () => {
+    const task = await repos.tasks.create({ title: "Old task" });
+    await repos.tasks.archive(task.id);
+    renderLibrary();
+
+    expect(await screen.findByRole("button", { name: /Archived tasks/ })).toHaveTextContent("1");
+  });
+});
+
 describe("LibraryCompartment — Read aloud", () => {
   it("reads a ready journal entry's content aloud via the voice client, and can be stopped", async () => {
     const user = userEvent.setup();

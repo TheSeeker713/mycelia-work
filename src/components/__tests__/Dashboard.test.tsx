@@ -112,6 +112,9 @@ describe("Dashboard", () => {
     expect(screen.getByText(/Clock into a task to start writing/)).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Library" }));
+    // Archived tasks starts collapsed into a button (Work Journal is
+    // the section shown expanded by default) — expand it to check.
+    await user.click(screen.getByRole("button", { name: "Archived tasks" }));
     expect(screen.getByText("Nothing archived yet.")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Tasks" }));
@@ -128,6 +131,7 @@ describe("Dashboard", () => {
     await user.click(screen.getByRole("button", { name: "Archive" }));
 
     await user.click(screen.getByRole("button", { name: "Library" }));
+    await user.click(screen.getByRole("button", { name: /Archived tasks/ }));
     expect(await screen.findByText("Old task")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Restore" }));
@@ -173,7 +177,8 @@ describe("Dashboard", () => {
 
     await user.click(screen.getByTitle("Expand to full screen"));
     await user.click(screen.getByRole("button", { name: "Library" }));
-    expect(screen.getByText("Nothing archived yet.")).toBeInTheDocument();
+    // Work Journal is the section shown expanded by default.
+    expect(screen.getByText("Work journal")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "File" }));
     await user.click(screen.getByText("New task"));
