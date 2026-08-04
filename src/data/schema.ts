@@ -81,6 +81,14 @@ export const MIGRATIONS: string[] = [
     value TEXT NOT NULL
   )`,
   `ALTER TABLE journals ADD COLUMN failure_reason TEXT`,
+  `CREATE TABLE IF NOT EXISTS milestones (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL REFERENCES projects(id),
+    name TEXT NOT NULL,
+    target_date TEXT,
+    created_at TEXT NOT NULL,
+    completed_at TEXT
+  )`,
 ];
 
 /**

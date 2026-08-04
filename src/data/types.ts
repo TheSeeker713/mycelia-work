@@ -81,6 +81,15 @@ export interface Journal {
   failure_reason: string | null;
 }
 
+export interface Milestone {
+  id: string;
+  project_id: string;
+  name: string;
+  target_date: string | null;
+  created_at: string;
+  completed_at: string | null;
+}
+
 export type ResourceEventKind =
   | "throttled"
   | "deferred_job"

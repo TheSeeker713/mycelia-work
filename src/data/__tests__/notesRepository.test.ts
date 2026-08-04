@@ -32,4 +32,14 @@ describe("notesRepository", () => {
       "Second paragraph, a bit later.",
     ]);
   });
+
+  it("delete removes just the one note", async () => {
+    await notes.create(sessionId, "Keep this one.");
+    const toRemove = await notes.create(sessionId, "Remove this one.");
+
+    await notes.delete(toRemove.id);
+
+    const log = await notes.listBySession(sessionId);
+    expect(log.map((n) => n.body)).toEqual(["Keep this one."]);
+  });
 });

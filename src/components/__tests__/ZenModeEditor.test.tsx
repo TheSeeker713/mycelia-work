@@ -60,7 +60,10 @@ beforeEach(async () => {
     isTtsAvailable: vi.fn(),
     isSttAvailable: vi.fn(),
   };
-  ollamaClient = { suggestContinuation: vi.fn().mockResolvedValue(null) };
+  ollamaClient = {
+    suggestContinuation: vi.fn().mockResolvedValue(null),
+    classifyOnTopic: vi.fn().mockResolvedValue(true),
+  };
   sessionId = "";
 });
 

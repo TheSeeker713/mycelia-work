@@ -43,4 +43,14 @@ describe("todosRepository", () => {
     expect(found?.snooze_count).toBe(2);
     expect(found?.done).toBe(false);
   });
+
+  it("delete removes just the one todo", async () => {
+    await todos.create("Keep this one");
+    const toRemove = await todos.create("Remove this one");
+
+    await todos.delete(toRemove.id);
+
+    const all = await todos.list({ includeDone: true });
+    expect(all.map((t) => t.text)).toEqual(["Keep this one"]);
+  });
 });

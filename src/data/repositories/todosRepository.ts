@@ -66,6 +66,10 @@ export function createTodosRepository(executor: SqlExecutor) {
         [id],
       );
     },
+
+    async delete(id: string): Promise<void> {
+      await executor.execute("DELETE FROM todos WHERE id = ?", [id]);
+    },
   };
 }
 

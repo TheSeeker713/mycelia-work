@@ -194,23 +194,46 @@ Settings (can be turned off); disclosed plainly during onboarding.
 Everything logged stays on the user's own machine — there's no
 transmission anywhere else to secure against.
 
-## Still open: corrections
+## Corrections
 
-Confirmed as a must-have, not yet designed: when the agent routes
-something to the wrong place (files as a note when it should've been a
-todo, say), there needs to be a real way to fix that without manually
-hunting through the destination compartment. No interaction pattern is
-settled yet — this needs an actual mockup pass, not a paragraph, before
-Phase 8 implementation starts.
+Built 2026-08-04 as part of Phase 9, as an autonomous design call
+(Jeremy was asleep, having explicitly authorized continuing past the
+usual per-phase design-review gate for this one overnight session —
+flagged for his review on wake, same as the rest of Phase 9-11's design
+choices made that night). Landed on: the confirmation toast that
+appears after every successful route carries an inline correction
+option, right there at the moment of the mistake, not a separate
+"go find it in the destination compartment" step. Scoped to what's
+actually reachable without reopening the whole clarify pipeline:
+
+- **note ⇄ todo**: one click swaps it — deletes the wrongly-filed
+  record and re-creates it as the other type, reusing the exact same
+  extracted text rather than asking the user to retype anything.
+- **correcting *to* a milestone**: shows the existing projects as
+  quick-pick buttons (same "list, don't guess" rule as everything else
+  here) — picking one deletes the original note/todo and creates the
+  milestone against that project.
+- **correcting *away from* a milestone**: same note/todo swap as above.
+
+One real constraint surfaced during this build: notes are always
+attached to a running task_session (unchanged since Phase 2's data
+model) — there's no such thing as a standalone note. If the capture
+agent resolves to `create_note` (directly or via a correction) with no
+active session running, it says so plainly rather than pretending to
+fail generically: "Clock into a task first — notes need something to
+attach to." Todos and milestones have no such requirement.
 
 ## Where this lives in the build
 
 Phase 7 builds the shared accessibility layer this whole doc depends on
 (self-voicing output, universal speech-to-text input) — it comes first
-specifically so Phase 8 doesn't have to invent either. Phase 8 builds
-this capture-routing system, including the bottom-drawer entry point,
-tested against Notes and Todos (both already real by then). Phase 9
-(Projects, full board) consumes it for `create_milestone` and adds its
-own project-scoped "write a status report" AI-panel action; that report
-is real kept content (like the session journal), so it gets a real
-in-app home on the project itself, not just an exported file.
+specifically so Phase 9 doesn't have to invent either. Phase 8 (zen
+mode) landed first instead of right after Phase 7, after Jeremy's own
+test pass asked where it had gone — this doc's dependency on Phase 7
+is unaffected either way. Phase 9 builds this capture-routing system,
+including the bottom-drawer entry point, tested against Notes and
+Todos (both already real by then). Phase 10 (Projects, full board)
+consumes it for `create_milestone` and adds its own project-scoped
+"write a status report" AI-panel action; that report is real kept
+content (like the session journal), so it gets a real in-app home on
+the project itself, not just an exported file.

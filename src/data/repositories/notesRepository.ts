@@ -24,6 +24,10 @@ export function createNotesRepository(executor: SqlExecutor) {
         [taskSessionId],
       );
     },
+
+    async delete(id: string): Promise<void> {
+      await executor.execute("DELETE FROM notes WHERE id = ?", [id]);
+    },
   };
 }
 
