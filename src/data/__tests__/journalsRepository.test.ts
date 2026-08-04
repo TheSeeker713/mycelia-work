@@ -55,4 +55,14 @@ describe("journalsRepository", () => {
     const all = await journals.listByTask(taskId);
     expect(all.length).toBe(2);
   });
+
+  it("listRecent returns newest-first across every task, capped at the limit", async () => {
+    await journals.createPending({ taskId, kind: "session" });
+    await journals.createPending({ kind: "weekly" });
+    const third = await journals.createPending({ taskId, kind: "session" });
+
+    const recent = await journals.listRecent(2);
+    expect(recent.length).toBe(2);
+    expect(recent[0].id).toBe(third.id);
+  });
 });

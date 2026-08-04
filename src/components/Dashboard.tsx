@@ -1,5 +1,10 @@
 import { useEffect, useState } from "react";
-import { useNotesStore, useSessionsStore, useTasksStore } from "../store/StoreProvider";
+import {
+  useJournalsStore,
+  useNotesStore,
+  useSessionsStore,
+  useTasksStore,
+} from "../store/StoreProvider";
 import { useWindowControls } from "../hooks/useWindowControls";
 import { useMultiCardWidth } from "../hooks/useMultiCardWidth";
 import { useIdleWatcher } from "../hooks/useIdleWatcher";
@@ -34,6 +39,7 @@ function TasksCompartment() {
   const startBreak = useSessionsStore((s) => s.startBreak);
   const resumeFromBreak = useSessionsStore((s) => s.resumeFromBreak);
   const clockOut = useSessionsStore((s) => s.clockOut);
+  const generateSessionJournal = useJournalsStore((s) => s.generateSessionJournal);
 
   useEffect(() => {
     loadTasks();
@@ -41,6 +47,12 @@ function TasksCompartment() {
 
   const focusedTask = tasks.find((t) => t.id === focusedTaskId) ?? null;
   const focusedHasSession = activeSessions.some((a) => a.task.id === focusedTaskId);
+
+  async function handleClockOut(sessionId: string) {
+    const active = activeSessions.find((a) => a.session.id === sessionId);
+    await clockOut(sessionId);
+    if (active) await generateSessionJournal(active.task, sessionId);
+  }
 
   return (
     <div className="flex h-full flex-col">
@@ -50,7 +62,7 @@ function TasksCompartment() {
         activeSessions={activeSessions}
         onStartBreak={startBreak}
         onResume={resumeFromBreak}
-        onClockOut={clockOut}
+        onClockOut={handleClockOut}
       />
       <TaskWorkspace
         task={focusedTask}
@@ -85,6 +97,7 @@ export function Dashboard() {
   const startBreak = useSessionsStore((s) => s.startBreak);
   const resolveDanglingSession = useSessionsStore((s) => s.resolveDanglingSession);
   const addNote = useNotesStore((s) => s.addNote);
+  const generateSessionJournal = useJournalsStore((s) => s.generateSessionJournal);
   const cardWidth = useMultiCardWidth(activeSessions.length, controls.fullscreen);
 
   const runningSessions = activeSessions.filter((a) => a.session.status === "running");
@@ -100,11 +113,12 @@ export function Dashboard() {
   // one has gone dangling.
   const danglingSession = activeSessions.find((a) => isDangling(a.session.clocked_in_at));
 
-  function resolveCheckIn(clockedOutAt: string, note: string) {
+  async function resolveCheckIn(clockedOutAt: string, note: string) {
     if (!danglingSession) return;
-    const sessionId = danglingSession.session.id;
-    resolveDanglingSession(sessionId, clockedOutAt);
-    if (note) addNote(sessionId, note);
+    const { task, session } = danglingSession;
+    await resolveDanglingSession(session.id, clockedOutAt);
+    if (note) await addNote(session.id, note);
+    await generateSessionJournal(task, session.id);
   }
 
   useEffect(() => {

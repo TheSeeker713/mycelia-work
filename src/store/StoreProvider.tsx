@@ -13,6 +13,8 @@ import {
   type SessionsStore,
 } from "./sessionsStore";
 import { createNotesStore, type NotesState, type NotesStore } from "./notesStore";
+import { createJournalsStore, type JournalsState, type JournalsStore } from "./journalsStore";
+import { createTauriOpenClawClient, type OpenClawClient } from "../services/openclawClient";
 
 interface StoresContextValue {
   useTasksStore: TasksStore;
@@ -20,15 +22,19 @@ interface StoresContextValue {
   useTodosStore: TodosStore;
   useSessionsStore: SessionsStore;
   useNotesStore: NotesStore;
+  useJournalsStore: JournalsStore;
 }
 
 const StoresContext = createContext<StoresContextValue | null>(null);
 
 export function StoreProvider({
   repositories,
+  openClawClient,
   children,
 }: {
   repositories: Repositories;
+  /** Injectable, like `repositories` — tests pass a fake instead of hitting a real Tauri bridge. */
+  openClawClient?: OpenClawClient;
   children: ReactNode;
 }) {
   // Created once per `repositories` instance so remounts/tests don't
@@ -40,7 +46,9 @@ export function StoreProvider({
       useTodosStore: createTodosStore(repositories),
       useSessionsStore: createSessionsStore(repositories),
       useNotesStore: createNotesStore(repositories),
+      useJournalsStore: createJournalsStore(repositories, openClawClient ?? createTauriOpenClawClient()),
     }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [repositories],
   );
 
@@ -53,7 +61,7 @@ function useStoresContext(): StoresContextValue {
   const ctx = useContext(StoresContext);
   if (!ctx) {
     throw new Error(
-      "useTasksStore/useProjectsStore/useTodosStore/useSessionsStore/useNotesStore must be used within StoreProvider",
+      "useTasksStore/useProjectsStore/useTodosStore/useSessionsStore/useNotesStore/useJournalsStore must be used within StoreProvider",
     );
   }
   return ctx;
@@ -81,5 +89,10 @@ export function useSessionsStore<T>(selector: (state: SessionsState) => T): T {
 
 export function useNotesStore<T>(selector: (state: NotesState) => T): T {
   const { useNotesStore: useStore } = useStoresContext();
+  return useStore(selector);
+}
+
+export function useJournalsStore<T>(selector: (state: JournalsState) => T): T {
+  const { useJournalsStore: useStore } = useStoresContext();
   return useStore(selector);
 }

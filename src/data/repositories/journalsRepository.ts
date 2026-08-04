@@ -72,6 +72,14 @@ export function createJournalsRepository(executor: SqlExecutor) {
         [taskId],
       );
     },
+
+    /** Most recent journals across every task, newest first — the in-app Work Journal list. */
+    async listRecent(limit: number): Promise<Journal[]> {
+      return executor.select<Journal>(
+        "SELECT * FROM journals ORDER BY generated_at DESC, rowid DESC LIMIT ?",
+        [limit],
+      );
+    },
   };
 }
 
