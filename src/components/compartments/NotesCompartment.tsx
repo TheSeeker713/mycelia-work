@@ -3,14 +3,20 @@ import { useNotesStore, useSessionsStore } from "../../store/StoreProvider";
 import { MicButton } from "../MicButton";
 
 /** Notes attach to a running task_session — needs at least one active session to write into. */
-export function NotesCompartment() {
+export function NotesCompartment({
+  onEnterZenMode,
+}: {
+  /** Opens the full-screen zen-mode editor for the given session/task (Phase 8). Omitted in contexts (like tests) that don't wire zen mode. */
+  onEnterZenMode?: (sessionId: string, taskTitle: string) => void;
+}) {
   const activeSessions = useSessionsStore((s) => s.activeSessions);
   const notesBySession = useNotesStore((s) => s.notesBySession);
   const loadNotesForSession = useNotesStore((s) => s.loadNotesForSession);
   const addNote = useNotesStore((s) => s.addNote);
+  const draft = useNotesStore((s) => s.draft);
+  const setDraft = useNotesStore((s) => s.setDraft);
 
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
-  const [draft, setDraft] = useState("");
 
   const selected =
     activeSessions.find((a) => a.session.id === selectedSessionId) ?? activeSessions[0] ?? null;
@@ -41,7 +47,7 @@ export function NotesCompartment() {
   }
 
   function handleDictated(text: string) {
-    setDraft((prev) => (prev.trim() ? `${prev.trim()} ${text}` : text));
+    setDraft(draft.trim() ? `${draft.trim()} ${text}` : text);
   }
 
   return (
@@ -98,7 +104,20 @@ export function NotesCompartment() {
           className="resize-none rounded-lg border border-[var(--line)] bg-[var(--paper)] px-2.5 py-2 text-[0.82rem] text-[var(--ink)] outline-none placeholder:text-[var(--ink-faint)]"
         />
         <div className="flex items-center justify-between gap-2">
-          <MicButton onTranscribed={handleDictated} />
+          <div className="flex items-center gap-1.5">
+            <MicButton onTranscribed={handleDictated} />
+            {onEnterZenMode && (
+              <button
+                type="button"
+                onClick={() => onEnterZenMode(selected.session.id, selected.task.title)}
+                title="Expand to full-screen zen mode"
+                aria-label="Expand to full-screen zen mode"
+                className="flex-shrink-0 rounded-full border border-[var(--line)] px-2 py-1.5 text-[0.85rem] text-[var(--ink-soft)]"
+              >
+                ⤢
+              </button>
+            )}
+          </div>
           {draft.trim() && (
             <button
               type="button"

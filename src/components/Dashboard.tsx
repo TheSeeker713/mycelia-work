@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Task } from "../data";
 import {
   useJournalsStore,
@@ -12,6 +12,8 @@ import { useWindowControls } from "../hooks/useWindowControls";
 import { useMultiCardWidth } from "../hooks/useMultiCardWidth";
 import { useIdleWatcher } from "../hooks/useIdleWatcher";
 import { useVoiceCues } from "../hooks/useVoiceCues";
+import { useSelfVoicing } from "../hooks/useSelfVoicing";
+import { ZenModeEditor } from "./ZenModeEditor";
 import { PocketShell } from "./PocketShell";
 import { FullscreenShell } from "./FullscreenShell";
 import { DeviceBar } from "./DeviceBar";
@@ -100,11 +102,17 @@ function TasksCompartment() {
   );
 }
 
-function CompartmentContent({ active }: { active: CompartmentName }) {
+function CompartmentContent({
+  active,
+  onEnterZenMode,
+}: {
+  active: CompartmentName;
+  onEnterZenMode: (sessionId: string, taskTitle: string) => void;
+}) {
   return (
     <>
       {active === "tasks" && <TasksCompartment />}
-      {active === "notes" && <NotesCompartment />}
+      {active === "notes" && <NotesCompartment onEnterZenMode={onEnterZenMode} />}
       {active === "todos" && <TodosCompartment />}
       {active === "projects" && <ProjectsCompartment />}
       {active === "library" && <LibraryCompartment />}
@@ -118,7 +126,10 @@ export function Dashboard() {
   const [active, setActive] = useState<CompartmentName>("tasks");
   const [showOnboarding, setShowOnboarding] = useState(true);
   const [showHiddenUnlock, setShowHiddenUnlock] = useState(false);
+  const [zenMode, setZenMode] = useState<{ sessionId: string; taskTitle: string } | null>(null);
+  const wasFullscreenBeforeZenRef = useRef(false);
   const controls = useWindowControls();
+  const selfVoicing = useSelfVoicing();
   const activeSessions = useSessionsStore((s) => s.activeSessions);
   const loadActiveSessions = useSessionsStore((s) => s.loadActiveSessions);
   const startBreak = useSessionsStore((s) => s.startBreak);
@@ -168,15 +179,49 @@ export function Dashboard() {
     setShowOnboarding(true);
   }
 
+  // Zen mode always runs in real OS fullscreen (same "exit is obvious"
+  // pattern as the rest of the app) regardless of which mode Jeremy was
+  // in when he opened it — wasFullscreenBeforeZenRef remembers whether
+  // to actually drop back out of fullscreen on exit, or just leave the
+  // window as it already was.
+  async function enterZenMode(sessionId: string, taskTitle: string) {
+    wasFullscreenBeforeZenRef.current = controls.fullscreen;
+    if (!controls.fullscreen) await controls.enterFullscreen();
+    selfVoicing.speak("Entering zen mode.");
+    setZenMode({ sessionId, taskTitle });
+  }
+
+  function exitZenMode() {
+    selfVoicing.speak("Exiting zen mode.");
+    setZenMode(null);
+    if (!wasFullscreenBeforeZenRef.current) controls.exitFullscreen();
+  }
+
   useEffect(() => {
-    if (!controls.fullscreen) return;
+    // Zen mode owns its own Escape handling (ZenModeEditor -> exitZenMode),
+    // which respects wasFullscreenBeforeZenRef — this generic handler would
+    // otherwise also fire on the same keypress and exit fullscreen
+    // unconditionally, fighting that logic.
+    if (!controls.fullscreen || zenMode) return;
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") controls.exitFullscreen();
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [controls.fullscreen]);
+  }, [controls.fullscreen, zenMode]);
+
+  if (zenMode) {
+    return (
+      <FullscreenShell>
+        <ZenModeEditor
+          sessionId={zenMode.sessionId}
+          taskTitle={zenMode.taskTitle}
+          onExit={exitZenMode}
+        />
+      </FullscreenShell>
+    );
+  }
 
   if (controls.fullscreen) {
     return (
@@ -204,7 +249,7 @@ export function Dashboard() {
             in every compartment.
           */}
           <div className="flex-1 overflow-hidden p-6 pr-12" style={{ zoom: 2 }}>
-            <CompartmentContent active={active} />
+            <CompartmentContent active={active} onEnterZenMode={enterZenMode} />
           </div>
           <CompartmentTabs active={active} onSelect={setActive} />
           {showHiddenUnlock ? (
@@ -246,7 +291,7 @@ export function Dashboard() {
       />
       <div className="relative flex flex-1 flex-col overflow-hidden">
         <div className="flex-1 overflow-hidden p-5 pr-9">
-          <CompartmentContent active={active} />
+          <CompartmentContent active={active} onEnterZenMode={enterZenMode} />
         </div>
         <CompartmentTabs active={active} onSelect={setActive} />
         {danglingSession ? (

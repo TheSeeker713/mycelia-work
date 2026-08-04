@@ -355,4 +355,57 @@ describe("Dashboard", () => {
     expect(await screen.findByText("Rewards")).toBeInTheDocument();
     expect(screen.getByText("18+")).toBeInTheDocument();
   });
+
+  it("zen mode: opening it from Notes (pocket mode) goes full screen with no chrome, and Exit returns to pocket view with the draft intact", async () => {
+    const user = userEvent.setup();
+    renderDashboard();
+
+    const input = await screen.findByPlaceholderText("What are you working on?");
+    await user.type(input, "Write the devlog entry{Enter}");
+    await user.click(await screen.findByText("Write the devlog entry"));
+    await user.click(screen.getByRole("button", { name: "Clock in" }));
+
+    await user.click(screen.getByRole("button", { name: "Notes" }));
+    await user.click(screen.getByLabelText("Expand to full-screen zen mode"));
+
+    // Zen mode: no MenuBar, no compartment tabs — just the writing surface.
+    expect(screen.getByText("Zen mode")).toBeInTheDocument();
+    expect(screen.getByText("Write the devlog entry")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "File" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Notes" })).not.toBeInTheDocument();
+
+    const zenTextarea = screen.getByPlaceholderText("Write for Write the devlog entry...");
+    await user.type(zenTextarea, "Sketched the zen mode layout.");
+
+    await user.click(screen.getByRole("button", { name: "Exit zen mode" }));
+
+    // Was in pocket mode before zen mode, so exiting returns there — not full screen.
+    expect(screen.getByTitle("Expand to full screen")).toBeInTheDocument();
+    expect(screen.queryByText("Zen mode")).not.toBeInTheDocument();
+    expect(
+      screen.getByPlaceholderText("Write a note for Write the devlog entry..."),
+    ).toHaveValue("Sketched the zen mode layout.");
+  });
+
+  it("zen mode: opening it while already full screen exits back to full screen, not pocket view", async () => {
+    const user = userEvent.setup();
+    renderDashboard();
+
+    const input = await screen.findByPlaceholderText("What are you working on?");
+    await user.type(input, "Old task{Enter}");
+    await user.click(await screen.findByText("Old task"));
+    await user.click(screen.getByRole("button", { name: "Clock in" }));
+
+    await user.click(screen.getByTitle("Expand to full screen"));
+    await user.click(screen.getByRole("button", { name: "Notes" }));
+    await user.click(screen.getByLabelText("Expand to full-screen zen mode"));
+
+    expect(screen.getByText("Zen mode")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Exit zen mode" }));
+
+    // Was already full screen before zen mode — exiting stays full screen.
+    expect(screen.getByRole("button", { name: "File" })).toBeInTheDocument();
+    expect(screen.queryByTitle("Expand to full screen")).not.toBeInTheDocument();
+  });
 });

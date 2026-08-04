@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { initDatabase, type Repositories } from "../../../data";
 import { createTestExecutor } from "../../../data/__tests__/testExecutor";
 import { StoreProvider, useSessionsStore } from "../../../store/StoreProvider";
@@ -27,13 +27,13 @@ function ClockInButton({ title }: { title: string }) {
   );
 }
 
-function renderWithClockIn(titles: string[]) {
+function renderWithClockIn(titles: string[], onEnterZenMode?: (sessionId: string, taskTitle: string) => void) {
   return render(
     <StoreProvider repositories={repos}>
       {titles.map((t) => (
         <ClockInButton key={t} title={t} />
       ))}
-      <NotesCompartment />
+      <NotesCompartment onEnterZenMode={onEnterZenMode} />
     </StoreProvider>,
   );
 }
@@ -83,5 +83,29 @@ describe("NotesCompartment", () => {
     expect(
       await screen.findByText("Nothing written yet for Task B."),
     ).toBeInTheDocument();
+  });
+
+  it("shows no zen-mode expand button when onEnterZenMode isn't provided", async () => {
+    const user = userEvent.setup();
+    renderWithClockIn(["Write the devlog entry"]);
+    await user.click(screen.getByText("clock in Write the devlog entry"));
+
+    expect(
+      screen.queryByLabelText("Expand to full-screen zen mode"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("the zen-mode expand button calls onEnterZenMode with the active session and task title", async () => {
+    const user = userEvent.setup();
+    const onEnterZenMode = vi.fn();
+    renderWithClockIn(["Write the devlog entry"], onEnterZenMode);
+    await user.click(screen.getByText("clock in Write the devlog entry"));
+
+    await user.click(await screen.findByLabelText("Expand to full-screen zen mode"));
+
+    expect(onEnterZenMode).toHaveBeenCalledWith(
+      expect.any(String),
+      "Write the devlog entry",
+    );
   });
 });
