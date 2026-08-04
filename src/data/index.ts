@@ -8,6 +8,7 @@ import { createNotesRepository } from "./repositories/notesRepository";
 import { createTodosRepository } from "./repositories/todosRepository";
 import { createJournalsRepository } from "./repositories/journalsRepository";
 import { createResourceEventsRepository } from "./repositories/resourceEventsRepository";
+import { createSettingsRepository } from "./repositories/settingsRepository";
 
 export * from "./types";
 export * from "./sqlExecutor";
@@ -24,6 +25,7 @@ export function createRepositories(executor: SqlExecutor) {
     todos: createTodosRepository(executor),
     journals: createJournalsRepository(executor),
     resourceEvents: createResourceEventsRepository(executor),
+    settings: createSettingsRepository(executor),
   };
 }
 

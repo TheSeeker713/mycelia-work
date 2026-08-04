@@ -14,6 +14,11 @@ import {
 } from "./sessionsStore";
 import { createNotesStore, type NotesState, type NotesStore } from "./notesStore";
 import { createJournalsStore, type JournalsState, type JournalsStore } from "./journalsStore";
+import {
+  createSettingsStore,
+  type SettingsState,
+  type SettingsStore,
+} from "./settingsStore";
 import { createTauriOpenClawClient, type OpenClawClient } from "../services/openclawClient";
 
 interface StoresContextValue {
@@ -23,6 +28,7 @@ interface StoresContextValue {
   useSessionsStore: SessionsStore;
   useNotesStore: NotesStore;
   useJournalsStore: JournalsStore;
+  useSettingsStore: SettingsStore;
   openClawClient: OpenClawClient;
 }
 
@@ -49,6 +55,7 @@ export function StoreProvider({
       useSessionsStore: createSessionsStore(repositories),
       useNotesStore: createNotesStore(repositories),
       useJournalsStore: createJournalsStore(repositories, client),
+      useSettingsStore: createSettingsStore(repositories),
       openClawClient: client,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -96,6 +103,11 @@ export function useNotesStore<T>(selector: (state: NotesState) => T): T {
 
 export function useJournalsStore<T>(selector: (state: JournalsState) => T): T {
   const { useJournalsStore: useStore } = useStoresContext();
+  return useStore(selector);
+}
+
+export function useSettingsStore<T>(selector: (state: SettingsState) => T): T {
+  const { useSettingsStore: useStore } = useStoresContext();
   return useStore(selector);
 }
 

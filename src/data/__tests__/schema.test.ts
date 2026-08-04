@@ -21,6 +21,7 @@ describe("applyMigrations", () => {
     expect(names).toContain("todos");
     expect(names).toContain("journals");
     expect(names).toContain("resource_events");
+    expect(names).toContain("app_settings");
   });
 
   it("is idempotent — running it twice doesn't error or double-apply", async () => {

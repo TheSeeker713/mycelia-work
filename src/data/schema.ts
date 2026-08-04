@@ -76,6 +76,10 @@ export const MIGRATIONS: string[] = [
     kind TEXT NOT NULL CHECK (kind IN ('throttled', 'deferred_job', 'killed_subprocess')),
     detail TEXT
   )`,
+  `CREATE TABLE IF NOT EXISTS app_settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+  )`,
 ];
 
 /**
