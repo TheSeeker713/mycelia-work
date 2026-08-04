@@ -1,4 +1,4 @@
-export type CompartmentName = "tasks" | "notes" | "todos" | "projects" | "library";
+export type CompartmentName = "tasks" | "notes" | "todos" | "projects" | "library" | "settings";
 
 const TABS: { name: CompartmentName; label: string }[] = [
   { name: "tasks", label: "Tasks" },
@@ -6,6 +6,7 @@ const TABS: { name: CompartmentName; label: string }[] = [
   { name: "todos", label: "Todos" },
   { name: "projects", label: "Projects" },
   { name: "library", label: "Library" },
+  { name: "settings", label: "Settings" },
 ];
 
 export function CompartmentTabs({

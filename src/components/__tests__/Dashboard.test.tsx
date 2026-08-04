@@ -145,7 +145,7 @@ describe("Dashboard", () => {
 
     expect(screen.getByRole("button", { name: "File" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Edit" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Settings" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "View" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Help" })).toBeInTheDocument();
     // pocket-mode chrome is gone while full screen
     expect(screen.queryByTitle("Expand to full screen")).not.toBeInTheDocument();
@@ -185,6 +185,10 @@ describe("Dashboard", () => {
     const user = userEvent.setup();
     renderDashboard();
 
+    // The one-time accessibility disclosure comes first, ahead of the
+    // general coach mark, on every first launch (a fresh test database
+    // has never marked it seen either).
+    await user.click(await screen.findByText("Continue"));
     expect(await screen.findByText("1 / 2")).toBeInTheDocument();
 
     await user.click(screen.getByTitle("Skip all"));
@@ -195,7 +199,8 @@ describe("Dashboard", () => {
     const user = userEvent.setup();
     renderDashboard();
 
-    await user.click(screen.getByTitle("Skip all"));
+    await user.click(await screen.findByText("Continue"));
+    await user.click(await screen.findByTitle("Skip all"));
     expect(screen.queryByText("1 / 2")).not.toBeInTheDocument();
 
     await user.click(screen.getByTitle("Expand to full screen"));

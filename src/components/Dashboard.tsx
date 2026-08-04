@@ -5,6 +5,7 @@ import {
   useNotesStore,
   useOpenClawClient,
   useSessionsStore,
+  useSettingsStore,
   useTasksStore,
 } from "../store/StoreProvider";
 import { useWindowControls } from "../hooks/useWindowControls";
@@ -27,7 +28,9 @@ import { TodosCompartment } from "./compartments/TodosCompartment";
 import { ProjectsCompartment } from "./compartments/ProjectsCompartment";
 import { NotesCompartment } from "./compartments/NotesCompartment";
 import { LibraryCompartment } from "./compartments/LibraryCompartment";
+import { SettingsCompartment } from "./compartments/SettingsCompartment";
 import { OnboardingCoachMark } from "./OnboardingCoachMark";
+import { AccessibilityOnboarding } from "./AccessibilityOnboarding";
 
 function TasksCompartment() {
   const tasks = useTasksStore((s) => s.tasks);
@@ -104,6 +107,7 @@ function CompartmentContent({ active }: { active: CompartmentName }) {
       {active === "todos" && <TodosCompartment />}
       {active === "projects" && <ProjectsCompartment />}
       {active === "library" && <LibraryCompartment />}
+      {active === "settings" && <SettingsCompartment />}
     </>
   );
 }
@@ -121,6 +125,14 @@ export function Dashboard() {
   const generateSessionJournal = useJournalsStore((s) => s.generateSessionJournal);
   const openClawClient = useOpenClawClient();
   const cardWidth = useMultiCardWidth(activeSessions.length, controls.fullscreen);
+
+  const settingsLoaded = useSettingsStore((s) => s.loaded);
+  const accessibilityOnboardingSeen = useSettingsStore((s) => s.accessibilityOnboardingSeen);
+  const loadSettings = useSettingsStore((s) => s.load);
+
+  useEffect(() => {
+    loadSettings();
+  }, [loadSettings]);
 
   const runningSessions = activeSessions.filter((a) => a.session.status === "running");
   const idle = useIdleWatcher(runningSessions.length > 0);
@@ -224,6 +236,12 @@ export function Dashboard() {
             onKeepAsWork={idle.dismiss}
             onLogAsBreak={logIdleAsBreak}
           />
+        ) : settingsLoaded && !accessibilityOnboardingSeen ? (
+          // AccessibilityOnboarding already persists "seen" itself before
+          // calling this — once accessibilityOnboardingSeen flips true,
+          // this branch stops matching and the overlay unmounts on its
+          // own, so there's nothing extra to do here.
+          <AccessibilityOnboarding onDone={() => {}} />
         ) : (
           showOnboarding && (
             <OnboardingCoachMark onDismiss={() => setShowOnboarding(false)} />

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { CompartmentName } from "./CompartmentTabs";
 
-type MenuName = "file" | "edit" | "settings" | "help";
+type MenuName = "file" | "edit" | "view" | "help";
 
 export function MenuBar({
   pinned,
@@ -69,13 +69,16 @@ export function MenuBar({
       </MenuTrigger>
 
       <MenuTrigger
-        name="settings"
-        label="Settings"
-        open={openMenu === "settings"}
+        name="view"
+        label="View"
+        open={openMenu === "view"}
         onToggle={toggle}
       >
         <MenuAction onClick={item(onTogglePin)}>
           {pinned ? "Turn off always on top" : "Always on top"}
+        </MenuAction>
+        <MenuAction onClick={item(() => onSelectCompartment("settings"))}>
+          Settings
         </MenuAction>
       </MenuTrigger>
 
