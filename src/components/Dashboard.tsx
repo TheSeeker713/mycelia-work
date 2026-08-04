@@ -186,7 +186,18 @@ export function Dashboard() {
           onReplayOnboarding={replayOnboarding}
         />
         <div className="relative flex flex-1 overflow-hidden">
-          <div className="flex-1 overflow-hidden p-6 pr-12">
+          {/*
+            Full-screen mode reuses the same compact compartment
+            components the pocket view uses, which left everything
+            reading just as small on a full monitor as it does in the
+            tiny pocket card — the opposite of what "expand to full
+            screen" should feel like. `zoom` (not `transform: scale`)
+            reflows the whole subtree, including its own padding, at
+            2x rather than just visually stretching it, so this stays
+            one line instead of hand-doubling every size/padding value
+            in every compartment.
+          */}
+          <div className="flex-1 overflow-hidden p-6 pr-12" style={{ zoom: 2 }}>
             <CompartmentContent active={active} />
           </div>
           <CompartmentTabs active={active} onSelect={setActive} />
