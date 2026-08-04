@@ -143,45 +143,72 @@ fn call_agent(session_key: &str, message: &str, timeout_secs: u64) -> Result<Ope
     extract_agent_result(&json_result?)
 }
 
-#[tauri::command]
-pub fn openclaw_ensure_daemon() -> Result<bool, String> {
-    let was_running = daemon_running()?;
-    if !was_running {
-        daemon_start()?;
-        wait_for_daemon_running(Duration::from_secs(15))?;
+/// Tauri's `#[tauri::command]` macro dispatches a plain (non-async) `fn`
+/// by calling it directly, synchronously, wherever the IPC message is
+/// handled — no thread-pool offload of its own. Every command in this
+/// file does blocking I/O (subprocess spawn/wait, `thread::sleep`
+/// polling for the Gateway to come up), so without `spawn_blocking`
+/// each one freezes the whole window for its full duration. Confirmed
+/// by reading tauri-macros' `body_blocking` codegen after Jeremy hit
+/// exactly this — the app went fully unresponsive right after a
+/// clock-out kicked off journal generation.
+fn run_blocking<F, T>(func: F) -> impl std::future::Future<Output = Result<T, String>>
+where
+    F: FnOnce() -> Result<T, String> + Send + 'static,
+    T: Send + 'static,
+{
+    async move {
+        tauri::async_runtime::spawn_blocking(func)
+            .await
+            .map_err(|e| format!("background task panicked: {e}"))?
     }
-    Ok(was_running)
 }
 
 #[tauri::command]
-pub fn openclaw_release_daemon(was_already_running: bool) -> Result<(), String> {
-    if was_already_running {
-        return Ok(());
-    }
-    daemon_stop()
+pub async fn openclaw_ensure_daemon() -> Result<bool, String> {
+    run_blocking(|| {
+        let was_running = daemon_running()?;
+        if !was_running {
+            daemon_start()?;
+            wait_for_daemon_running(Duration::from_secs(15))?;
+        }
+        Ok(was_running)
+    })
+    .await
 }
 
 #[tauri::command]
-pub fn openclaw_call_agent(
+pub async fn openclaw_release_daemon(was_already_running: bool) -> Result<(), String> {
+    run_blocking(move || {
+        if was_already_running {
+            return Ok(());
+        }
+        daemon_stop()
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn openclaw_call_agent(
     session_key: String,
     message: String,
     timeout_secs: Option<u64>,
 ) -> Result<OpenClawAgentResult, String> {
-    call_agent(&session_key, &message, timeout_secs.unwrap_or(120))
+    run_blocking(move || call_agent(&session_key, &message, timeout_secs.unwrap_or(120))).await
 }
 
 /// Single-shot convenience for one-off calls (the session journal, the
 /// weekly roll-up): wakes the Gateway if needed, makes one call, puts
 /// it back to sleep if this call is what woke it.
 #[tauri::command]
-pub fn run_openclaw_agent(
+pub async fn run_openclaw_agent(
     session_key: String,
     message: String,
     timeout_secs: Option<u64>,
 ) -> Result<OpenClawAgentResult, String> {
-    let was_running = openclaw_ensure_daemon()?;
-    let result = call_agent(&session_key, &message, timeout_secs.unwrap_or(120));
-    let _ = openclaw_release_daemon(was_running);
+    let was_running = openclaw_ensure_daemon().await?;
+    let result = openclaw_call_agent(session_key, message, timeout_secs).await;
+    let _ = openclaw_release_daemon(was_running).await;
     result
 }
 
