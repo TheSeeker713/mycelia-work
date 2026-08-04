@@ -64,4 +64,27 @@ describe("settingsStore", () => {
     await freshStore.getState().load();
     expect(freshStore.getState().piperVoiceId).toBe("en_US-amy-medium");
   });
+
+  it("defaults rewardsUnlocked and eighteenPlusEnabled to locked/off", async () => {
+    expect(useSettings.getState().rewardsUnlocked).toBe(false);
+    expect(useSettings.getState().eighteenPlusEnabled).toBe(false);
+    await useSettings.getState().load();
+    expect(useSettings.getState().rewardsUnlocked).toBe(false);
+    expect(useSettings.getState().eighteenPlusEnabled).toBe(false);
+  });
+
+  it("setRewardsUnlocked persists across reload", async () => {
+    await useSettings.getState().setRewardsUnlocked(true);
+    expect(useSettings.getState().rewardsUnlocked).toBe(true);
+
+    const freshStore = createSettingsStore(repos);
+    await freshStore.getState().load();
+    expect(freshStore.getState().rewardsUnlocked).toBe(true);
+  });
+
+  it("setEighteenPlusEnabled persists independently of rewardsUnlocked", async () => {
+    await useSettings.getState().setEighteenPlusEnabled(true);
+    expect(useSettings.getState().eighteenPlusEnabled).toBe(true);
+    expect(useSettings.getState().rewardsUnlocked).toBe(false);
+  });
 });

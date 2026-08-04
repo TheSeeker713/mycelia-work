@@ -1,9 +1,10 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { initDatabase, type Repositories, type SqlExecutor } from "../../data";
 import { createTestExecutor } from "../../data/__tests__/testExecutor";
 import { StoreProvider } from "../../store/StoreProvider";
+import type { RewardsClient } from "../../services/rewardsClient";
 import { Dashboard } from "../Dashboard";
 
 let executor: SqlExecutor;
@@ -14,9 +15,9 @@ beforeEach(async () => {
   repos = await initDatabase(executor);
 });
 
-function renderDashboard() {
+function renderDashboard(rewardsClient?: RewardsClient) {
   return render(
-    <StoreProvider repositories={repos}>
+    <StoreProvider repositories={repos} rewardsClient={rewardsClient}>
       <Dashboard />
     </StoreProvider>,
   );
@@ -317,5 +318,41 @@ describe("Dashboard", () => {
     expect(resolved?.status).toBe("stopped");
     expect(resolved?.is_estimated).toBe(true);
     expect(resolved?.clocked_out_at).toBe(backdated);
+  });
+
+  it("the hidden Rewards unlock: Help > \"this should not be here\" opens the blank panel, and a correct unlock removes the entry and reveals Rewards in Settings", async () => {
+    const user = userEvent.setup();
+    const rewardsClient: RewardsClient = {
+      verifyPassword: vi.fn().mockResolvedValue(true),
+      listAssets: vi.fn().mockResolvedValue([]),
+      readAsset: vi.fn(),
+    };
+    renderDashboard(rewardsClient);
+
+    await user.click(screen.getByTitle("Expand to full screen"));
+    await user.click(screen.getByRole("button", { name: "Help" }));
+    const entry = screen.getByText("this should not be here");
+    await user.click(entry);
+
+    const panel = screen.getByLabelText("blank");
+    await user.click(panel);
+    await user.click(panel);
+    await user.click(panel);
+    fireEvent.keyDown(panel, { key: "1" });
+    fireEvent.keyDown(panel, { key: "1" });
+    fireEvent.keyDown(panel, { key: "1" });
+    fireEvent.keyDown(panel, { key: "Enter" });
+
+    await user.type(await screen.findByLabelText("Password"), "there is no spoon");
+    await user.click(screen.getByText("Continue"));
+
+    // Unlocked: the hidden Help entry is gone, nothing left to find.
+    await user.click(screen.getByRole("button", { name: "Help" }));
+    expect(screen.queryByText("this should not be here")).not.toBeInTheDocument();
+
+    // Settings now shows a real Rewards section with the 18+ toggle.
+    await user.click(screen.getByRole("button", { name: "Settings" }));
+    expect(await screen.findByText("Rewards")).toBeInTheDocument();
+    expect(screen.getByText("18+")).toBeInTheDocument();
   });
 });

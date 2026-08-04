@@ -7,6 +7,9 @@ const SELF_VOICING_KEY = "self_voicing_enabled";
 const STT_KEY = "stt_enabled";
 const ONBOARDING_SEEN_KEY = "accessibility_onboarding_seen";
 const PIPER_VOICE_ID_KEY = "piper_voice_id";
+/** Both default OFF/locked — the hidden-unlock flow and the 18+ toggle inside it, per Jeremy's explicit spec (2026-08-04). */
+const REWARDS_UNLOCKED_KEY = "rewards_unlocked";
+const EIGHTEEN_PLUS_KEY = "eighteen_plus_enabled";
 
 export interface SettingsState {
   loaded: boolean;
@@ -14,11 +17,15 @@ export interface SettingsState {
   sttEnabled: boolean;
   accessibilityOnboardingSeen: boolean;
   piperVoiceId: string;
+  rewardsUnlocked: boolean;
+  eighteenPlusEnabled: boolean;
   load: () => Promise<void>;
   setSelfVoicingEnabled: (enabled: boolean) => Promise<void>;
   setSttEnabled: (enabled: boolean) => Promise<void>;
   markAccessibilityOnboardingSeen: () => Promise<void>;
   setPiperVoiceId: (voiceId: string) => Promise<void>;
+  setRewardsUnlocked: (unlocked: boolean) => Promise<void>;
+  setEighteenPlusEnabled: (enabled: boolean) => Promise<void>;
 }
 
 function parseBool(value: string | null, defaultValue: boolean): boolean {
@@ -33,6 +40,8 @@ export function createSettingsStore(repos: Repositories) {
     sttEnabled: true,
     accessibilityOnboardingSeen: false,
     piperVoiceId: DEFAULT_PIPER_VOICE_ID,
+    rewardsUnlocked: false,
+    eighteenPlusEnabled: false,
 
     async load() {
       const all = await repos.settings.getAll();
@@ -41,6 +50,8 @@ export function createSettingsStore(repos: Repositories) {
         sttEnabled: parseBool(all[STT_KEY] ?? null, true),
         accessibilityOnboardingSeen: parseBool(all[ONBOARDING_SEEN_KEY] ?? null, false),
         piperVoiceId: all[PIPER_VOICE_ID_KEY] ?? DEFAULT_PIPER_VOICE_ID,
+        rewardsUnlocked: parseBool(all[REWARDS_UNLOCKED_KEY] ?? null, false),
+        eighteenPlusEnabled: parseBool(all[EIGHTEEN_PLUS_KEY] ?? null, false),
         loaded: true,
       });
     },
@@ -63,6 +74,16 @@ export function createSettingsStore(repos: Repositories) {
     async setPiperVoiceId(voiceId) {
       await repos.settings.set(PIPER_VOICE_ID_KEY, voiceId);
       set({ piperVoiceId: voiceId });
+    },
+
+    async setRewardsUnlocked(unlocked) {
+      await repos.settings.set(REWARDS_UNLOCKED_KEY, String(unlocked));
+      set({ rewardsUnlocked: unlocked });
+    },
+
+    async setEighteenPlusEnabled(enabled) {
+      await repos.settings.set(EIGHTEEN_PLUS_KEY, String(enabled));
+      set({ eighteenPlusEnabled: enabled });
     },
   }));
 }

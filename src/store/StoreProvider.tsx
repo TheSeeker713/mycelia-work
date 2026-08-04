@@ -21,6 +21,7 @@ import {
 } from "./settingsStore";
 import { createTauriOpenClawClient, type OpenClawClient } from "../services/openclawClient";
 import { createHttpVoiceClient, type VoiceClient } from "../services/voiceClient";
+import { createTauriRewardsClient, type RewardsClient } from "../services/rewardsClient";
 
 interface StoresContextValue {
   useTasksStore: TasksStore;
@@ -32,6 +33,7 @@ interface StoresContextValue {
   useSettingsStore: SettingsStore;
   openClawClient: OpenClawClient;
   voiceClient: VoiceClient;
+  rewardsClient: RewardsClient;
 }
 
 const StoresContext = createContext<StoresContextValue | null>(null);
@@ -40,6 +42,7 @@ export function StoreProvider({
   repositories,
   openClawClient,
   voiceClient,
+  rewardsClient,
   children,
 }: {
   repositories: Repositories;
@@ -47,6 +50,8 @@ export function StoreProvider({
   openClawClient?: OpenClawClient;
   /** Injectable, like `openClawClient` — tests pass a fake instead of hitting the real local voice servers. */
   voiceClient?: VoiceClient;
+  /** Injectable, like `openClawClient` — tests pass a fake instead of hitting the real password/asset commands. */
+  rewardsClient?: RewardsClient;
   children: ReactNode;
 }) {
   // Created once per `repositories` instance so remounts/tests don't
@@ -54,6 +59,7 @@ export function StoreProvider({
   const stores = useMemo<StoresContextValue>(() => {
     const client = openClawClient ?? createTauriOpenClawClient();
     const voice = voiceClient ?? createHttpVoiceClient();
+    const rewards = rewardsClient ?? createTauriRewardsClient();
     return {
       useTasksStore: createTasksStore(repositories),
       useProjectsStore: createProjectsStore(repositories),
@@ -64,6 +70,7 @@ export function StoreProvider({
       useSettingsStore: createSettingsStore(repositories),
       openClawClient: client,
       voiceClient: voice,
+      rewardsClient: rewards,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [repositories]);
@@ -124,4 +131,8 @@ export function useOpenClawClient(): OpenClawClient {
 
 export function useVoiceClient(): VoiceClient {
   return useStoresContext().voiceClient;
+}
+
+export function useRewardsClient(): RewardsClient {
+  return useStoresContext().rewardsClient;
 }

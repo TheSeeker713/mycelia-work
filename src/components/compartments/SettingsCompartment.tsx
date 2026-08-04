@@ -1,8 +1,48 @@
-import { useState } from "react";
-import { useSettingsStore, useVoiceClient } from "../../store/StoreProvider";
+import { useEffect, useState } from "react";
+import { useRewardsClient, useSettingsStore, useVoiceClient } from "../../store/StoreProvider";
 import { useSelfVoicing } from "../../hooks/useSelfVoicing";
 import { classifyVoicePerformance, measureTtsLatencySeconds, type VoicePerformance } from "../../services/hardwareCheck";
 import { PIPER_VOICES } from "../../services/voiceClient";
+
+function RewardsSection() {
+  const eighteenPlusEnabled = useSettingsStore((s) => s.eighteenPlusEnabled);
+  const setEighteenPlusEnabled = useSettingsStore((s) => s.setEighteenPlusEnabled);
+  const rewardsClient = useRewardsClient();
+  const [assets, setAssets] = useState<string[] | null>(null);
+
+  useEffect(() => {
+    if (!eighteenPlusEnabled) return;
+    rewardsClient.listAssets().then(setAssets);
+  }, [eighteenPlusEnabled, rewardsClient]);
+
+  return (
+    <div className="mt-2 border-t border-dashed border-[var(--line)] pt-3">
+      <div className="mb-1.5 text-[0.7rem] tracking-wide text-[var(--ink-faint)] uppercase">
+        Rewards
+      </div>
+      <label className="flex items-start gap-2 text-[0.82rem] text-[var(--ink)]">
+        <input
+          type="checkbox"
+          checked={eighteenPlusEnabled}
+          onChange={(e) => setEighteenPlusEnabled(e.target.checked)}
+          className="mt-0.5"
+        />
+        18+
+      </label>
+      {eighteenPlusEnabled && (
+        <div className="mt-2">
+          {!assets ? (
+            <p className="text-[0.78rem] text-[var(--ink-faint)]">Loading…</p>
+          ) : assets.length === 0 ? (
+            <p className="text-[0.78rem] text-[var(--ink-faint)]">Nothing unlocked yet.</p>
+          ) : (
+            <p className="text-[0.78rem] text-[var(--ink-soft)]">{assets.length} unlocked.</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 const PERFORMANCE_LABEL: Record<VoicePerformance | "checking", string> = {
   checking: "Checking…",
@@ -24,6 +64,7 @@ export function SettingsCompartment() {
   const setSelfVoicingEnabled = useSettingsStore((s) => s.setSelfVoicingEnabled);
   const setSttEnabled = useSettingsStore((s) => s.setSttEnabled);
   const setPiperVoiceId = useSettingsStore((s) => s.setPiperVoiceId);
+  const rewardsUnlocked = useSettingsStore((s) => s.rewardsUnlocked);
   const voiceClient = useVoiceClient();
   const selfVoicing = useSelfVoicing();
 
@@ -122,6 +163,8 @@ export function SettingsCompartment() {
           {performance ? "Re-test" : "Test voice performance"}
         </button>
       </div>
+
+      {rewardsUnlocked && <RewardsSection />}
     </div>
   );
 }
