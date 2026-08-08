@@ -29,6 +29,11 @@ import {
   type ResourceWatchdogClient,
 } from "../services/resourceWatchdog";
 import { createResourceStore, type ResourceState, type ResourceStore } from "./resourceStore";
+import {
+  createGamificationStore,
+  type GamificationState,
+  type GamificationStore,
+} from "./gamificationStore";
 
 interface StoresContextValue {
   useTasksStore: TasksStore;
@@ -40,6 +45,7 @@ interface StoresContextValue {
   useSettingsStore: SettingsStore;
   useCaptureStore: CaptureStore;
   useResourceStore: ResourceStore;
+  useGamificationStore: GamificationStore;
   openClawClient: OpenClawClient;
   voiceClient: VoiceClient;
   ollamaClient: OllamaClient;
@@ -93,6 +99,7 @@ export function StoreProvider({
         resourceWatchdogClient: watchdog,
       }),
       useResourceStore: createResourceStore(repositories),
+      useGamificationStore: createGamificationStore(repositories),
       openClawClient: client,
       voiceClient: voice,
       ollamaClient: ollama,
@@ -185,4 +192,14 @@ export function useResourceStore<T>(selector: (state: ResourceState) => T): T {
 
 export function useResourceWatchdogClient(): ResourceWatchdogClient {
   return useStoresContext().resourceWatchdogClient;
+}
+
+export function useGamificationStore<T>(selector: (state: GamificationState) => T): T {
+  const { useGamificationStore: useStore } = useStoresContext();
+  return useStore(selector);
+}
+
+/** The raw bound store — same rationale as useCaptureStoreApi: read a point-in-time snapshot (e.g. the just-updated toast queue) without waiting on a re-render. */
+export function useGamificationStoreApi(): GamificationStore {
+  return useStoresContext().useGamificationStore;
 }
