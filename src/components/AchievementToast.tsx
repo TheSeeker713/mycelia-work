@@ -2,6 +2,15 @@ import { useEffect, useRef } from "react";
 import { useGamificationStore } from "../store/StoreProvider";
 import { useSelfVoicing } from "../hooks/useSelfVoicing";
 import type { AchievementToastItem } from "../store/gamificationStore";
+import { BADGE_IMAGE_BY_LEVEL, STICKER_IMAGE_BY_KEY } from "../services/gamificationAssets";
+
+function imageFor(toast: AchievementToastItem): string | undefined {
+  if (toast.kind === "badge") {
+    const level = Number(toast.key.replace("badge_level_", ""));
+    return BADGE_IMAGE_BY_LEVEL[level];
+  }
+  return STICKER_IMAGE_BY_KEY[toast.key];
+}
 
 /** Matches ShortIdleToast's "auto-dismiss after a few seconds" language, per the plan's "~4-5 seconds, then fades" spec. */
 const AUTO_DISMISS_MS = 4500;
@@ -30,16 +39,23 @@ function Toast({ toast, onDismiss }: { toast: AchievementToastItem; onDismiss: (
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [toast.id]);
 
+  const imageUrl = imageFor(toast);
+
   return (
     <div
       role="status"
-      className="rounded-[10px] border p-2.5 text-[0.8rem] shadow-[0_10px_20px_-10px_rgba(0,0,0,0.4)]"
+      className="flex items-center gap-2.5 rounded-[10px] border p-2.5 text-[0.8rem] shadow-[0_10px_20px_-10px_rgba(0,0,0,0.4)]"
       style={{ background: "var(--moss-pale)", borderColor: "var(--moss)", color: "var(--moss-deep)" }}
     >
-      <div className="text-[0.68rem] tracking-wide uppercase opacity-80">
-        {KIND_LABEL[toast.kind]}
+      {imageUrl && (
+        <img src={imageUrl} alt="" className="h-10 w-10 flex-shrink-0 rounded-full object-cover" />
+      )}
+      <div>
+        <div className="text-[0.68rem] tracking-wide uppercase opacity-80">
+          {KIND_LABEL[toast.kind]}
+        </div>
+        <div className="font-medium">{toast.label}</div>
       </div>
-      <div className="font-medium">{toast.label}</div>
     </div>
   );
 }

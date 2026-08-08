@@ -1,14 +1,15 @@
 import { useEffect, useState } from "react";
 import { useGamificationStore } from "../../store/StoreProvider";
 import { BADGES, LEVEL_CAP, STICKERS, xpProgressWithinLevel } from "../../services/gamification";
+import { BADGE_IMAGE_BY_LEVEL, STICKER_IMAGE_BY_KEY } from "../../services/gamificationAssets";
 
 /**
  * No hidden-unlock gate of any kind — ordinary, always-visible feature,
- * unlike the (now-removed) 18+ system. Badge/sticker art isn't wired
- * yet (Jeremy's still curating the real asset set), so this renders
- * plain labeled chips for now — same "build the plug, not what plugs
- * into it" treatment as the rest of this phase; swapping in real
- * images later only touches this file.
+ * unlike the (now-removed) 18+ system. Real badge/sticker art from
+ * Jeremy's curated set (gamificationAssets.ts), falling back to a
+ * plain labeled chip for any achievement that doesn't have art wired
+ * yet — the curated set covers more concepts than this app actually
+ * awards right now (see gamificationAssets.ts's own note).
  */
 export function ProgressCompartment() {
   const stats = useGamificationStore((s) => s.stats);
@@ -89,22 +90,36 @@ export function ProgressCompartment() {
       <div className="mb-1.5 text-[0.7rem] tracking-wide text-[var(--ink-faint)] uppercase">
         Badges ({unlockedBadgeKeys.size}/{BADGES.length})
       </div>
-      <div className="mb-3 flex flex-wrap gap-1.5">
+      <div className="mb-3 flex flex-wrap gap-2">
         {BADGES.map((badge) => {
           const unlocked = unlockedBadgeKeys.has(badge.key);
+          const imageUrl = BADGE_IMAGE_BY_LEVEL[badge.level];
           return (
-            <span
+            <div
               key={badge.key}
               title={badge.label}
-              className="rounded-full border px-2 py-1 text-[0.68rem]"
+              className="flex h-11 w-11 flex-shrink-0 items-center justify-center overflow-hidden rounded-full border"
               style={{
                 borderColor: unlocked ? "var(--moss)" : "var(--line)",
-                background: unlocked ? "var(--moss-pale)" : "transparent",
-                color: unlocked ? "var(--moss-deep)" : "var(--ink-faint)",
+                background: unlocked ? "var(--moss-pale)" : "var(--paper-deep)",
               }}
             >
-              {badge.level}
-            </span>
+              {imageUrl ? (
+                <img
+                  src={imageUrl}
+                  alt={badge.label}
+                  className="h-full w-full object-cover"
+                  style={unlocked ? undefined : { filter: "grayscale(1)", opacity: 0.35 }}
+                />
+              ) : (
+                <span
+                  className="text-[0.68rem]"
+                  style={{ color: unlocked ? "var(--moss-deep)" : "var(--ink-faint)" }}
+                >
+                  {badge.level}
+                </span>
+              )}
+            </div>
           );
         })}
       </div>
@@ -115,19 +130,29 @@ export function ProgressCompartment() {
       {stickerCounts.size === 0 ? (
         <p className="text-[0.78rem] text-[var(--ink-faint)]">None earned yet.</p>
       ) : (
-        <ul className="flex flex-col gap-1">
-          {STICKERS.filter((s) => stickerCounts.has(s.key)).map((sticker) => (
-            <li
-              key={sticker.key}
-              className="flex items-center justify-between rounded-lg border px-2.5 py-1.5 text-[0.78rem]"
-              style={{ borderColor: "var(--line)", color: "var(--ink)" }}
-            >
-              <span>{sticker.label}</span>
-              {stickerCounts.get(sticker.key)! > 1 && (
-                <span className="text-[0.7rem] text-[var(--ink-faint)]">×{stickerCounts.get(sticker.key)}</span>
-              )}
-            </li>
-          ))}
+        <ul className="flex flex-col gap-1.5">
+          {STICKERS.filter((s) => stickerCounts.has(s.key)).map((sticker) => {
+            const imageUrl = STICKER_IMAGE_BY_KEY[sticker.key];
+            return (
+              <li
+                key={sticker.key}
+                className="flex items-center gap-2.5 rounded-lg border px-2.5 py-1.5 text-[0.78rem]"
+                style={{ borderColor: "var(--line)", color: "var(--ink)" }}
+              >
+                {imageUrl && (
+                  <img
+                    src={imageUrl}
+                    alt=""
+                    className="h-8 w-8 flex-shrink-0 rounded-md object-cover"
+                  />
+                )}
+                <span className="flex-1">{sticker.label}</span>
+                {stickerCounts.get(sticker.key)! > 1 && (
+                  <span className="text-[0.7rem] text-[var(--ink-faint)]">×{stickerCounts.get(sticker.key)}</span>
+                )}
+              </li>
+            );
+          })}
         </ul>
       )}
 

@@ -61,7 +61,9 @@ describe("AchievementToastStack", () => {
     await user.click(screen.getByText("finish-project"));
 
     expect(await screen.findByText("Sticker earned")).toBeInTheDocument();
-    expect(screen.getByText("Project Finished")).toBeInTheDocument();
+    const label = screen.getByText("Project Finished");
+    expect(label).toBeInTheDocument();
+    expect(screen.getByRole("status").querySelector("img")).toBeTruthy();
   });
 
   it("dismisses on its own after the auto-dismiss window", async () => {

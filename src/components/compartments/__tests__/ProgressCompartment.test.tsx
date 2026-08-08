@@ -5,7 +5,7 @@ import { ProgressCompartment } from "../ProgressCompartment";
 import { StoreProvider } from "../../../store/StoreProvider";
 import { initDatabase, type Repositories } from "../../../data";
 import { createTestExecutor } from "../../../data/__tests__/testExecutor";
-import { LEVEL_CAP } from "../../../services/gamification";
+import { BADGES, LEVEL_CAP } from "../../../services/gamification";
 
 let repos: Repositories;
 
@@ -53,6 +53,24 @@ describe("ProgressCompartment", () => {
 
     expect(await screen.findByText("Project Finished")).toBeInTheDocument();
     expect(screen.getByText("×2")).toBeInTheDocument();
+  });
+
+  it("renders real art for every badge slot, not placeholder numbers", async () => {
+    renderProgress();
+    await screen.findByText("Level 1");
+
+    const images = screen.getAllByRole("img");
+    // 25 badge chips, all locked but still rendering the real (grayscale) art.
+    expect(images.length).toBeGreaterThanOrEqual(BADGES.length);
+  });
+
+  it("renders the real sticker image next to an earned sticker's label", async () => {
+    await repos.gamification.logXpEvent("project_finished", 40, "sticker_project_finished");
+    renderProgress();
+
+    const label = await screen.findByText("Project Finished");
+    const row = label.closest("li")!;
+    expect(row.querySelector("img")).toBeTruthy();
   });
 
   it("the disclosure explanation is collapsed by default and expands on click", async () => {

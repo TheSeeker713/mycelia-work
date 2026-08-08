@@ -104,8 +104,17 @@ qualify for it again, not a one-time thing.
 - `src/components/compartments/ProgressCompartment.tsx` — the
   "Progress" tab: level, XP bar, badge grid, sticker list.
 - `src/components/AchievementToast.tsx` — the pop-up.
+- `src/services/gamificationAssets.ts` — the real curated art (`src/
+  assets/gamification/`, a bundled copy of Jeremy's staged files in
+  `assets/gamification/`), mapped by level/sticker key. Any
+  achievement without art wired here falls back to a plain chip.
 
-Badge and sticker art isn't wired to specific image files yet — the
-Progress tab renders plain labeled chips until the real asset set
-(being curated separately, see `assets/gamification/README.md`) is
-ready to wire in by filename.
+**What's wired vs. what's still just art:** all 25 badges and the
+project-finished/streak-7/streak-30/10 welcome-back stickers have real
+images. The curated set (`assets/gamification/README.md`) has more
+concepts than that — first-time todo/note/project/clock-in stickers,
+10/50/100-count milestones, 100-day and 365-day streak tiers, a
+four-hour-day badge — but this app doesn't award any of those yet, so
+that art isn't referenced. Turning them into real achievements is a
+real, scoped follow-up (new XP-source logic + tests), not just an
+asset-wiring task.
