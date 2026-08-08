@@ -35,6 +35,7 @@ beforeEach(async () => {
     ensureDaemon: vi.fn(),
     call: vi.fn(),
     releaseDaemon: vi.fn(),
+    cancelActiveCall: vi.fn(),
   };
   voiceClient = {
     speak: vi.fn().mockResolvedValue(null),

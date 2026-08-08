@@ -129,6 +129,7 @@ describe("startCheckinConversation / continueCheckinConversation", () => {
       ensureDaemon: vi.fn().mockResolvedValue(true),
       call: shouldReject ? vi.fn().mockRejectedValue(new Error("down")) : vi.fn().mockResolvedValue({ text, model: "xai/grok-4.5" }),
       releaseDaemon: vi.fn().mockResolvedValue(undefined),
+    cancelActiveCall: vi.fn(),
     };
   }
 

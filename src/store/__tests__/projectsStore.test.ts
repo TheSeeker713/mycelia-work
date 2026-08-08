@@ -18,6 +18,7 @@ beforeEach(async () => {
     ensureDaemon: vi.fn(),
     call: vi.fn(),
     releaseDaemon: vi.fn(),
+    cancelActiveCall: vi.fn(),
   };
   gamification = createGamificationStore(repos);
   useProjectsStore = createProjectsStore(repos, openClawClient, gamification);

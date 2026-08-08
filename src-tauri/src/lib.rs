@@ -9,6 +9,7 @@ mod capture_log;
 mod journal_export;
 mod openclaw;
 mod resource_watchdog;
+mod system_init;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
@@ -57,6 +58,9 @@ pub fn run() {
         .manage(resource_watchdog::WatchdogState(std::sync::Mutex::new(
             sysinfo::System::new(),
         )))
+        .manage(openclaw::CallCancelState(std::sync::Arc::new(
+            std::sync::atomic::AtomicBool::new(false),
+        )))
         .setup(|app| {
             let show_item = MenuItem::with_id(app, "show", "Show Mycelia Time", true, None::<&str>)?;
             let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
@@ -102,9 +106,11 @@ pub fn run() {
             openclaw::openclaw_release_daemon,
             openclaw::openclaw_call_agent,
             openclaw::run_openclaw_agent,
+            openclaw::cancel_active_agent_call,
             journal_export::export_workjournal_file,
             capture_log::append_capture_log,
             resource_watchdog::check_resource_pressure,
+            system_init::ensure_voice_agent_running,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

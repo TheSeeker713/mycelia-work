@@ -11,7 +11,7 @@ import { CheckInDialog } from "./CheckInDialog";
 import { MicButton } from "./MicButton";
 import { useSelfVoicing } from "../hooks/useSelfVoicing";
 import { useVoiceCues } from "../hooks/useVoiceCues";
-import { useResourceStore, useResourceWatchdogClient } from "../store/StoreProvider";
+import { useResourceStore, useResourceWatchdogClient, useSettingsStore } from "../store/StoreProvider";
 
 type FallbackReason = "resource_pressure" | "unavailable";
 
@@ -57,6 +57,7 @@ export function CheckInFlow({
   const voiceCues = useVoiceCues();
   const resourceWatchdogClient = useResourceWatchdogClient();
   const logResourceEvent = useResourceStore((s) => s.logEvent);
+  const grok4Enabled = useSettingsStore((s) => s.grok4Enabled);
 
   async function releaseIfNeeded() {
     if (wasAlreadyRunningRef.current === null || daemonReleasedRef.current) return;
@@ -118,6 +119,7 @@ export function CheckInFlow({
         activeSession.task,
         activeSession.session.clocked_in_at,
         sessionKeyRef.current,
+        grok4Enabled,
       );
 
       if (cancelled) {
@@ -156,7 +158,7 @@ export function CheckInFlow({
     }
     setState({ phase: "connecting" });
     voiceCues.play("please_wait");
-    const turn = await continueCheckinConversation(client, sessionKeyRef.current, value);
+    const turn = await continueCheckinConversation(client, sessionKeyRef.current, value, grok4Enabled);
     if (!turn) {
       await releaseIfNeeded();
       fallBackTo("unavailable");

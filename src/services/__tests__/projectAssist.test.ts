@@ -50,6 +50,7 @@ describe("runProjectAssist", () => {
       ensureDaemon: vi.fn(),
       call: vi.fn(),
       releaseDaemon: vi.fn(),
+    cancelActiveCall: vi.fn(),
     };
     const result = await runProjectAssist("sub_tasks", project, client);
     expect(result).toBe("- Wireframe the flow\n- Write copy");
@@ -61,6 +62,7 @@ describe("runProjectAssist", () => {
       ensureDaemon: vi.fn(),
       call: vi.fn(),
       releaseDaemon: vi.fn(),
+    cancelActiveCall: vi.fn(),
     };
     expect(await runProjectAssist("tighten_description", project, client)).toBeNull();
   });
@@ -85,6 +87,7 @@ describe("runProjectReportGeneration", () => {
       ensureDaemon: vi.fn(),
       call: vi.fn(),
       releaseDaemon: vi.fn(),
+    cancelActiveCall: vi.fn(),
     };
     const created = await repos.projectReports.createPending(realProject.id);
 
@@ -101,6 +104,7 @@ describe("runProjectReportGeneration", () => {
       ensureDaemon: vi.fn(),
       call: vi.fn(),
       releaseDaemon: vi.fn(),
+    cancelActiveCall: vi.fn(),
     };
     const created = await repos.projectReports.createPending(realProject.id);
 

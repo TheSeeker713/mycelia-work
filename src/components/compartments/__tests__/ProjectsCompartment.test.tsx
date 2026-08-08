@@ -19,6 +19,7 @@ beforeEach(async () => {
     ensureDaemon: vi.fn(),
     call: vi.fn(),
     releaseDaemon: vi.fn(),
+    cancelActiveCall: vi.fn(),
   };
   captureLogClient = {
     log: vi.fn().mockResolvedValue(undefined),

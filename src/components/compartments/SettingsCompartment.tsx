@@ -28,6 +28,8 @@ export function SettingsCompartment() {
   const setPiperVoiceId = useSettingsStore((s) => s.setPiperVoiceId);
   const setAiSuggestionsEnabled = useSettingsStore((s) => s.setAiSuggestionsEnabled);
   const setCaptureLoggingEnabled = useSettingsStore((s) => s.setCaptureLoggingEnabled);
+  const grok4Enabled = useSettingsStore((s) => s.grok4Enabled);
+  const setGrok4Enabled = useSettingsStore((s) => s.setGrok4Enabled);
   const voiceClient = useVoiceClient();
   const selfVoicing = useSelfVoicing();
 
@@ -139,6 +141,28 @@ export function SettingsCompartment() {
         >
           {performance ? "Re-test" : "Test voice performance"}
         </button>
+      </div>
+
+      <div className="mt-2 border-t border-dashed border-[var(--line)] pt-3">
+        <div className="mb-1.5 text-[0.7rem] tracking-wide text-[var(--ink-faint)] uppercase">
+          AI model
+        </div>
+        <label className="flex items-start gap-2 text-[0.82rem] text-[var(--ink)]">
+          <input
+            type="checkbox"
+            checked={grok4Enabled}
+            onChange={(e) => setGrok4Enabled(e.target.checked)}
+            className="mt-0.5"
+          />
+          <span>
+            Use Grok 4.5 (cloud)
+            <span className="block text-[0.72rem] text-[var(--ink-faint)]">
+              Off by default — AI replies use a local model only. Turning
+              this on lets OpenClaw reach for Grok 4.5 (Jeremy's own paid
+              subscription) when it's the better fit.
+            </span>
+          </span>
+        </label>
       </div>
 
       <div className="mt-2 border-t border-dashed border-[var(--line)] pt-3">

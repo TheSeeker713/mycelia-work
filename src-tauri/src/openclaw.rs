@@ -19,7 +19,9 @@ use serde_json::Value;
 use std::io::Read;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
+use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 #[derive(Serialize, Debug, Clone, PartialEq)]
@@ -27,6 +29,16 @@ pub struct OpenClawAgentResult {
     pub text: String,
     pub model: String,
 }
+
+/// Shared with the frontend via Tauri managed state so the non-instant
+/// exit flow (Phase 14) can cancel a genuinely in-flight `openclaw
+/// agent` call on demand — "Quit now" needs this to actually kill the
+/// subprocess, not just abandon the window and leave it orphaned.
+/// Only the real agent call (`call_agent`) is wired to check this;
+/// short daemon status/start/stop calls pass `None` and aren't
+/// cancellable this way, since there's rarely anything meaningful to
+/// interrupt mid-flight there.
+pub struct CallCancelState(pub Arc<AtomicBool>);
 
 /// A hard backstop the CLI's own `--timeout` flag can't be trusted to
 /// enforce on its own (Phase 11) — if the CLI hangs before it even gets
@@ -47,7 +59,7 @@ const DAEMON_COMMAND_TIMEOUT: Duration = Duration::from_secs(30);
 /// hoped for. Stdout/stderr are drained on their own threads while
 /// polling, same as `output()` does internally, so a chatty child can't
 /// deadlock by filling its pipe buffer while nothing's reading it.
-fn run_cli(args: &[&str], hard_timeout: Duration) -> Result<Value, String> {
+fn run_cli(args: &[&str], hard_timeout: Duration, cancel: Option<&AtomicBool>) -> Result<Value, String> {
     let mut child = Command::new("cmd")
         .arg("/C")
         .arg("openclaw")
@@ -77,6 +89,11 @@ fn run_cli(args: &[&str], hard_timeout: Duration) -> Result<Value, String> {
         match child.try_wait() {
             Ok(Some(status)) => break status.success(),
             Ok(None) => {
+                if cancel.map(|c| c.load(Ordering::Relaxed)).unwrap_or(false) {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    return Err(format!("openclaw {} cancelled by user", args.join(" ")));
+                }
                 if start.elapsed() >= hard_timeout {
                     let _ = child.kill();
                     let _ = child.wait();
@@ -114,16 +131,17 @@ fn daemon_running() -> Result<bool, String> {
     let json = run_cli(
         &["daemon", "status", "--json", "--no-probe", "--timeout", "5000"],
         DAEMON_COMMAND_TIMEOUT,
+        None,
     )?;
     Ok(is_daemon_running(&json))
 }
 
 fn daemon_start() -> Result<(), String> {
-    run_cli(&["daemon", "start", "--json"], DAEMON_COMMAND_TIMEOUT).map(|_| ())
+    run_cli(&["daemon", "start", "--json"], DAEMON_COMMAND_TIMEOUT, None).map(|_| ())
 }
 
 fn daemon_stop() -> Result<(), String> {
-    run_cli(&["daemon", "stop", "--json"], DAEMON_COMMAND_TIMEOUT).map(|_| ())
+    run_cli(&["daemon", "stop", "--json"], DAEMON_COMMAND_TIMEOUT, None).map(|_| ())
 }
 
 fn wait_for_daemon_running(max_wait: Duration) -> Result<(), String> {
@@ -175,33 +193,46 @@ fn unique_suffix() -> String {
 /// making several calls in a row (a multi-turn conversation) should
 /// wrap the whole exchange in `ensure_daemon`/`release_daemon` once,
 /// not per turn.
-fn call_agent(session_key: &str, message: &str, timeout_secs: u64) -> Result<OpenClawAgentResult, String> {
+fn call_agent(
+    session_key: &str,
+    message: &str,
+    timeout_secs: u64,
+    cancel: &AtomicBool,
+    model: Option<&str>,
+) -> Result<OpenClawAgentResult, String> {
     let temp_path: PathBuf = std::env::temp_dir().join(format!("mycelia-openclaw-{}.md", unique_suffix()));
     std::fs::write(&temp_path, message)
         .map_err(|e| format!("couldn't write agent message file: {e}"))?;
 
     let path_str = temp_path.to_string_lossy().to_string();
     let timeout_arg = timeout_secs.to_string();
+    let mut args = vec![
+        "agent",
+        "--agent",
+        "main",
+        "--session-key",
+        session_key,
+        "--message-file",
+        &path_str,
+        "--json",
+        "--timeout",
+        &timeout_arg,
+    ];
+    // Explicit model override — the Settings "Use Grok 4.5 (cloud)"
+    // toggle threads through to here; when it's off (the default), the
+    // frontend passes a local Ollama model id instead of leaving this
+    // unset, so a real local call actually happens rather than trusting
+    // OpenClaw's own default (which currently is Grok).
+    if let Some(m) = model {
+        args.push("--model");
+        args.push(m);
+    }
     // The CLI's own --timeout should fire first under normal conditions;
     // this Rust-level deadline is the backstop for when it doesn't (a
     // hang before the CLI ever reaches its own timeout logic) — a real
     // grace window, not a race against the CLI's own clock.
     let hard_timeout = Duration::from_secs(timeout_secs) + Duration::from_secs(15);
-    let json_result = run_cli(
-        &[
-            "agent",
-            "--agent",
-            "main",
-            "--session-key",
-            session_key,
-            "--message-file",
-            &path_str,
-            "--json",
-            "--timeout",
-            &timeout_arg,
-        ],
-        hard_timeout,
-    );
+    let json_result = run_cli(&args, hard_timeout, Some(cancel));
 
     let _ = std::fs::remove_file(&temp_path);
 
@@ -258,8 +289,32 @@ pub async fn openclaw_call_agent(
     session_key: String,
     message: String,
     timeout_secs: Option<u64>,
+    model: Option<String>,
+    cancel_state: tauri::State<'_, CallCancelState>,
 ) -> Result<OpenClawAgentResult, String> {
-    run_blocking(move || call_agent(&session_key, &message, timeout_secs.unwrap_or(120))).await
+    let cancel = cancel_state.0.clone();
+    // A stale cancellation from a *previous* call shouldn't immediately
+    // kill this new one.
+    cancel.store(false, Ordering::Relaxed);
+    run_blocking(move || {
+        call_agent(
+            &session_key,
+            &message,
+            timeout_secs.unwrap_or(120),
+            &cancel,
+            model.as_deref(),
+        )
+    })
+    .await
+}
+
+/// The non-instant exit flow's "quit now anyway" path: kills whatever
+/// `openclaw agent` call is currently in flight, if any. A no-op if
+/// nothing's running — `run_cli` only checks this flag while actively
+/// polling a live child process.
+#[tauri::command]
+pub fn cancel_active_agent_call(cancel_state: tauri::State<CallCancelState>) {
+    cancel_state.0.store(true, Ordering::Relaxed);
 }
 
 /// Single-shot convenience for one-off calls (the session journal, the
@@ -280,9 +335,11 @@ pub async fn run_openclaw_agent(
     session_key: String,
     message: String,
     timeout_secs: Option<u64>,
+    model: Option<String>,
+    cancel_state: tauri::State<'_, CallCancelState>,
 ) -> Result<OpenClawAgentResult, String> {
     openclaw_ensure_daemon().await?;
-    openclaw_call_agent(session_key, message, timeout_secs).await
+    openclaw_call_agent(session_key, message, timeout_secs, model, cancel_state).await
 }
 
 #[cfg(test)]

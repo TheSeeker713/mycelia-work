@@ -73,6 +73,7 @@ describe("CheckInFlow", () => {
       ensureDaemon: vi.fn().mockRejectedValue(new Error("no bridge")),
       call: vi.fn(),
       releaseDaemon: vi.fn().mockResolvedValue(undefined),
+    cancelActiveCall: vi.fn(),
     };
     const clockedInAt = new Date(Date.now() - 10 * 60 * 60 * 1000).toISOString();
     renderFlow({ activeSession: makeSession(clockedInAt), onResolve: vi.fn(), client });
@@ -86,6 +87,7 @@ describe("CheckInFlow", () => {
       ensureDaemon: vi.fn().mockResolvedValue(true),
       call: vi.fn().mockResolvedValue({ text: "not valid json", model: "xai/grok-4.5" }),
       releaseDaemon: vi.fn().mockResolvedValue(undefined),
+    cancelActiveCall: vi.fn(),
     };
     const clockedInAt = new Date(Date.now() - 10 * 60 * 60 * 1000).toISOString();
     renderFlow({ activeSession: makeSession(clockedInAt), onResolve: vi.fn(), client });
@@ -123,6 +125,7 @@ describe("CheckInFlow", () => {
       ensureDaemon: vi.fn().mockResolvedValue(false),
       call,
       releaseDaemon: vi.fn().mockResolvedValue(undefined),
+    cancelActiveCall: vi.fn(),
     };
     const onResolve = vi.fn();
     const clockedInAt = new Date(Date.now() - 10 * 60 * 60 * 1000).toISOString();
@@ -147,6 +150,7 @@ describe("CheckInFlow", () => {
       ensureDaemon: vi.fn().mockResolvedValue(true),
       call: vi.fn().mockResolvedValue({ text: neverFinal, model: "xai/grok-4.5" }),
       releaseDaemon: vi.fn().mockResolvedValue(undefined),
+    cancelActiveCall: vi.fn(),
     };
     const clockedInAt = new Date(Date.now() - 10 * 60 * 60 * 1000).toISOString();
     renderFlow({ activeSession: makeSession(clockedInAt), onResolve: vi.fn(), client });
@@ -172,6 +176,7 @@ describe("CheckInFlow", () => {
       ensureDaemon: vi.fn().mockResolvedValue(true),
       call,
       releaseDaemon: vi.fn().mockResolvedValue(undefined),
+    cancelActiveCall: vi.fn(),
     };
     const voiceClient: VoiceClient = {
       speak: vi.fn().mockResolvedValue(new Blob(["wav"])),
@@ -198,6 +203,7 @@ describe("CheckInFlow", () => {
       ensureDaemon: vi.fn().mockRejectedValue(new Error("no bridge")),
       call: vi.fn(),
       releaseDaemon: vi.fn().mockResolvedValue(undefined),
+    cancelActiveCall: vi.fn(),
     };
     const voiceClient: VoiceClient = {
       speak: vi.fn().mockResolvedValue(new Blob(["wav"])),
@@ -221,6 +227,7 @@ describe("CheckInFlow", () => {
       ensureDaemon: vi.fn(),
       call: vi.fn(),
       releaseDaemon: vi.fn(),
+    cancelActiveCall: vi.fn(),
     };
     const resourceWatchdogClient: ResourceWatchdogClient = {
       checkPressure: vi.fn().mockResolvedValue({ underPressure: true, cpuPercent: 92, memPercent: 30 }),

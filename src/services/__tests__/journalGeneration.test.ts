@@ -136,6 +136,7 @@ describe("runJournalGeneration", () => {
       ensureDaemon: vi.fn().mockResolvedValue(true),
       call: vi.fn().mockResolvedValue({ text: "turn", model: "xai/grok-4.5" }),
       releaseDaemon: vi.fn().mockResolvedValue(undefined),
+    cancelActiveCall: vi.fn(),
     };
   });
 

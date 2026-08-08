@@ -1,6 +1,6 @@
 import voiceNotes from "../../docs/reference/authentic-voice-notes.md?raw";
 import type { Project, ProjectReport, Repositories } from "../data";
-import type { OpenClawClient } from "./openclawClient";
+import { GROK4_ENABLED_KEY, resolveModelOverride, type OpenClawClient } from "./openclawClient";
 
 export type AssistAction = "sub_tasks" | "scheduling_suggestion" | "tighten_description" | "freeform_ask";
 
@@ -42,12 +42,14 @@ export async function runProjectAssist(
   project: Project,
   client: OpenClawClient,
   freeformQuestion?: string,
+  grok4Enabled = false,
 ): Promise<string | null> {
   try {
     const result = await client.runOnce({
       sessionKey: `project-assist-${project.id}`,
       message: buildAssistPrompt(action, project, freeformQuestion),
       timeoutSecs: 45,
+      model: resolveModelOverride(grok4Enabled),
     });
     return result.text.trim() || null;
   } catch {
@@ -80,17 +82,19 @@ ${projectContext(project)}`;
 
 /** Always resolves the report to `ok` or `failed` — never leaves it dangling `pending` on a thrown error, same contract as runJournalGeneration. */
 export async function runProjectReportGeneration(params: {
-  repos: Pick<Repositories, "projectReports">;
+  repos: Pick<Repositories, "projectReports" | "settings">;
   client: OpenClawClient;
   reportId: string;
   project: Project;
 }): Promise<ProjectReport> {
   const { repos, client, reportId, project } = params;
   try {
+    const grok4Enabled = (await repos.settings.get(GROK4_ENABLED_KEY)) === "true";
     const result = await client.runOnce({
       sessionKey: `project-report-${project.id}`,
       message: buildStatusReportPrompt(project),
       timeoutSecs: 180,
+      model: resolveModelOverride(grok4Enabled),
     });
     await repos.projectReports.markResult(reportId, { status: "ok", content: result.text, modelUsed: result.model });
   } catch (err) {

@@ -1,5 +1,5 @@
 import type { Task } from "../data";
-import type { OpenClawClient } from "./openclawClient";
+import { resolveModelOverride, type OpenClawClient } from "./openclawClient";
 
 /** Hard cap on turns — if the model hasn't resolved by then, abandon to the Tier-0 static fallback rather than let a conversation run forever. */
 export const MAX_CHECKIN_TURNS = 6;
@@ -119,10 +119,16 @@ export async function startCheckinConversation(
   task: Task,
   clockedInAtIso: string,
   sessionKey: string,
+  grok4Enabled = false,
 ): Promise<CheckinTurn | null> {
   try {
     const prompt = buildCheckinSystemPrompt(task, clockedInAtIso, new Date().toISOString());
-    const result = await client.call({ sessionKey, message: prompt, timeoutSecs: 60 });
+    const result = await client.call({
+      sessionKey,
+      message: prompt,
+      timeoutSecs: 60,
+      model: resolveModelOverride(grok4Enabled),
+    });
     return parseCheckinTurn(result.text);
   } catch {
     return null;
@@ -133,9 +139,15 @@ export async function continueCheckinConversation(
   client: OpenClawClient,
   sessionKey: string,
   userReply: string,
+  grok4Enabled = false,
 ): Promise<CheckinTurn | null> {
   try {
-    const result = await client.call({ sessionKey, message: userReply, timeoutSecs: 60 });
+    const result = await client.call({
+      sessionKey,
+      message: userReply,
+      timeoutSecs: 60,
+      model: resolveModelOverride(grok4Enabled),
+    });
     return parseCheckinTurn(result.text);
   } catch {
     return null;

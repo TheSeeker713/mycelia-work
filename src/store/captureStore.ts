@@ -8,7 +8,7 @@ import {
   type CaptureLayer1Result,
 } from "../services/captureAgent";
 import type { OllamaClient } from "../services/ollamaClient";
-import type { OpenClawClient } from "../services/openclawClient";
+import { GROK4_ENABLED_KEY, type OpenClawClient } from "../services/openclawClient";
 import type { ResourceWatchdogClient } from "../services/resourceWatchdog";
 
 export type CapturePhase =
@@ -171,7 +171,8 @@ export function createCaptureStore(
           return;
         }
 
-        const result = await routeCapture(text, deps);
+        const grok4Enabled = (await repos.settings.get(GROK4_ENABLED_KEY)) === "true";
+        const result = await routeCapture(text, deps, null, grok4Enabled);
         await handleResult(result, activeSessionId);
       },
 
@@ -190,7 +191,8 @@ export function createCaptureStore(
           return;
         }
 
-        const result = await routeCapture(text, deps, { originalText, question });
+        const grok4Enabled = (await repos.settings.get(GROK4_ENABLED_KEY)) === "true";
+        const result = await routeCapture(text, deps, { originalText, question }, grok4Enabled);
         await handleResult(result, activeSessionId);
       },
 

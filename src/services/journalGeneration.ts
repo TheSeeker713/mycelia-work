@@ -8,7 +8,7 @@ import type {
   Task,
   TaskSession,
 } from "../data";
-import type { OpenClawClient } from "./openclawClient";
+import { GROK4_ENABLED_KEY, resolveModelOverride, type OpenClawClient } from "./openclawClient";
 
 export interface RawSessionLog {
   task: Task;
@@ -188,7 +188,13 @@ export async function runJournalGeneration(params: {
 }): Promise<Journal> {
   const { repos, client, journalId, sessionKey, prompt, filename } = params;
   try {
-    const result = await client.runOnce({ sessionKey, message: prompt, timeoutSecs: 180 });
+    const grok4Enabled = (await repos.settings.get(GROK4_ENABLED_KEY)) === "true";
+    const result = await client.runOnce({
+      sessionKey,
+      message: prompt,
+      timeoutSecs: 180,
+      model: resolveModelOverride(grok4Enabled),
+    });
     const exportedPath = await exportWorkJournalFile(filename, result.text);
     await repos.journals.markResult(journalId, "ok", {
       modelUsed: result.model,

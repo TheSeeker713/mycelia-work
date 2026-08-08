@@ -33,6 +33,7 @@ beforeEach(async () => {
     ensureDaemon: vi.fn(),
     call: vi.fn(),
     releaseDaemon: vi.fn(),
+    cancelActiveCall: vi.fn(),
   };
   resourceWatchdogClient = {
     checkPressure: vi.fn().mockResolvedValue({ underPressure: false, cpuPercent: 10, memPercent: 20 }),

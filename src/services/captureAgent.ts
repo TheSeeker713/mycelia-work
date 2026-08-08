@@ -1,6 +1,6 @@
 import type { Project } from "../data";
 import type { OllamaClient } from "./ollamaClient";
-import type { OpenClawClient } from "./openclawClient";
+import { resolveModelOverride, type OpenClawClient } from "./openclawClient";
 
 export type CaptureAction =
   | "create_note"
@@ -169,6 +169,7 @@ export async function routeCapture(
   text: string,
   deps: { ollamaClient: OllamaClient; openClawClient: OpenClawClient },
   prior: PriorClarifyExchange | null = null,
+  grok4Enabled = false,
 ): Promise<CaptureLayer1Result> {
   const onTopic = await deps.ollamaClient.classifyOnTopic(text);
   if (!onTopic) return { action: "decline" };
@@ -178,6 +179,7 @@ export async function routeCapture(
       sessionKey: "capture-agent",
       message: buildLayer1Message(text, prior),
       timeoutSecs: 30,
+      model: resolveModelOverride(grok4Enabled),
     });
     return parseLayer1Response(result.text);
   } catch {
