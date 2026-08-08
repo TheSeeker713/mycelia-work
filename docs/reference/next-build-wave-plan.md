@@ -262,14 +262,20 @@ doubling, proposing a **tempered curve** instead — cumulative XP for
 level *N*: `100 * (N-1)^1.6`, rounded. Sample checkpoints so the pacing
 is checkable against real numbers, not just a formula:
 
+> **Correction (2026-08-06, during Phase 13 implementation):** the
+> table below was recomputed against the actual formula — the original
+> planning-session numbers didn't match `100 * (N-1)^1.6` (a mental-math
+> error, not a formula change). The qualitative pacing described in the
+> right-hand column still holds at the corrected numbers.
+
 | Level | Cumulative XP needed | Roughly... |
 |---|---|---|
 | 2 | 100 | matches your anchor exactly |
-| 5 | ~836 | a solid first week or two of real use |
-| 10 | ~2,900 | a month or two in |
-| 25 | ~15,200 | several months of consistent use |
-| 50 | ~55,600 | a year-ish of regular use |
-| 111 | ~340,000 | a genuine long-term milestone, years out |
+| 5 | 919 | a solid first week or two of real use |
+| 10 | 3,363 | a month or two in |
+| 25 | 16,156 | several months of consistent use |
+| 50 | 50,619 | a year-ish of regular use |
+| 111 | 184,599 | a genuine long-term milestone, years out |
 
 If that pacing feels off once you see it laid out (too slow, too fast,
 front-loaded wrong), the growth exponent (`1.6` above) is the one
