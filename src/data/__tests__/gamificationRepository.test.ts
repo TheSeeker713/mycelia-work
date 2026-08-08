@@ -73,6 +73,16 @@ describe("gamificationRepository", () => {
     expect(all[1].source).toBe("clock_in");
   });
 
+  it("countXpEventsBySource counts only that source, cumulatively", async () => {
+    await gamification.logXpEvent("note", 2);
+    await gamification.logXpEvent("note", 2);
+    await gamification.logXpEvent("clock_in", 5);
+
+    expect(await gamification.countXpEventsBySource("note")).toBe(2);
+    expect(await gamification.countXpEventsBySource("clock_in")).toBe(1);
+    expect(await gamification.countXpEventsBySource("todo_completed")).toBe(0);
+  });
+
   it("unlockAchievement is idempotent for the same key", async () => {
     const first = await gamification.unlockAchievement("badge_level_5", "badge");
     const second = await gamification.unlockAchievement("badge_level_5", "badge");

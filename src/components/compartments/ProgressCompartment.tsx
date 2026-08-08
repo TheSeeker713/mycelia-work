@@ -1,15 +1,16 @@
 import { useEffect, useState } from "react";
 import { useGamificationStore } from "../../store/StoreProvider";
 import { BADGES, LEVEL_CAP, STICKERS, xpProgressWithinLevel } from "../../services/gamification";
-import { BADGE_IMAGE_BY_LEVEL, STICKER_IMAGE_BY_KEY } from "../../services/gamificationAssets";
+import { BADGE_IMAGE_POOL_BY_LEVEL, STICKER_IMAGE_POOL_BY_KEY } from "../../services/gamificationAssets";
 
 /**
  * No hidden-unlock gate of any kind — ordinary, always-visible feature,
  * unlike the (now-removed) 18+ system. Real badge/sticker art from
- * Jeremy's curated set (gamificationAssets.ts), falling back to a
- * plain labeled chip for any achievement that doesn't have art wired
- * yet — the curated set covers more concepts than this app actually
- * awards right now (see gamificationAssets.ts's own note).
+ * Jeremy's curated set (gamificationAssets.ts). Achievements with
+ * multiple curated variants get a random one in the toast pop-up (the
+ * actual "reward moment") — this grid/list is the stable collection
+ * view, so it shows each achievement's first pool image consistently
+ * rather than re-rolling on every render.
  */
 export function ProgressCompartment() {
   const stats = useGamificationStore((s) => s.stats);
@@ -93,7 +94,7 @@ export function ProgressCompartment() {
       <div className="mb-3 flex flex-wrap gap-2">
         {BADGES.map((badge) => {
           const unlocked = unlockedBadgeKeys.has(badge.key);
-          const imageUrl = BADGE_IMAGE_BY_LEVEL[badge.level];
+          const imageUrl = BADGE_IMAGE_POOL_BY_LEVEL[badge.level]?.[0];
           return (
             <div
               key={badge.key}
@@ -132,7 +133,7 @@ export function ProgressCompartment() {
       ) : (
         <ul className="flex flex-col gap-1.5">
           {STICKERS.filter((s) => stickerCounts.has(s.key)).map((sticker) => {
-            const imageUrl = STICKER_IMAGE_BY_KEY[sticker.key];
+            const imageUrl = STICKER_IMAGE_POOL_BY_KEY[sticker.key]?.[0];
             return (
               <li
                 key={sticker.key}

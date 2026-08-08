@@ -2,16 +2,20 @@ import { create } from "zustand";
 import type { GamificationStats, Repositories, UnlockedAchievement, XpEvent, XpSource } from "../data";
 import {
   BADGES,
+  COUNT_MILESTONES,
+  FIRST_TIME_KEYS,
+  FOUR_HOUR_DAY_FIRST_KEY,
   STICKERS,
   STREAK_MILESTONES,
   WELCOME_BACK_GAP_DAYS,
-  WELCOME_BACK_STICKER_KEYS,
+  WELCOME_BACK_STICKER_KEY,
   WELCOME_BACK_VOICE_LINES,
   XP,
   daysBetweenDateStrings,
   levelForXp,
   pickRandom,
   streakAchievementKey,
+  streakXpFor,
   todayDateString,
 } from "../services/gamification";
 
@@ -101,6 +105,34 @@ export function createGamificationStore(repos: Repositories) {
     }
 
     /**
+     * One-time achievement unlock (a "first X" sticker, a count
+     * milestone, the first-4-hour-day sticker) — idempotent via
+     * `unlockAchievement`'s own INSERT-OR-IGNORE handling, but checked
+     * here first so a repeat call doesn't award XP or queue a toast a
+     * second time. Distinct from `awardXp`'s badge-unlock path, which
+     * only ever fires from a level crossing.
+     */
+    async function unlockStickerOnce(key: string, source: XpSource, amount: number) {
+      const already = await repos.gamification.isAchievementUnlocked(key);
+      if (already) return;
+      const unlocked = await repos.gamification.unlockAchievement(key, "sticker");
+      set({ unlockedAchievements: [...get().unlockedAchievements, unlocked] });
+      await awardXp(source, amount, key);
+    }
+
+    /** Notes/todos/sessions count milestones — counted directly off xp_events, so no separate running-total bookkeeping is needed. */
+    async function checkCountMilestones(source: "note" | "todo_completed" | "clock_in") {
+      const config = COUNT_MILESTONES.find((c) => c.source === source);
+      if (!config) return;
+      const count = await repos.gamification.countXpEventsBySource(source);
+      for (const threshold of config.thresholds) {
+        if (count === threshold) {
+          await unlockStickerOnce(`${config.keyPrefix}${threshold}`, "count_milestone", config.xpFor(threshold));
+        }
+      }
+    }
+
+    /**
      * Called from every record* method — credits "daily use" XP once per
      * calendar day, advances the (never-resetting) streak counter, checks
      * streak-milestone stickers, and detects a welcome-back gap. Claims
@@ -117,8 +149,7 @@ export function createGamificationStore(repos: Repositories) {
       set({ stats: { ...get().stats!, last_active_date: today } });
 
       if (previousActiveDate && daysBetweenDateStrings(previousActiveDate, today) >= WELCOME_BACK_GAP_DAYS) {
-        const sticker = pickRandom(WELCOME_BACK_STICKER_KEYS);
-        await awardXp("welcome_back", XP.WELCOME_BACK, sticker);
+        await awardXp("welcome_back", XP.WELCOME_BACK, WELCOME_BACK_STICKER_KEY);
       }
 
       await awardXp("daily_use", XP.DAILY_USE);
@@ -131,9 +162,8 @@ export function createGamificationStore(repos: Repositories) {
           const key = streakAchievementKey(milestone);
           const unlocked = await repos.gamification.unlockAchievement(key, "sticker");
           set({ unlockedAchievements: [...get().unlockedAchievements, unlocked] });
-          const xpAmount = milestone === 7 ? XP.STREAK_7 : XP.STREAK_30;
-          const source: XpSource = milestone === 7 ? "streak_7" : "streak_30";
-          await awardXp(source, xpAmount, key);
+          const source: XpSource = `streak_${milestone}` as XpSource;
+          await awardXp(source, streakXpFor(milestone), key);
         }
       }
 
@@ -162,6 +192,8 @@ export function createGamificationStore(repos: Repositories) {
       async recordClockIn() {
         await recordDailyActivity();
         await awardXp("clock_in", XP.CLOCK_IN);
+        await unlockStickerOnce(FIRST_TIME_KEYS.clockIn, "first_time", XP.FIRST_TIME);
+        await checkCountMilestones("clock_in");
       },
 
       async recordClockOut(elapsedSeconds) {
@@ -188,6 +220,7 @@ export function createGamificationStore(repos: Repositories) {
         if (dailySeconds >= 4 * 3600 && !bonus4) {
           bonus4 = true;
           await awardXp("daily_4hr", XP.FOUR_HOUR_BONUS);
+          await unlockStickerOnce(FOUR_HOUR_DAY_FIRST_KEY, "four_hour_day_first", XP.FOUR_HOUR_DAY_FIRST);
         }
         if (dailySeconds >= 8 * 3600 && !bonus8) {
           bonus8 = true;
@@ -214,11 +247,14 @@ export function createGamificationStore(repos: Repositories) {
       async recordNote() {
         await recordDailyActivity();
         await awardXp("note", XP.NOTE);
+        await unlockStickerOnce(FIRST_TIME_KEYS.note, "first_time", XP.FIRST_TIME);
+        await checkCountMilestones("note");
       },
 
       async recordProjectCreated() {
         await recordDailyActivity();
         await awardXp("project_created", XP.PROJECT_CREATED);
+        await unlockStickerOnce(FIRST_TIME_KEYS.projectCreated, "first_time", XP.FIRST_TIME);
       },
 
       async recordProjectFinished() {
@@ -229,6 +265,8 @@ export function createGamificationStore(repos: Repositories) {
       async recordTodoCompleted() {
         await recordDailyActivity();
         await awardXp("todo_completed", XP.TODO_COMPLETED);
+        await unlockStickerOnce(FIRST_TIME_KEYS.todoCompleted, "first_time", XP.FIRST_TIME);
+        await checkCountMilestones("todo_completed");
       },
 
       dismissToast(id) {

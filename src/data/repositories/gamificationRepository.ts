@@ -118,6 +118,15 @@ export function createGamificationRepository(executor: SqlExecutor) {
       );
     },
 
+    /** Cumulative count of every XP event ever logged for a given source — backs the count-milestone stickers (10/50/100 notes, todos, sessions). */
+    async countXpEventsBySource(source: XpSource): Promise<number> {
+      const rows = await executor.select<{ count: number }>(
+        "SELECT COUNT(*) as count FROM xp_events WHERE source = ?",
+        [source],
+      );
+      return rows[0]?.count ?? 0;
+    },
+
     async isAchievementUnlocked(achievementKey: string): Promise<boolean> {
       const rows = await executor.select<{ achievement_key: string }>(
         "SELECT achievement_key FROM unlocked_achievements WHERE achievement_key = ?",

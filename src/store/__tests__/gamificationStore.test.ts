@@ -30,24 +30,26 @@ describe("gamificationStore", () => {
     expect(stats).toMatchObject({ total_xp: 0, level: 1, streak_days: 0 });
   });
 
-  it("recordClockIn awards both the daily-use credit and the clock-in credit on a fresh day", async () => {
+  it("recordClockIn awards the daily-use, clock-in, and (on the very first ever) first-time credits", async () => {
     await useGamification.getState().load();
     await useGamification.getState().recordClockIn();
 
-    const { stats } = useGamification.getState();
-    expect(stats!.total_xp).toBe(XP.DAILY_USE + XP.CLOCK_IN);
+    const { stats, unlockedAchievements } = useGamification.getState();
+    expect(stats!.total_xp).toBe(XP.DAILY_USE + XP.CLOCK_IN + XP.FIRST_TIME);
     expect(stats!.streak_days).toBe(1);
     expect(stats!.last_active_date).toBe("2026-08-06");
+    expect(unlockedAchievements.some((a) => a.achievement_key === "sticker_first_clock_in")).toBe(true);
   });
 
-  it("a second clock-in the same day doesn't double-credit daily use", async () => {
+  it("a second clock-in the same day doesn't double-credit daily use or the first-time bonus", async () => {
     await useGamification.getState().load();
     await useGamification.getState().recordClockIn();
     await useGamification.getState().recordClockIn();
 
-    const { stats } = useGamification.getState();
-    expect(stats!.total_xp).toBe(XP.DAILY_USE + XP.CLOCK_IN * 2);
+    const { stats, unlockedAchievements } = useGamification.getState();
+    expect(stats!.total_xp).toBe(XP.DAILY_USE + XP.CLOCK_IN * 2 + XP.FIRST_TIME);
     expect(stats!.streak_days).toBe(1);
+    expect(unlockedAchievements.filter((a) => a.achievement_key === "sticker_first_clock_in")).toHaveLength(1);
   });
 
   it("recordClockOut awards per-whole-hour XP from elapsed active seconds", async () => {
@@ -90,6 +92,60 @@ describe("gamificationStore", () => {
     const { stats } = useGamification.getState();
     expect(stats!.daily_4hr_awarded).toBe(false);
     expect(stats!.daily_seconds).toBe(3 * 3600);
+  });
+
+  it("the first-ever 4-hour day unlocks a one-time sticker on top of the repeatable daily bonus", async () => {
+    await useGamification.getState().load();
+    await useGamification.getState().recordClockOut(4.5 * 3600);
+
+    const { unlockedAchievements } = useGamification.getState();
+    expect(unlockedAchievements.some((a) => a.achievement_key === "sticker_four_hour_day_first")).toBe(true);
+
+    setNow("2026-08-07T09:00:00");
+    await useGamification.getState().recordClockOut(4.5 * 3600);
+    expect(
+      useGamification.getState().unlockedAchievements.filter(
+        (a) => a.achievement_key === "sticker_four_hour_day_first",
+      ),
+    ).toHaveLength(1);
+  });
+
+  it("first-time achievements fire once for note, todo-completion, and project creation", async () => {
+    await useGamification.getState().load();
+    await useGamification.getState().recordNote();
+    await useGamification.getState().recordTodoCompleted();
+    await useGamification.getState().recordProjectCreated();
+
+    const keys = useGamification.getState().unlockedAchievements.map((a) => a.achievement_key);
+    expect(keys).toContain("sticker_first_note");
+    expect(keys).toContain("sticker_first_todo_completed");
+    expect(keys).toContain("sticker_first_project_created");
+  });
+
+  it("reaching a count milestone (10 notes) unlocks its sticker exactly once", async () => {
+    await useGamification.getState().load();
+    for (let i = 0; i < 10; i += 1) {
+      await useGamification.getState().recordNote();
+    }
+
+    const unlocked = useGamification.getState().unlockedAchievements.filter(
+      (a) => a.achievement_key === "sticker_notes_10",
+    );
+    expect(unlocked).toHaveLength(1);
+  });
+
+  it("reaching a 100-day streak unlocks the streak-100 sticker (extended tier beyond 7/30)", async () => {
+    await useGamification.getState().load();
+    for (let day = 0; day < 100; day += 1) {
+      const date = new Date("2026-08-06T09:00:00");
+      date.setDate(date.getDate() + day);
+      setNow(date.toISOString());
+      await useGamification.getState().recordClockIn();
+    }
+
+    const { stats, unlockedAchievements } = useGamification.getState();
+    expect(stats!.streak_days).toBe(100);
+    expect(unlockedAchievements.some((a) => a.achievement_key === "sticker_streak_100")).toBe(true);
   });
 
   it("recordProjectFinished awards XP and queues a sticker toast", async () => {
@@ -160,7 +216,7 @@ describe("gamificationStore", () => {
     const welcomeBack = pendingToasts.find((t) => t.kind === "welcome_back");
     expect(welcomeBack).toBeDefined();
     expect(welcomeBack!.voiceLine).toBeTruthy();
-    expect(welcomeBack!.key).toMatch(/^sticker_welcome_back_\d+$/);
+    expect(welcomeBack!.key).toBe("sticker_welcome_back");
   });
 
   it("a gap under the welcome-back threshold does not trigger the reward", async () => {

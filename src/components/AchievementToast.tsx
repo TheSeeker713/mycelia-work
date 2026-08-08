@@ -1,15 +1,20 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useGamificationStore } from "../store/StoreProvider";
 import { useSelfVoicing } from "../hooks/useSelfVoicing";
 import type { AchievementToastItem } from "../store/gamificationStore";
-import { BADGE_IMAGE_BY_LEVEL, STICKER_IMAGE_BY_KEY } from "../services/gamificationAssets";
+import {
+  BADGE_IMAGE_POOL_BY_LEVEL,
+  STICKER_IMAGE_POOL_BY_KEY,
+  pickPoolImage,
+} from "../services/gamificationAssets";
 
-function imageFor(toast: AchievementToastItem): string | undefined {
+/** Rolls a random image from the achievement's pool — this is the actual "rotating reward, never the same twice" moment, so it's picked fresh per toast rather than reading a fixed canonical image. */
+function rollImage(toast: AchievementToastItem): string | undefined {
   if (toast.kind === "badge") {
     const level = Number(toast.key.replace("badge_level_", ""));
-    return BADGE_IMAGE_BY_LEVEL[level];
+    return pickPoolImage(BADGE_IMAGE_POOL_BY_LEVEL[level]);
   }
-  return STICKER_IMAGE_BY_KEY[toast.key];
+  return pickPoolImage(STICKER_IMAGE_POOL_BY_KEY[toast.key]);
 }
 
 /** Matches ShortIdleToast's "auto-dismiss after a few seconds" language, per the plan's "~4-5 seconds, then fades" spec. */
@@ -39,7 +44,9 @@ function Toast({ toast, onDismiss }: { toast: AchievementToastItem; onDismiss: (
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [toast.id]);
 
-  const imageUrl = imageFor(toast);
+  // Rolled once when this toast first mounts, then stable — re-rolling on
+  // every re-render would make the pop-up's art flicker between variants.
+  const [imageUrl] = useState(() => rollImage(toast));
 
   return (
     <div

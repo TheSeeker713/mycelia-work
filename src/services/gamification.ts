@@ -19,7 +19,14 @@ export const XP = {
   DAILY_USE: 5,
   STREAK_7: 50,
   STREAK_30: 150,
+  STREAK_100: 300,
+  STREAK_365: 1000,
   WELCOME_BACK: 15,
+  FIRST_TIME: 10,
+  FOUR_HOUR_DAY_FIRST: 25,
+  COUNT_MILESTONE_SMALL: 15,
+  COUNT_MILESTONE_MEDIUM: 30,
+  COUNT_MILESTONE_LARGE: 60,
 } as const;
 
 export const LEVEL_CAP = 111;
@@ -89,16 +96,27 @@ export function hasFeaturesUnlockedAtLevel111(level: number): boolean {
 }
 
 export const WELCOME_BACK_GAP_DAYS = 3;
-export const STREAK_MILESTONES = [7, 30] as const;
+/** Cumulative distinct-active-days milestones — 7/30 were the original confirmed pair; 100/365 added per the curated art set (Jeremy: "all assets need to be applied"). */
+export const STREAK_MILESTONES = [7, 30, 100, 365] as const;
 
 export function streakAchievementKey(milestone: (typeof STREAK_MILESTONES)[number]): string {
   return `sticker_streak_${milestone}`;
 }
 
-export const WELCOME_BACK_STICKER_KEYS: readonly string[] = Array.from(
-  { length: 10 },
-  (_, i) => `sticker_welcome_back_${i + 1}`,
-);
+export function streakXpFor(milestone: (typeof STREAK_MILESTONES)[number]): number {
+  switch (milestone) {
+    case 7:
+      return XP.STREAK_7;
+    case 30:
+      return XP.STREAK_30;
+    case 100:
+      return XP.STREAK_100;
+    case 365:
+      return XP.STREAK_365;
+  }
+}
+
+export const WELCOME_BACK_STICKER_KEY = "sticker_welcome_back";
 
 /** A handful of distinct lines, per Jeremy's "warm, specific, not generic" ask — picked at random alongside the sticker, independently of which sticker lands. */
 export const WELCOME_BACK_VOICE_LINES: readonly string[] = [
@@ -118,11 +136,73 @@ export interface StickerDefinition {
   label: string;
 }
 
+/** One-time "first real action" achievement keys — unlocked via the same idempotent unlockAchievement() path as badges, just triggered from an XP source instead of a level crossing. */
+export const FIRST_TIME_KEYS = {
+  clockIn: "sticker_first_clock_in",
+  note: "sticker_first_note",
+  todoCompleted: "sticker_first_todo_completed",
+  projectCreated: "sticker_first_project_created",
+} as const;
+
+export const FOUR_HOUR_DAY_FIRST_KEY = "sticker_four_hour_day_first";
+
+/** Reserved for the not-yet-built personal journal feature (Section 2.2 of the plan doc) — cataloged now so the curated art has a home, but nothing in this app awards it yet. */
+export const FIRST_JOURNAL_ENTRY_KEY = "sticker_first_journal_entry";
+
+/**
+ * Cumulative-count milestones — "10th of this action, ever." Counted
+ * directly off `xp_events` (one row per qualifying action already
+ * exists there), so no extra bookkeeping columns are needed. XP scales
+ * with the threshold: the higher counts feel like a bigger deal.
+ */
+export const COUNT_MILESTONES: readonly {
+  source: "note" | "todo_completed" | "clock_in";
+  thresholds: readonly number[];
+  keyPrefix: string;
+  xpFor: (threshold: number) => number;
+}[] = [
+  {
+    source: "note",
+    thresholds: [10, 50],
+    keyPrefix: "sticker_notes_",
+    xpFor: (t) => (t <= 10 ? XP.COUNT_MILESTONE_SMALL : XP.COUNT_MILESTONE_MEDIUM),
+  },
+  {
+    source: "todo_completed",
+    thresholds: [10, 50, 100],
+    keyPrefix: "sticker_todos_",
+    xpFor: (t) => (t <= 10 ? XP.COUNT_MILESTONE_SMALL : t <= 50 ? XP.COUNT_MILESTONE_MEDIUM : XP.COUNT_MILESTONE_LARGE),
+  },
+  {
+    // "Sessions" = clock-ins, the simplest unambiguous count of "times you've started work."
+    source: "clock_in",
+    thresholds: [10, 50, 100],
+    keyPrefix: "sticker_sessions_",
+    xpFor: (t) => (t <= 10 ? XP.COUNT_MILESTONE_SMALL : t <= 50 ? XP.COUNT_MILESTONE_MEDIUM : XP.COUNT_MILESTONE_LARGE),
+  },
+];
+
 export const STICKERS: readonly StickerDefinition[] = [
   { key: "sticker_project_finished", label: "Project Finished" },
   { key: streakAchievementKey(7), label: "7-Day Streak" },
   { key: streakAchievementKey(30), label: "30-Day Streak" },
-  ...WELCOME_BACK_STICKER_KEYS.map((key, i) => ({ key, label: `Welcome Back #${i + 1}` })),
+  { key: streakAchievementKey(100), label: "100-Day Streak" },
+  { key: streakAchievementKey(365), label: "365-Day Streak" },
+  { key: WELCOME_BACK_STICKER_KEY, label: "Welcome Back" },
+  { key: FIRST_TIME_KEYS.clockIn, label: "First Clock-In" },
+  { key: FIRST_TIME_KEYS.note, label: "First Note" },
+  { key: FIRST_TIME_KEYS.todoCompleted, label: "First Todo Completed" },
+  { key: FIRST_TIME_KEYS.projectCreated, label: "First Project" },
+  { key: FOUR_HOUR_DAY_FIRST_KEY, label: "First 4-Hour Day" },
+  { key: "sticker_notes_10", label: "10 Notes Written" },
+  { key: "sticker_notes_50", label: "50 Notes Written" },
+  { key: "sticker_todos_10", label: "10 Todos Completed" },
+  { key: "sticker_todos_50", label: "50 Todos Completed" },
+  { key: "sticker_todos_100", label: "100 Todos Completed" },
+  { key: "sticker_sessions_10", label: "10 Sessions" },
+  { key: "sticker_sessions_50", label: "50 Sessions" },
+  { key: "sticker_sessions_100", label: "100 Sessions" },
+  { key: FIRST_JOURNAL_ENTRY_KEY, label: "First Journal Entry" },
 ];
 
 /** Local calendar date (YYYY-MM-DD), not UTC — "same calendar day" means the day on this machine, matching how the rest of the app already reasons about "today." */

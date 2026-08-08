@@ -129,7 +129,12 @@ export type XpSource =
   | "daily_use"
   | "streak_7"
   | "streak_30"
-  | "welcome_back";
+  | "streak_100"
+  | "streak_365"
+  | "welcome_back"
+  | "first_time"
+  | "four_hour_day_first"
+  | "count_milestone";
 
 export interface XpEvent {
   id: string;

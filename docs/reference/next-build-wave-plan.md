@@ -656,7 +656,7 @@ design behind it.
 | # | Phase |
 |---|---|
 | ~~12~~ | ~~11+11 unlock revision (Section 1)~~ — cut, hidden-unlock system removed entirely instead (done 2026-08-06, not a phase) |
-| ~~13~~ | ~~Gamification core~~ — **done 2026-08-06.** XP, levels/badges, streaks, no-punishment + welcome-back, in-app disclosure (Section 2.1-2.4, 2.7), plus the real curated badge/sticker art wired in (`gamificationAssets.ts`). The curated set covers more achievement concepts than this app awards yet (first-time/count-milestone/longer-streak stickers) — see `docs/reference/gamification-guide.md`'s closing note if that's worth a follow-up. |
+| ~~13~~ | ~~Gamification core~~ — **done 2026-08-06.** XP, levels/badges, streaks (7/30/100/365), no-punishment + welcome-back, first-time achievements, count milestones (10/50/100 notes/todos/sessions), in-app disclosure (Section 2.1-2.4, 2.7) — every curated achievement concept is wired to a real trigger and real art, drawn from a random pool per concept (`gamificationAssets.ts`), except the personal-journal sticker (that feature isn't built yet). |
 | 14 | Emergency exit confirmation + in-flight-generation awareness (Section 2.6) |
 | 15 | AI backend: model transparency + OpenClaw retry/fallback (Section 3, Phase A) |
 | 16 | AI backend: pluggable (OpenClaw/Ollama/LM Studio/Cloud) + onboarding (Section 3, Phase B) — re-confirm this is still needed before starting, given the private-build decision |

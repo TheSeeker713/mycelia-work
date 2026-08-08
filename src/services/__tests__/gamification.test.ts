@@ -1,14 +1,18 @@
 import { describe, expect, it } from "vitest";
 import {
   BADGE_LEVELS,
+  COUNT_MILESTONES,
   LEVEL_CAP,
-  WELCOME_BACK_STICKER_KEYS,
+  STICKERS,
+  STREAK_MILESTONES,
   badgeKeyForLevel,
   cumulativeXpForLevel,
   daysBetweenDateStrings,
   hasFeaturesUnlockedAtLevel111,
   levelForXp,
   pickRandom,
+  streakAchievementKey,
+  streakXpFor,
   todayDateString,
   xpProgressWithinLevel,
 } from "../gamification";
@@ -111,10 +115,38 @@ describe("hasFeaturesUnlockedAtLevel111", () => {
   });
 });
 
-describe("WELCOME_BACK_STICKER_KEYS", () => {
-  it("has exactly 10 distinct keys, per the confirmed pool size", () => {
-    expect(WELCOME_BACK_STICKER_KEYS).toHaveLength(10);
-    expect(new Set(WELCOME_BACK_STICKER_KEYS).size).toBe(10);
+describe("STREAK_MILESTONES", () => {
+  it("is 7, 30, 100, 365, each with a unique achievement key and XP amount", () => {
+    expect(STREAK_MILESTONES).toEqual([7, 30, 100, 365]);
+    const keys = STREAK_MILESTONES.map(streakAchievementKey);
+    expect(new Set(keys).size).toBe(4);
+    const amounts = STREAK_MILESTONES.map(streakXpFor);
+    expect(new Set(amounts).size).toBe(4);
+    // Bigger milestones are worth more.
+    for (let i = 1; i < amounts.length; i += 1) {
+      expect(amounts[i]).toBeGreaterThan(amounts[i - 1]);
+    }
+  });
+});
+
+describe("COUNT_MILESTONES", () => {
+  it("covers notes, todo completions, and sessions with increasing XP per threshold", () => {
+    for (const config of COUNT_MILESTONES) {
+      let previousXp = 0;
+      for (const threshold of config.thresholds) {
+        const xp = config.xpFor(threshold);
+        expect(xp).toBeGreaterThanOrEqual(previousXp);
+        previousXp = xp;
+        expect(`${config.keyPrefix}${threshold}`).toMatch(/^sticker_/);
+      }
+    }
+  });
+});
+
+describe("STICKERS", () => {
+  it("has a unique key for every catalog entry", () => {
+    const keys = STICKERS.map((s) => s.key);
+    expect(new Set(keys).size).toBe(keys.length);
   });
 });
 

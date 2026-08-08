@@ -128,6 +128,26 @@ export const MIGRATIONS: string[] = [
     kind TEXT NOT NULL CHECK (kind IN ('badge', 'sticker')),
     unlocked_at TEXT NOT NULL
   )`,
+  // xp_events.source's original CHECK constraint enumerated a fixed
+  // list of sources — the expanded achievement roster (first-time
+  // stickers, count milestones, more streak tiers) added new sources
+  // faster than that list could keep being widened by hand. SQLite
+  // can't ALTER a CHECK constraint directly, so this rebuilds the
+  // table without one; the TypeScript XpSource union is the real
+  // source of truth for valid values now. Four single-statement steps
+  // (each its own migration entry, since the SqlExecutor interface
+  // runs one prepared statement at a time).
+  `CREATE TABLE IF NOT EXISTS xp_events_v2 (
+    id TEXT PRIMARY KEY,
+    occurred_at TEXT NOT NULL,
+    source TEXT NOT NULL,
+    amount INTEGER NOT NULL,
+    sticker_key TEXT
+  )`,
+  `INSERT INTO xp_events_v2 (id, occurred_at, source, amount, sticker_key)
+   SELECT id, occurred_at, source, amount, sticker_key FROM xp_events`,
+  `DROP TABLE xp_events`,
+  `ALTER TABLE xp_events_v2 RENAME TO xp_events`,
 ];
 
 /**
