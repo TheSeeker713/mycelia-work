@@ -1,10 +1,18 @@
-export type CompartmentName = "tasks" | "notes" | "todos" | "projects" | "library" | "settings";
+export type CompartmentName =
+  | "tasks"
+  | "notes"
+  | "todos"
+  | "projects"
+  | "progress"
+  | "library"
+  | "settings";
 
 const TABS: { name: CompartmentName; label: string }[] = [
   { name: "tasks", label: "Tasks" },
   { name: "notes", label: "Notes" },
   { name: "todos", label: "Todos" },
   { name: "projects", label: "Projects" },
+  { name: "progress", label: "Progress" },
   { name: "library", label: "Library" },
   { name: "settings", label: "Settings" },
 ];

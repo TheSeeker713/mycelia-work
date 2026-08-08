@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Task } from "../data";
 import {
+  useGamificationStore,
   useJournalsStore,
   useNotesStore,
   useOpenClawClient,
@@ -34,6 +35,8 @@ import { LibraryCompartment } from "./compartments/LibraryCompartment";
 import { SettingsCompartment } from "./compartments/SettingsCompartment";
 import { OnboardingCoachMark } from "./OnboardingCoachMark";
 import { AccessibilityOnboarding } from "./AccessibilityOnboarding";
+import { AchievementToastStack } from "./AchievementToast";
+import { ProgressCompartment } from "./compartments/ProgressCompartment";
 
 function TasksCompartment() {
   const tasks = useTasksStore((s) => s.tasks);
@@ -115,6 +118,7 @@ function CompartmentContent({
       {active === "notes" && <NotesCompartment onEnterZenMode={onEnterZenMode} />}
       {active === "todos" && <TodosCompartment />}
       {active === "projects" && <ProjectsCompartment />}
+      {active === "progress" && <ProgressCompartment />}
       {active === "library" && <LibraryCompartment />}
       {active === "settings" && <SettingsCompartment />}
     </>
@@ -141,10 +145,12 @@ export function Dashboard() {
   const settingsLoaded = useSettingsStore((s) => s.loaded);
   const accessibilityOnboardingSeen = useSettingsStore((s) => s.accessibilityOnboardingSeen);
   const loadSettings = useSettingsStore((s) => s.load);
+  const loadGamification = useGamificationStore((s) => s.load);
 
   useEffect(() => {
     loadSettings();
-  }, [loadSettings]);
+    loadGamification();
+  }, [loadSettings, loadGamification]);
 
   const runningSessions = activeSessions.filter((a) => a.session.status === "running");
   const idle = useIdleWatcher(runningSessions.length > 0);
@@ -251,6 +257,7 @@ export function Dashboard() {
             <CompartmentContent active={active} onEnterZenMode={enterZenMode} />
           </div>
           <CompartmentTabs active={active} onSelect={setActive} />
+          <AchievementToastStack />
           {danglingSession ? (
             <CheckInFlow
               activeSession={danglingSession}
@@ -286,6 +293,7 @@ export function Dashboard() {
           <CompartmentContent active={active} onEnterZenMode={enterZenMode} />
         </div>
         <CompartmentTabs active={active} onSelect={setActive} />
+        <AchievementToastStack />
         {danglingSession ? (
           <CheckInFlow
             activeSession={danglingSession}
