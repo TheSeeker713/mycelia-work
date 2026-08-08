@@ -656,7 +656,7 @@ design behind it.
 | # | Phase |
 |---|---|
 | ~~12~~ | ~~11+11 unlock revision (Section 1)~~ — cut, hidden-unlock system removed entirely instead (done 2026-08-06, not a phase) |
-| 13 | Gamification core — XP, levels/badges, no-punishment + welcome-back + Help disclosure (Section 2.1-2.4, 2.7) |
+| ~~13~~ | ~~Gamification core~~ — **done 2026-08-06.** XP, levels/badges, streaks, no-punishment + welcome-back, in-app disclosure (Section 2.1-2.4, 2.7). Badge/sticker art still needs wiring once Jeremy's real asset set is curated — see `docs/reference/gamification-guide.md`'s closing note. |
 | 14 | Emergency exit confirmation + in-flight-generation awareness (Section 2.6) |
 | 15 | AI backend: model transparency + OpenClaw retry/fallback (Section 3, Phase A) |
 | 16 | AI backend: pluggable (OpenClaw/Ollama/LM Studio/Cloud) + onboarding (Section 3, Phase B) — re-confirm this is still needed before starting, given the private-build decision |
