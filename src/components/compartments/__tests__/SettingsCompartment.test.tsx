@@ -125,22 +125,22 @@ describe("SettingsCompartment", () => {
     const user = userEvent.setup();
     renderSettings();
 
-    await user.selectOptions(screen.getByLabelText("Narration voice"), "en_US-amy-medium");
+    await user.selectOptions(screen.getByLabelText("Narration voice"), "en_US-lessac-medium");
 
-    expect(await repos.settings.get("piper_voice_id")).toBe("en_US-amy-medium");
+    expect(await repos.settings.get("piper_voice_id")).toBe("en_US-lessac-medium");
   });
 
   it("Preview speaks a sample line using the currently selected voice", async () => {
     const user = userEvent.setup();
     renderSettings();
 
-    await user.selectOptions(screen.getByLabelText("Narration voice"), "en_US-amy-medium");
+    await user.selectOptions(screen.getByLabelText("Narration voice"), "en_US-lessac-medium");
     await user.click(screen.getByText("Preview"));
 
     await waitFor(() =>
       expect(voiceClient.speak).toHaveBeenCalledWith(
         "This is what I sound like.",
-        "en_US-amy-medium",
+        "en_US-lessac-medium",
       ),
     );
   });

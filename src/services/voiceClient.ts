@@ -6,14 +6,16 @@ const HEALTH_TIMEOUT_MS = 1500;
  * The two Piper voices loaded by the server (tts/piper/server.py) —
  * added 2026-08-04 after Jeremy found the original single voice
  * (lessac) reading as more British than the "en_US" label suggested,
- * and asked for an actual choice. Kept as a small static list here
- * rather than fetched from the server's own /voices endpoint — there
- * are exactly two, and adding a third is rare enough to just edit this
- * array when it happens.
+ * and asked for an actual choice. Amy is first (and default) as of
+ * 2026-08-06 per Jeremy's request for a female, Western American
+ * accent. Kept as a small static list here rather than fetched from
+ * the server's own /voices endpoint — there are exactly two, and
+ * adding a third is rare enough to just edit this array when it
+ * happens.
  */
 export const PIPER_VOICES = [
-  { id: "en_US-lessac-medium", label: "Lessac" },
   { id: "en_US-amy-medium", label: "Amy" },
+  { id: "en_US-lessac-medium", label: "Lessac" },
 ] as const;
 
 export const DEFAULT_PIPER_VOICE_ID = PIPER_VOICES[0].id;

@@ -2,12 +2,16 @@
 
 Local time tracking app with an AI-generated work journal. Tauri v2 +
 React 19 + TypeScript. Built for Jeremy Robards (CTO/CAIO, Mycelia
-Interactive LLC), but designed as something other people could use too —
-personal preference sets defaults, it doesn't get hard-coded as the only
-option.
+Interactive LLC). **As of 2026-08-06 this is a private, personal-only
+project** — no longer designed for other users, no public onboarding
+path, no distribution concerns. Settings still read from preference
+values rather than literals where that's already the pattern, but
+"other people could use this too" is no longer a design constraint.
 
-Public repo: [github.com/TheSeeker713/mycelia-work](https://github.com/TheSeeker713/mycelia-work),
-`main`.
+Repo: [github.com/TheSeeker713/mycelia-work](https://github.com/TheSeeker713/mycelia-work),
+`main` — being switched to private (Jeremy's own doing, not something
+built by a phase in this repo). **Desktop only**, no Android/mobile
+companion in scope.
 
 ## The core idea
 

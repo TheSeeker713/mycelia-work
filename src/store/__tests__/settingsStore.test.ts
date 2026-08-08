@@ -57,12 +57,12 @@ describe("settingsStore", () => {
   });
 
   it("setPiperVoiceId persists the choice across reload", async () => {
-    await useSettings.getState().setPiperVoiceId("en_US-amy-medium");
-    expect(useSettings.getState().piperVoiceId).toBe("en_US-amy-medium");
+    await useSettings.getState().setPiperVoiceId("en_US-lessac-medium");
+    expect(useSettings.getState().piperVoiceId).toBe("en_US-lessac-medium");
 
     const freshStore = createSettingsStore(repos);
     await freshStore.getState().load();
-    expect(freshStore.getState().piperVoiceId).toBe("en_US-amy-medium");
+    expect(freshStore.getState().piperVoiceId).toBe("en_US-lessac-medium");
   });
 
   it("defaults rewardsUnlocked and eighteenPlusEnabled to locked/off", async () => {

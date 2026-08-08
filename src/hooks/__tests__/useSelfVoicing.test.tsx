@@ -157,7 +157,7 @@ describe("useSelfVoicing", () => {
     );
 
     await act(async () => {
-      await result.current.settings.setPiperVoiceId("en_US-amy-medium");
+      await result.current.settings.setPiperVoiceId("en_US-lessac-medium");
     });
 
     act(() => {
@@ -165,7 +165,7 @@ describe("useSelfVoicing", () => {
     });
 
     await waitFor(() =>
-      expect(fakeClient.speak).toHaveBeenCalledWith("Clocked in.", "en_US-amy-medium"),
+      expect(fakeClient.speak).toHaveBeenCalledWith("Clocked in.", "en_US-lessac-medium"),
     );
   });
 });
