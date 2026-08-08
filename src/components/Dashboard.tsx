@@ -154,6 +154,20 @@ export function Dashboard() {
     loadGamification();
   }, [loadSettings, loadGamification]);
 
+  // AOL-style "Welcome" on every launch, not just the first ever — waits
+  // for the real persisted self-voicing preference (settingsLoaded) so a
+  // user who's turned voicing off doesn't hear it once before the load
+  // resolves. welcomeSpokenRef guards against firing again if this effect
+  // re-runs for any other reason once settingsLoaded is already true.
+  const welcomeSpokenRef = useRef(false);
+  useEffect(() => {
+    if (settingsLoaded && !welcomeSpokenRef.current) {
+      welcomeSpokenRef.current = true;
+      selfVoicing.speak("Welcome.");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settingsLoaded]);
+
   const runningSessions = activeSessions.filter((a) => a.session.status === "running");
   const idle = useIdleWatcher(runningSessions.length > 0);
 

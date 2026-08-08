@@ -1,22 +1,30 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { initDatabase, type Repositories, type SqlExecutor } from "../../data";
 import { createTestExecutor } from "../../data/__tests__/testExecutor";
 import { StoreProvider } from "../../store/StoreProvider";
+import type { VoiceClient } from "../../services/voiceClient";
 import { Dashboard } from "../Dashboard";
 
 let executor: SqlExecutor;
 let repos: Repositories;
+let voiceClient: VoiceClient;
 
 beforeEach(async () => {
   executor = createTestExecutor();
   repos = await initDatabase(executor);
+  voiceClient = {
+    speak: vi.fn().mockResolvedValue(null),
+    transcribe: vi.fn(),
+    isTtsAvailable: vi.fn(),
+    isSttAvailable: vi.fn(),
+  };
 });
 
 function renderDashboard() {
   return render(
-    <StoreProvider repositories={repos}>
+    <StoreProvider repositories={repos} voiceClient={voiceClient}>
       <Dashboard />
     </StoreProvider>,
   );
@@ -405,5 +413,21 @@ describe("Dashboard", () => {
     // Was already full screen before zen mode — exiting stays full screen.
     expect(screen.getByRole("button", { name: "File" })).toBeInTheDocument();
     expect(screen.queryByTitle("Expand to full screen")).not.toBeInTheDocument();
+  });
+
+  it("speaks a Welcome cue once settings load, AOL-style, on every launch", async () => {
+    renderDashboard();
+
+    await waitFor(() => expect(voiceClient.speak).toHaveBeenCalledWith("Welcome.", expect.any(String)));
+    expect(voiceClient.speak).toHaveBeenCalledTimes(1);
+  });
+
+  it("stays silent on launch when self-voicing is off", async () => {
+    await repos.settings.set("self_voicing_enabled", "false");
+
+    renderDashboard();
+
+    await screen.findByPlaceholderText("What are you working on?");
+    expect(voiceClient.speak).not.toHaveBeenCalled();
   });
 });
