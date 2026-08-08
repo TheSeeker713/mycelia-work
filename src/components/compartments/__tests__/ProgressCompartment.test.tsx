@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
 import { ProgressCompartment } from "../ProgressCompartment";
 import { StoreProvider } from "../../../store/StoreProvider";
@@ -52,5 +53,19 @@ describe("ProgressCompartment", () => {
 
     expect(await screen.findByText("Project Finished")).toBeInTheDocument();
     expect(screen.getByText("×2")).toBeInTheDocument();
+  });
+
+  it("the disclosure explanation is collapsed by default and expands on click", async () => {
+    const user = userEvent.setup();
+    renderProgress();
+    await screen.findByText("Level 1");
+
+    expect(screen.queryByText(/Nothing here ever takes XP away/)).not.toBeInTheDocument();
+
+    await user.click(screen.getByText("How XP & rewards work"));
+    expect(screen.getByText(/Nothing here ever takes XP away/)).toBeInTheDocument();
+
+    await user.click(screen.getByText("Hide"));
+    expect(screen.queryByText(/Nothing here ever takes XP away/)).not.toBeInTheDocument();
   });
 });

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useGamificationStore } from "../../store/StoreProvider";
 import { BADGES, LEVEL_CAP, STICKERS, xpProgressWithinLevel } from "../../services/gamification";
 
@@ -15,6 +15,7 @@ export function ProgressCompartment() {
   const unlockedAchievements = useGamificationStore((s) => s.unlockedAchievements);
   const recentXpEvents = useGamificationStore((s) => s.recentXpEvents);
   const load = useGamificationStore((s) => s.load);
+  const [showHowThisWorks, setShowHowThisWorks] = useState(false);
 
   useEffect(() => {
     load();
@@ -129,6 +130,36 @@ export function ProgressCompartment() {
           ))}
         </ul>
       )}
+
+      <div className="mt-3 border-t border-dashed pt-3" style={{ borderColor: "var(--line)" }}>
+        <button
+          type="button"
+          onClick={() => setShowHowThisWorks((v) => !v)}
+          className="text-[0.74rem] text-[var(--ink-soft)] underline decoration-dotted"
+        >
+          {showHowThisWorks ? "Hide" : "How XP & rewards work"}
+        </button>
+        {showHowThisWorks && (
+          <div className="mt-2 flex flex-col gap-2 text-[0.76rem] leading-relaxed text-[var(--ink-soft)]">
+            <p>
+              Clocking in, clocking real hours, writing notes, finishing
+              todos and projects, and just showing up most days all earn
+              XP. Leveling up (capped at 111) unlocks badges; finishing
+              things and streak milestones earn stickers.
+            </p>
+            <p>
+              Nothing here ever takes XP away, drops a level, or resets a
+              streak — missing a day just means no new rewards during the
+              gap. Coming back after roughly 3+ days away earns its own
+              small bonus and a random "welcome back" sticker, every time
+              you qualify for it.
+            </p>
+            <p className="text-[var(--ink-faint)]">
+              Full details: docs/reference/gamification-guide.md.
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
