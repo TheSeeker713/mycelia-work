@@ -77,6 +77,19 @@ export function weeklyRollupFilename(generatedAt: Date): string {
 }
 
 /**
+ * For the Library compartment's manual "Export" button — every journal
+ * already auto-exports on generation (below), but that's invisible in
+ * the UI, so this gives a real, explicit re-export path a user can
+ * trigger and get confirmation from. Doesn't need the original Task
+ * (unlike sessionJournalFilename), since a Journal record on its own
+ * only has task_id, not the task's title.
+ */
+export function libraryExportFilename(journal: Journal): string {
+  const { date, time } = filenameStamp(new Date(journal.generated_at));
+  return journal.kind === "weekly" ? `${date}_${time}_weekly-rollup.md` : `${date}_${time}_session-journal.md`;
+}
+
+/**
  * The generation prompt includes the voice-rules doc directly (not just
  * a reference to it) so the generated entry doesn't read as AI-toned
  * filler, per CLAUDE.md — same document the devlogs themselves follow.

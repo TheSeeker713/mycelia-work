@@ -56,3 +56,49 @@ describe("TodosCompartment — mic icon", () => {
     await waitFor(() => expect(screen.getByLabelText("New todo")).toHaveValue("buy more coffee"));
   });
 });
+
+describe("TodosCompartment — reminder time", () => {
+  it("the reminder field is hidden until 'Remind me' is toggled on", () => {
+    renderTodos();
+    expect(screen.queryByLabelText("Reminder time")).not.toBeInTheDocument();
+  });
+
+  it("adding a todo with a reminder time persists alert_at, and it shows on the row", async () => {
+    const user = userEvent.setup();
+    renderTodos();
+
+    await user.type(screen.getByLabelText("New todo"), "Call the accountant");
+    await user.click(screen.getByRole("button", { name: "Remind me" }));
+    await user.type(screen.getByLabelText("Reminder time"), "2026-09-01T09:00");
+    await user.click(screen.getByText("Add"));
+
+    expect(await screen.findByText(/Reminder/)).toBeInTheDocument();
+    const stored = (await repos.todos.list())[0];
+    expect(stored.alert_at).not.toBeNull();
+  });
+
+  it("adding a todo without touching 'Remind me' leaves alert_at null", async () => {
+    const user = userEvent.setup();
+    renderTodos();
+
+    await user.type(screen.getByLabelText("New todo"), "No reminder needed");
+    await user.click(screen.getByText("Add"));
+
+    await waitFor(async () => expect((await repos.todos.list())[0].alert_at).toBeNull());
+  });
+
+  it("Snooze increments the snooze count on a todo with a reminder", async () => {
+    const user = userEvent.setup();
+    renderTodos();
+
+    await user.type(screen.getByLabelText("New todo"), "Call the accountant");
+    await user.click(screen.getByRole("button", { name: "Remind me" }));
+    await user.type(screen.getByLabelText("Reminder time"), "2026-09-01T09:00");
+    await user.click(screen.getByText("Add"));
+    await screen.findByText(/Reminder/);
+
+    await user.click(screen.getByText("Snooze"));
+
+    expect(await screen.findByText(/snoozed 1×/)).toBeInTheDocument();
+  });
+});

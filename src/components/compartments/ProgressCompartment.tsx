@@ -91,7 +91,7 @@ export function ProgressCompartment() {
       <div className="mb-1.5 text-[0.7rem] tracking-wide text-[var(--ink-faint)] uppercase">
         Badges ({unlockedBadgeKeys.size}/{BADGES.length})
       </div>
-      <div className="mb-3 flex flex-wrap gap-2">
+      <div className="mb-3 flex flex-wrap items-center gap-2">
         {BADGES.map((badge) => {
           const unlocked = unlockedBadgeKeys.has(badge.key);
           const imageUrl = BADGE_IMAGE_POOL_BY_LEVEL[badge.level]?.[0];
@@ -99,7 +99,10 @@ export function ProgressCompartment() {
             <div
               key={badge.key}
               title={badge.label}
-              className="flex h-11 w-11 flex-shrink-0 items-center justify-center overflow-hidden rounded-full border"
+              className={
+                "flex flex-shrink-0 items-center justify-center overflow-hidden rounded-full border transition-transform duration-150 " +
+                (unlocked ? "h-14 w-14 hover:scale-110" : "h-9 w-9")
+              }
               style={{
                 borderColor: unlocked ? "var(--moss)" : "var(--line)",
                 background: unlocked ? "var(--moss-pale)" : "var(--paper-deep)",
@@ -114,7 +117,7 @@ export function ProgressCompartment() {
                 />
               ) : (
                 <span
-                  className="text-[0.68rem]"
+                  className="text-[0.62rem]"
                   style={{ color: unlocked ? "var(--moss-deep)" : "var(--ink-faint)" }}
                 >
                   {badge.level}
@@ -137,14 +140,14 @@ export function ProgressCompartment() {
             return (
               <li
                 key={sticker.key}
-                className="flex items-center gap-2.5 rounded-lg border px-2.5 py-1.5 text-[0.78rem]"
+                className="flex items-center gap-2.5 rounded-lg border px-2.5 py-1.5 text-[0.78rem] transition-colors duration-150 hover:border-[var(--moss)]"
                 style={{ borderColor: "var(--line)", color: "var(--ink)" }}
               >
                 {imageUrl && (
                   <img
                     src={imageUrl}
                     alt=""
-                    className="h-8 w-8 flex-shrink-0 rounded-md object-cover"
+                    className="h-8 w-8 flex-shrink-0 rounded-md object-cover transition-transform duration-150 hover:scale-110"
                   />
                 )}
                 <span className="flex-1">{sticker.label}</span>

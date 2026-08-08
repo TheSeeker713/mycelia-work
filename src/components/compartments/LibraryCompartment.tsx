@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useJournalsStore, useTasksStore } from "../../store/StoreProvider";
 import { useSelfVoicing } from "../../hooks/useSelfVoicing";
 import type { Journal } from "../../data";
+import { exportWorkJournalFile, libraryExportFilename } from "../../services/journalGeneration";
 
 const STATUS_LABEL: Record<Journal["status"], string> = {
   pending: "Generating…",
@@ -17,6 +18,8 @@ function JournalEntry({
   onRetry: (id: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [exportedTo, setExportedTo] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
   const selfVoicing = useSelfVoicing();
   const label = journal.kind === "weekly" ? "Weekly roll-up" : "Session journal";
   const when = new Date(journal.generated_at).toLocaleString([], {
@@ -25,6 +28,15 @@ function JournalEntry({
     hour: "2-digit",
     minute: "2-digit",
   });
+
+  async function handleExport() {
+    if (!journal.content) return;
+    setExporting(true);
+    setExportedTo(null);
+    const path = await exportWorkJournalFile(libraryExportFilename(journal), journal.content).catch(() => null);
+    setExporting(false);
+    setExportedTo(path);
+  }
 
   return (
     <li className="rounded-lg border border-[var(--line)] px-2.5 py-2">
@@ -72,7 +84,18 @@ function JournalEntry({
             >
               {selfVoicing.speaking ? "Stop reading" : "🔊 Read aloud"}
             </button>
+            <button
+              type="button"
+              onClick={() => void handleExport()}
+              disabled={exporting}
+              className="text-[0.7rem] text-[var(--ink-faint)] underline disabled:opacity-50"
+            >
+              {exporting ? "Exporting…" : "Export"}
+            </button>
           </div>
+          {exportedTo && (
+            <p className="mt-1 text-[0.68rem] text-[var(--moss-deep)]">Saved to {exportedTo}</p>
+          )}
         </div>
       )}
 

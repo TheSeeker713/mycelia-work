@@ -7,6 +7,10 @@ import { initDatabase, type Repositories } from "../../../data";
 import { createTestExecutor } from "../../../data/__tests__/testExecutor";
 import { DEFAULT_PIPER_VOICE_ID, type VoiceClient } from "../../../services/voiceClient";
 
+vi.mock("@tauri-apps/api/core", () => ({
+  invoke: vi.fn().mockResolvedValue("D:\\_Dev\\Projects\\mycelia-work\\docs\\workjournal\\2026-08-07_2100_session-journal.md"),
+}));
+
 let repos: Repositories;
 let voiceClient: VoiceClient;
 
@@ -84,6 +88,27 @@ describe("LibraryCompartment — Read aloud", () => {
       DEFAULT_PIPER_VOICE_ID,
     );
     await waitFor(() => expect(screen.getByText("Stop reading")).toBeInTheDocument());
+  });
+
+  it("Export writes the journal to disk and shows the saved path", async () => {
+    const user = userEvent.setup();
+    const task = await repos.tasks.create({ title: "Write the devlog entry" });
+    const session = await repos.taskSessions.clockIn(task.id);
+    const journal = await repos.journals.createPending({
+      taskId: task.id,
+      taskSessionId: session.id,
+      kind: "session",
+    });
+    await repos.journals.markResult(journal.id, "ok", {
+      content: "Spent the afternoon on the devlog entry.",
+      modelUsed: "xai/grok-4.5",
+    });
+
+    renderLibrary();
+
+    await user.click(await screen.findByText("Export"));
+
+    expect(await screen.findByText(/Saved to/)).toBeInTheDocument();
   });
 });
 
