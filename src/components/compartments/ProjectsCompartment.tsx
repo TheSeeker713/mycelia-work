@@ -319,7 +319,12 @@ function ProjectDetail({
   const list = milestones ?? [];
 
   return (
-    <div className="flex h-full flex-col overflow-y-auto">
+    // Capped and centered so full-screen mode (where this panel's
+    // parent stretches edge-to-edge across a real monitor at 2x zoom)
+    // doesn't turn a simple stacked form into unreadably wide input
+    // fields — pocket mode is already narrower than max-w-xl, so this
+    // has no visible effect there.
+    <div className="mx-auto flex h-full w-full max-w-xl flex-col overflow-y-auto">
       <button
         type="button"
         onClick={onBack}
