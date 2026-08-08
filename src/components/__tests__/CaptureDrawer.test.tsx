@@ -29,6 +29,7 @@ beforeEach(async () => {
     suggestContinuation: vi.fn(),
     classifyOnTopic: vi.fn().mockResolvedValue(true),
     warmUpGhostText: vi.fn(),
+    isAvailable: vi.fn().mockResolvedValue(true),
   };
   openClawClient = {
     runOnce: vi.fn().mockResolvedValue(layer1('{"action":"decline","payload":{}}')),

@@ -38,6 +38,7 @@ import { AccessibilityOnboarding } from "./AccessibilityOnboarding";
 import { AchievementToastStack } from "./AchievementToast";
 import { ProgressCompartment } from "./compartments/ProgressCompartment";
 import { ExitConfirmDialog } from "./ExitConfirmDialog";
+import { SystemStartup } from "./SystemStartup";
 
 function TasksCompartment() {
   const tasks = useTasksStore((s) => s.tasks);
@@ -128,6 +129,7 @@ function CompartmentContent({
 
 /** The pull-tab compartment shell — must run inside a StoreProvider. */
 export function Dashboard() {
+  const [systemReady, setSystemReady] = useState(false);
   const [active, setActive] = useState<CompartmentName>("tasks");
   const [showOnboarding, setShowOnboarding] = useState(true);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
@@ -155,18 +157,20 @@ export function Dashboard() {
   }, [loadSettings, loadGamification]);
 
   // AOL-style "Welcome" on every launch, not just the first ever — waits
-  // for the real persisted self-voicing preference (settingsLoaded) so a
-  // user who's turned voicing off doesn't hear it once before the load
-  // resolves. welcomeSpokenRef guards against firing again if this effect
-  // re-runs for any other reason once settingsLoaded is already true.
+  // for the system-check screen to clear (so Piper's actually up by
+  // then, not racing its own startup) and the real persisted
+  // self-voicing preference (settingsLoaded), so a user who's turned
+  // voicing off doesn't hear it once before the load resolves.
+  // welcomeSpokenRef guards against firing again if this effect re-runs
+  // for any other reason once both are already true.
   const welcomeSpokenRef = useRef(false);
   useEffect(() => {
-    if (settingsLoaded && !welcomeSpokenRef.current) {
+    if (systemReady && settingsLoaded && !welcomeSpokenRef.current) {
       welcomeSpokenRef.current = true;
       selfVoicing.speak("Welcome.");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settingsLoaded]);
+  }, [systemReady, settingsLoaded]);
 
   const runningSessions = activeSessions.filter((a) => a.session.status === "running");
   const idle = useIdleWatcher(runningSessions.length > 0);
@@ -233,6 +237,10 @@ export function Dashboard() {
     return () => window.removeEventListener("keydown", handleKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [controls.fullscreen, zenMode]);
+
+  if (!systemReady) {
+    return <SystemStartup onDone={() => setSystemReady(true)} />;
+  }
 
   if (zenMode) {
     return (

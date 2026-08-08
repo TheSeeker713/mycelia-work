@@ -66,6 +66,7 @@ beforeEach(async () => {
     suggestContinuation: vi.fn().mockResolvedValue(null),
     classifyOnTopic: vi.fn().mockResolvedValue(true),
     warmUpGhostText: vi.fn(),
+    isAvailable: vi.fn().mockResolvedValue(true),
   };
   resourceWatchdogClient = {
     checkPressure: vi.fn().mockResolvedValue({ underPressure: false, cpuPercent: 10, memPercent: 20 }),

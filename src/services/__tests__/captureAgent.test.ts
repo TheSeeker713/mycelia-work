@@ -126,6 +126,7 @@ describe("routeCapture", () => {
       suggestContinuation: vi.fn(),
       classifyOnTopic: vi.fn().mockResolvedValue(overrides?.onTopic ?? true),
       warmUpGhostText: vi.fn(),
+    isAvailable: vi.fn().mockResolvedValue(true),
     };
     const openClawClient = {
       runOnce:

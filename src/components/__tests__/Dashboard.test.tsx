@@ -5,11 +5,19 @@ import { initDatabase, type Repositories, type SqlExecutor } from "../../data";
 import { createTestExecutor } from "../../data/__tests__/testExecutor";
 import { StoreProvider } from "../../store/StoreProvider";
 import type { VoiceClient } from "../../services/voiceClient";
+import type { OpenClawClient } from "../../services/openclawClient";
+import type { OllamaClient } from "../../services/ollamaClient";
 import { Dashboard } from "../Dashboard";
+
+vi.mock("@tauri-apps/api/core", () => ({
+  invoke: vi.fn().mockResolvedValue(undefined),
+}));
 
 let executor: SqlExecutor;
 let repos: Repositories;
 let voiceClient: VoiceClient;
+let openClawClient: OpenClawClient;
+let ollamaClient: OllamaClient;
 
 beforeEach(async () => {
   executor = createTestExecutor();
@@ -17,14 +25,35 @@ beforeEach(async () => {
   voiceClient = {
     speak: vi.fn().mockResolvedValue(null),
     transcribe: vi.fn(),
-    isTtsAvailable: vi.fn(),
-    isSttAvailable: vi.fn(),
+    // Resolves immediately so the startup screen's system checks settle
+    // fast and clear out of the way — these tests are about the rest of
+    // the app, not the startup screen itself (that has its own tests).
+    isTtsAvailable: vi.fn().mockResolvedValue(true),
+    isSttAvailable: vi.fn().mockResolvedValue(true),
+  };
+  openClawClient = {
+    runOnce: vi.fn(),
+    ensureDaemon: vi.fn().mockResolvedValue(true),
+    call: vi.fn(),
+    releaseDaemon: vi.fn(),
+    cancelActiveCall: vi.fn(),
+  };
+  ollamaClient = {
+    suggestContinuation: vi.fn(),
+    classifyOnTopic: vi.fn().mockResolvedValue(true),
+    warmUpGhostText: vi.fn(),
+    isAvailable: vi.fn().mockResolvedValue(true),
   };
 });
 
 function renderDashboard() {
   return render(
-    <StoreProvider repositories={repos} voiceClient={voiceClient}>
+    <StoreProvider
+      repositories={repos}
+      voiceClient={voiceClient}
+      openClawClient={openClawClient}
+      ollamaClient={ollamaClient}
+    >
       <Dashboard />
     </StoreProvider>,
   );
@@ -153,7 +182,7 @@ describe("Dashboard", () => {
     const user = userEvent.setup();
     renderDashboard();
 
-    await user.click(screen.getByTitle("Expand to full screen"));
+    await user.click(await screen.findByTitle("Expand to full screen"));
 
     expect(screen.getByRole("button", { name: "File" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Edit" })).toBeInTheDocument();
@@ -171,7 +200,7 @@ describe("Dashboard", () => {
     const user = userEvent.setup();
     renderDashboard();
 
-    await user.click(screen.getByTitle("Expand to full screen"));
+    await user.click(await screen.findByTitle("Expand to full screen"));
     expect(screen.getByRole("button", { name: "File" })).toBeInTheDocument();
 
     fireEvent.keyDown(window, { key: "Escape" });
@@ -183,7 +212,7 @@ describe("Dashboard", () => {
     const user = userEvent.setup();
     renderDashboard();
 
-    await user.click(screen.getByTitle("Expand to full screen"));
+    await user.click(await screen.findByTitle("Expand to full screen"));
     await user.click(screen.getByRole("button", { name: "Library" }));
     // Work Journal is the section shown expanded by default.
     expect(screen.getByText("Work journal")).toBeInTheDocument();
@@ -331,7 +360,7 @@ describe("Dashboard", () => {
     const user = userEvent.setup();
     renderDashboard();
 
-    await user.click(screen.getByTitle("Expand to full screen"));
+    await user.click(await screen.findByTitle("Expand to full screen"));
     await user.click(screen.getByRole("button", { name: "Help" }));
     expect(screen.queryByText("this should not be here")).not.toBeInTheDocument();
   });
@@ -371,7 +400,7 @@ describe("Dashboard", () => {
     const user = userEvent.setup();
     renderDashboard();
 
-    await user.click(screen.getByRole("button", { name: "Todos" }));
+    await user.click(await screen.findByRole("button", { name: "Todos" }));
     expect(screen.getByLabelText("Open capture")).toBeInTheDocument();
 
     await user.click(screen.getByLabelText("Open capture"));

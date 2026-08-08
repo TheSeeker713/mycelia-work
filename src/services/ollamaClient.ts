@@ -1,4 +1,5 @@
 const OLLAMA_URL = "http://127.0.0.1:11434";
+const HEALTH_TIMEOUT_MS = 1500;
 /**
  * A cold `dolphin-phi` load measured ~6.2s on the reference machine
  * (Ollama unloads idle models after its own default keep-alive window,
@@ -46,6 +47,8 @@ export interface OllamaClient {
   classifyOnTopic(text: string): Promise<boolean>;
   /** Fire-and-forget: loads GHOST_TEXT_MODEL into memory ahead of the user's first typing pause, so the real suggestion call lands warm. Never throws, nothing to await for correctness — call it and move on. */
   warmUpGhostText(): void;
+  /** Plain reachability check for the startup system-check screen — Ollama isn't something this app can start on its own (no known launch command, unlike OpenClaw/Voice-Agent), so this only reports whether it's already up. */
+  isAvailable(): Promise<boolean>;
 }
 
 export function createHttpOllamaClient(): OllamaClient {
@@ -110,6 +113,17 @@ export function createHttpOllamaClient(): OllamaClient {
         // Best-effort — a failed warm-up just means the first real
         // suggestion pays the cold-load cost itself.
       });
+    },
+
+    async isAvailable() {
+      try {
+        const res = await fetch(`${OLLAMA_URL}/api/version`, {
+          signal: AbortSignal.timeout(HEALTH_TIMEOUT_MS),
+        });
+        return res.ok;
+      } catch {
+        return false;
+      }
     },
   };
 }

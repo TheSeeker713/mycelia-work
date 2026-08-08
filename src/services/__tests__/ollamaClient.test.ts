@@ -114,4 +114,27 @@ describe("createHttpOllamaClient", () => {
       expect(() => client.warmUpGhostText()).not.toThrow();
     });
   });
+
+  describe("isAvailable", () => {
+    it("returns true when the server responds ok", async () => {
+      global.fetch = vi.fn().mockResolvedValue({ ok: true });
+      const client = createHttpOllamaClient();
+
+      expect(await client.isAvailable()).toBe(true);
+      const [url] = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+      expect(url).toBe("http://127.0.0.1:11434/api/version");
+    });
+
+    it("returns false when the server responds non-ok", async () => {
+      global.fetch = vi.fn().mockResolvedValue({ ok: false });
+      const client = createHttpOllamaClient();
+      expect(await client.isAvailable()).toBe(false);
+    });
+
+    it("returns false (fails soft) when the server is unreachable", async () => {
+      global.fetch = vi.fn().mockRejectedValue(new Error("ECONNREFUSED"));
+      const client = createHttpOllamaClient();
+      expect(await client.isAvailable()).toBe(false);
+    });
+  });
 });
