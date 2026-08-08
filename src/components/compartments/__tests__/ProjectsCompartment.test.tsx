@@ -82,6 +82,20 @@ describe("ProjectsCompartment", () => {
     expect(updated?.status).toBe("in_progress");
   });
 
+  it("Save changes closes the detail card and returns to the list", async () => {
+    const user = userEvent.setup();
+    await repos.projects.create({ title: "Client portal revamp", targetMonth: "2026-09", priority: "low" });
+    renderProjects();
+
+    await user.click(await screen.findByText("Client portal revamp"));
+    expect(screen.getByLabelText("Project title")).toBeInTheDocument();
+
+    await user.click(screen.getByText("Save changes"));
+
+    await waitFor(() => expect(screen.queryByLabelText("Project title")).not.toBeInTheDocument());
+    expect(await screen.findByText("Client portal revamp")).toBeInTheDocument();
+  });
+
   it("archiving a project removes it from the list and returns to the list view", async () => {
     const user = userEvent.setup();
     await repos.projects.create({ title: "Client portal revamp", targetMonth: "2026-09", priority: "low" });
@@ -191,7 +205,7 @@ describe("ProjectsCompartment", () => {
     expect(list.find((m) => m.id === milestone.id)).toBeUndefined();
   });
 
-  it("AI assist: running Sub-tasks shows the result and logs it, without persisting anything", async () => {
+  it("AI assist: running Sub-tasks shows the result, logs it, and keeps it as real history", async () => {
     const user = userEvent.setup();
     await repos.projects.create({ title: "Client portal revamp", targetMonth: "2026-09", priority: "low" });
     renderProjects();
@@ -202,8 +216,25 @@ describe("ProjectsCompartment", () => {
     expect(await screen.findByText(/Wireframe the flow/)).toBeInTheDocument();
     await waitFor(() => expect(captureLogClient.logAiAssist).toHaveBeenCalled());
 
+    // Real persisted content now, not a dismiss-and-lose toast — leave
+    // the project and come back, it's still there.
+    await user.click(screen.getByText("← Back to projects"));
+    await user.click(await screen.findByText("Client portal revamp"));
+    expect(await screen.findByText(/Wireframe the flow/)).toBeInTheDocument();
+  });
+
+  it("AI assist: a failed run shows a dismissible error without saving anything", async () => {
+    const user = userEvent.setup();
+    openClawClient.runOnce = vi.fn().mockRejectedValue(new Error("unreachable"));
+    await repos.projects.create({ title: "Client portal revamp", targetMonth: "2026-09", priority: "low" });
+    renderProjects();
+
+    await user.click(await screen.findByText("Client portal revamp"));
+    await user.click(screen.getByText("Sub-tasks"));
+
+    expect(await screen.findByText(/Couldn't get an answer/)).toBeInTheDocument();
     await user.click(screen.getByText("Dismiss"));
-    expect(screen.queryByText(/Wireframe the flow/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Couldn't get an answer/)).not.toBeInTheDocument();
   });
 
   it("AI assist: Ask sends the freeform question through project context", async () => {

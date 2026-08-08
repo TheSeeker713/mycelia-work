@@ -203,4 +203,36 @@ describe("projectsStore", () => {
 
     expect(useProjectsStore.getState().reportsByProject[project.id]).toHaveLength(1);
   });
+
+  it("saveAssistNote persists a real note and refreshes the project's history", async () => {
+    await useProjectsStore.getState().addProject({
+      title: "Client portal revamp",
+      targetMonth: "2026-09",
+      priority: "low",
+    });
+    const project = useProjectsStore.getState().projects[0];
+
+    await useProjectsStore.getState().saveAssistNote(project.id, "sub_tasks", "- Wireframe\n- Build");
+
+    const notes = useProjectsStore.getState().assistNotesByProject[project.id];
+    expect(notes).toHaveLength(1);
+    expect(notes[0]).toMatchObject({ action: "sub_tasks", content: "- Wireframe\n- Build" });
+
+    const fromDb = await repos.projectAssistNotes.listByProject(project.id);
+    expect(fromDb).toHaveLength(1);
+  });
+
+  it("loadAssistNotes reads existing assist history for a project", async () => {
+    await useProjectsStore.getState().addProject({
+      title: "Client portal revamp",
+      targetMonth: "2026-09",
+      priority: "low",
+    });
+    const project = useProjectsStore.getState().projects[0];
+    await repos.projectAssistNotes.create(project.id, "tighten_description", "Tighter now.");
+
+    await useProjectsStore.getState().loadAssistNotes(project.id);
+
+    expect(useProjectsStore.getState().assistNotesByProject[project.id]).toHaveLength(1);
+  });
 });

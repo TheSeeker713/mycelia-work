@@ -11,6 +11,7 @@ import {
   WELCOME_BACK_STICKER_KEY,
   WELCOME_BACK_VOICE_LINES,
   XP,
+  badgeKeyForLevel,
   daysBetweenDateStrings,
   levelForXp,
   pickRandom,
@@ -187,6 +188,15 @@ export function createGamificationStore(repos: Repositories) {
           repos.gamification.listXpEvents(),
         ]);
         set({ stats, unlockedAchievements, recentXpEvents, loaded: true });
+
+        // The level-1 badge can never be "crossed into" by awardXp's
+        // level-crossing loop — everyone starts at level 1, so
+        // before.level < 1 never happens. Unlocked here instead, once,
+        // idempotently — everyone earns it just by having a profile.
+        if (!unlockedAchievements.some((a) => a.achievement_key === badgeKeyForLevel(1))) {
+          const unlocked = await repos.gamification.unlockAchievement(badgeKeyForLevel(1), "badge");
+          set({ unlockedAchievements: [...get().unlockedAchievements, unlocked] });
+        }
       },
 
       async recordClockIn() {

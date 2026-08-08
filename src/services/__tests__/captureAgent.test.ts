@@ -125,6 +125,7 @@ describe("routeCapture", () => {
     const ollamaClient: OllamaClient = {
       suggestContinuation: vi.fn(),
       classifyOnTopic: vi.fn().mockResolvedValue(overrides?.onTopic ?? true),
+      warmUpGhostText: vi.fn(),
     };
     const openClawClient = {
       runOnce:

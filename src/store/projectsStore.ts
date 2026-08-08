@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import type { CreateProjectInput, UpdateProjectInput } from "../data/repositories/projectsRepository";
-import type { Milestone, Project, ProjectReport, Repositories } from "../data";
+import type { Milestone, Project, ProjectAssistNote, ProjectReport, Repositories } from "../data";
 import type { OpenClawClient } from "../services/openclawClient";
 import { runProjectReportGeneration } from "../services/projectAssist";
 import type { GamificationStore } from "./gamificationStore";
@@ -9,6 +9,7 @@ export interface ProjectsState {
   projects: Project[];
   milestonesByProject: Record<string, Milestone[]>;
   reportsByProject: Record<string, ProjectReport[]>;
+  assistNotesByProject: Record<string, ProjectAssistNote[]>;
   loading: boolean;
   loadProjects: () => Promise<void>;
   addProject: (input: CreateProjectInput) => Promise<void>;
@@ -20,6 +21,8 @@ export interface ProjectsState {
   deleteMilestone: (projectId: string, milestoneId: string) => Promise<void>;
   loadReports: (projectId: string) => Promise<void>;
   generateReport: (project: Project) => Promise<void>;
+  loadAssistNotes: (projectId: string) => Promise<void>;
+  saveAssistNote: (projectId: string, action: string, content: string, question?: string | null) => Promise<void>;
 }
 
 export function createProjectsStore(repos: Repositories, client: OpenClawClient, gamification: GamificationStore) {
@@ -27,6 +30,7 @@ export function createProjectsStore(repos: Repositories, client: OpenClawClient,
     projects: [],
     milestonesByProject: {},
     reportsByProject: {},
+    assistNotesByProject: {},
     loading: false,
 
     async loadProjects() {
@@ -90,6 +94,16 @@ export function createProjectsStore(repos: Repositories, client: OpenClawClient,
       });
       await runProjectReportGeneration({ repos, client, reportId: pending.id, project });
       await get().loadReports(project.id);
+    },
+
+    async loadAssistNotes(projectId) {
+      const notes = await repos.projectAssistNotes.listByProject(projectId);
+      set({ assistNotesByProject: { ...get().assistNotesByProject, [projectId]: notes } });
+    },
+
+    async saveAssistNote(projectId, action, content, question = null) {
+      await repos.projectAssistNotes.create(projectId, action, content, question);
+      await get().loadAssistNotes(projectId);
     },
   }));
 }

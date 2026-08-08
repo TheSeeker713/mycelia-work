@@ -1,5 +1,14 @@
 const OLLAMA_URL = "http://127.0.0.1:11434";
-const SUGGEST_TIMEOUT_MS = 6000;
+/**
+ * A cold `dolphin-phi` load measured ~6.2s on the reference machine
+ * (Ollama unloads idle models after its own default keep-alive window,
+ * so "cold" is the common case, not the exception) — 6000ms was
+ * timing out almost every real suggestion. `warmUp()` below exists to
+ * absorb that cold-load cost before the user's first typing pause, but
+ * the timeout still needs enough headroom for whenever warm-up hasn't
+ * finished (or wasn't called) by the time a suggestion fires.
+ */
+const SUGGEST_TIMEOUT_MS = 12_000;
 const CLASSIFY_TIMEOUT_MS = 8000;
 
 /**
@@ -35,6 +44,8 @@ export interface OllamaClient {
   suggestContinuation(text: string): Promise<string | null>;
   /** Layer 0 of the capture agent: fast on-topic/safety check, run before Layer 1 ever sees the text. Fails closed (false) on any error — an unreachable safety check is treated the same as "not safe," never silently skipped. */
   classifyOnTopic(text: string): Promise<boolean>;
+  /** Fire-and-forget: loads GHOST_TEXT_MODEL into memory ahead of the user's first typing pause, so the real suggestion call lands warm. Never throws, nothing to await for correctness — call it and move on. */
+  warmUpGhostText(): void;
 }
 
 export function createHttpOllamaClient(): OllamaClient {
@@ -84,6 +95,21 @@ export function createHttpOllamaClient(): OllamaClient {
       } catch {
         return false;
       }
+    },
+
+    warmUpGhostText() {
+      // An empty prompt is Ollama's own idiom for "load this model into
+      // memory, don't generate anything" — cheaper than a real
+      // suggestion call, and exactly what's needed here.
+      fetch(`${OLLAMA_URL}/api/generate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model: GHOST_TEXT_MODEL, prompt: "" }),
+        signal: AbortSignal.timeout(SUGGEST_TIMEOUT_MS),
+      }).catch(() => {
+        // Best-effort — a failed warm-up just means the first real
+        // suggestion pays the cold-load cost itself.
+      });
     },
   };
 }

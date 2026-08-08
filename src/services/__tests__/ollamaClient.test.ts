@@ -93,4 +93,25 @@ describe("createHttpOllamaClient", () => {
       expect(global.fetch).not.toHaveBeenCalled();
     });
   });
+
+  describe("warmUpGhostText", () => {
+    it("sends an empty-prompt load request for the ghost-text model", () => {
+      global.fetch = vi.fn().mockResolvedValue({ ok: true });
+      const client = createHttpOllamaClient();
+
+      client.warmUpGhostText();
+
+      const [url, init] = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+      expect(url).toBe("http://127.0.0.1:11434/api/generate");
+      const body = JSON.parse(init.body as string);
+      expect(body.model).toBe(GHOST_TEXT_MODEL);
+      expect(body.prompt).toBe("");
+    });
+
+    it("never throws even when the server is unreachable", () => {
+      global.fetch = vi.fn().mockRejectedValue(new Error("ECONNREFUSED"));
+      const client = createHttpOllamaClient();
+      expect(() => client.warmUpGhostText()).not.toThrow();
+    });
+  });
 });

@@ -30,6 +30,19 @@ describe("gamificationStore", () => {
     expect(stats).toMatchObject({ total_xp: 0, level: 1, streak_days: 0 });
   });
 
+  it("load() unlocks the level-1 badge immediately — it can never be 'crossed into' otherwise", async () => {
+    await useGamification.getState().load();
+    expect(
+      useGamification.getState().unlockedAchievements.filter((a) => a.achievement_key === "badge_level_1"),
+    ).toHaveLength(1);
+
+    // Idempotent across repeated loads (e.g. remounting Dashboard).
+    await useGamification.getState().load();
+    expect(
+      useGamification.getState().unlockedAchievements.filter((a) => a.achievement_key === "badge_level_1"),
+    ).toHaveLength(1);
+  });
+
   it("recordClockIn awards the daily-use, clock-in, and (on the very first ever) first-time credits", async () => {
     await useGamification.getState().load();
     await useGamification.getState().recordClockIn();

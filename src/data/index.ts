@@ -12,6 +12,7 @@ import { createSettingsRepository } from "./repositories/settingsRepository";
 import { createMilestonesRepository } from "./repositories/milestonesRepository";
 import { createProjectReportsRepository } from "./repositories/projectReportsRepository";
 import { createGamificationRepository } from "./repositories/gamificationRepository";
+import { createProjectAssistNotesRepository } from "./repositories/projectAssistNotesRepository";
 
 export * from "./types";
 export * from "./sqlExecutor";
@@ -32,6 +33,7 @@ export function createRepositories(executor: SqlExecutor) {
     milestones: createMilestonesRepository(executor),
     projectReports: createProjectReportsRepository(executor),
     gamification: createGamificationRepository(executor),
+    projectAssistNotes: createProjectAssistNotesRepository(executor),
   };
 }
 

@@ -59,6 +59,16 @@ export function ZenModeEditor({
     [],
   );
 
+  // Loads the ghost-text model into Ollama's memory as soon as zen mode
+  // opens, so it's warm well before the user's first typing pause —
+  // Ollama unloads idle models, so a cold load is the common case, not
+  // an edge case, and a cold load is slow enough to blow past the
+  // suggestion timeout on its own.
+  useEffect(() => {
+    if (aiSuggestionsEnabled) ollamaClient.warmUpGhostText();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   function scheduleSuggestion(text: string) {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     const myId = ++requestIdRef.current;

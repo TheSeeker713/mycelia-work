@@ -26,7 +26,9 @@ describe("ProgressCompartment", () => {
     renderProgress();
     expect(await screen.findByText("Level 1")).toBeInTheDocument();
     expect(screen.getByText("0 XP total")).toBeInTheDocument();
-    expect(screen.getByText("Badges (0/25)")).toBeInTheDocument();
+    // The level-1 badge unlocks immediately on load() — everyone starts
+    // with it, since it can never be "crossed into" from a lower level.
+    expect(screen.getByText("Badges (1/25)")).toBeInTheDocument();
     expect(screen.getByText("None earned yet.")).toBeInTheDocument();
   });
 

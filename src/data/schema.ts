@@ -148,6 +148,14 @@ export const MIGRATIONS: string[] = [
    SELECT id, occurred_at, source, amount, sticker_key FROM xp_events`,
   `DROP TABLE xp_events`,
   `ALTER TABLE xp_events_v2 RENAME TO xp_events`,
+  `CREATE TABLE IF NOT EXISTS project_assist_notes (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL REFERENCES projects(id),
+    action TEXT NOT NULL,
+    question TEXT,
+    content TEXT NOT NULL,
+    created_at TEXT NOT NULL
+  )`,
 ];
 
 /**

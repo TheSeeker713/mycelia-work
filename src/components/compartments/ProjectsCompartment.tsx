@@ -1,6 +1,13 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useCaptureLogClient, useOpenClawClient, useProjectsStore } from "../../store/StoreProvider";
-import type { Milestone, Project, ProjectPriority, ProjectReport, ProjectStatus } from "../../data";
+import type {
+  Milestone,
+  Project,
+  ProjectAssistNote,
+  ProjectPriority,
+  ProjectReport,
+  ProjectStatus,
+} from "../../data";
 import { DateTimePicker } from "../DateTimePicker";
 import { ASSIST_ACTION_LABEL, runProjectAssist, type AssistAction } from "../../services/projectAssist";
 
@@ -70,25 +77,32 @@ const ASSIST_ACTIONS: AssistAction[] = ["sub_tasks", "scheduling_suggestion", "t
 
 /**
  * Sub-tasks, scheduling suggestion, tighten description, and freeform
- * ask are all transient (docs plan: "toast, then discard from view,
- * but still logged locally per Phase 9's logging policy") — shown once
- * here, never written to the database, but every run (including the
- * result) gets logged the same way capture-agent interactions do.
+ * ask are real kept content now — Jeremy's own testing found the
+ * original "shown once, discarded on exit" design surprising, so every
+ * successful run is saved to project_assist_notes and shown as history
+ * below the action buttons, same treatment as status reports. A failed
+ * run (couldn't reach the model) isn't saved — nothing meaningful to
+ * keep there — but still logged via captureLogClient, same as before.
  */
-function AssistPanel({ project }: { project: Project }) {
+function AssistPanel({ project, notes }: { project: Project; notes: ProjectAssistNote[] | undefined }) {
   const openClawClient = useOpenClawClient();
   const captureLogClient = useCaptureLogClient();
+  const saveAssistNote = useProjectsStore((s) => s.saveAssistNote);
   const [running, setRunning] = useState<AssistAction | null>(null);
-  const [result, setResult] = useState<{ action: AssistAction; text: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [showAsk, setShowAsk] = useState(false);
   const [askText, setAskText] = useState("");
 
   async function runAction(action: AssistAction, question?: string) {
     setRunning(action);
-    setResult(null);
+    setError(null);
     const text = await runProjectAssist(action, project, openClawClient, question);
     setRunning(null);
-    setResult({ action, text: text ?? "Couldn't get an answer just now — try again in a moment." });
+    if (text) {
+      await saveAssistNote(project.id, action, text, question ?? null);
+    } else {
+      setError("Couldn't get an answer just now — try again in a moment.");
+    }
     await captureLogClient.logAiAssist({
       occurredAt: new Date().toISOString(),
       projectId: project.id,
@@ -96,6 +110,8 @@ function AssistPanel({ project }: { project: Project }) {
       resultSummary: text ?? undefined,
     });
   }
+
+  const list = notes ?? [];
 
   return (
     <div className="mt-3 border-t border-dashed border-[var(--line)] pt-3">
@@ -149,17 +165,37 @@ function AssistPanel({ project }: { project: Project }) {
 
       {running && <p className="mt-2 text-[0.76rem] text-[var(--ink-faint)]">Thinking…</p>}
 
-      {result && (
+      {error && (
         <div className="mt-2 rounded-lg border border-[var(--line)] p-2">
-          <p className="text-[0.8rem] whitespace-pre-wrap text-[var(--ink)]">{result.text}</p>
-          <button
-            type="button"
-            onClick={() => setResult(null)}
-            className="mt-1 text-[0.7rem] text-[var(--ink-faint)]"
-          >
+          <p className="text-[0.8rem] text-[var(--rust)]">{error}</p>
+          <button type="button" onClick={() => setError(null)} className="mt-1 text-[0.7rem] text-[var(--ink-faint)]">
             Dismiss
           </button>
         </div>
+      )}
+
+      {list.length > 0 && (
+        <ul className="mt-2 flex flex-col gap-2">
+          {list.map((note) => (
+            <li key={note.id} className="rounded-lg border border-[var(--line)] p-2">
+              <div className="mb-1 flex items-center justify-between text-[0.66rem] text-[var(--ink-faint)]">
+                <span>
+                  {ASSIST_ACTION_LABEL[note.action as AssistAction] ?? note.action}
+                  {note.question ? ` — "${note.question}"` : ""}
+                </span>
+                <span className="tabular-nums">
+                  {new Date(note.created_at).toLocaleString([], {
+                    month: "short",
+                    day: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </span>
+              </div>
+              <p className="text-[0.8rem] whitespace-pre-wrap text-[var(--ink)]">{note.content}</p>
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   );
@@ -222,11 +258,13 @@ function ProjectDetail({
   project,
   milestones,
   reports,
+  assistNotes,
   onBack,
 }: {
   project: Project;
   milestones: Milestone[] | undefined;
   reports: ProjectReport[] | undefined;
+  assistNotes: ProjectAssistNote[] | undefined;
   onBack: () => void;
 }) {
   const updateProject = useProjectsStore((s) => s.updateProject);
@@ -235,9 +273,11 @@ function ProjectDetail({
   const completeMilestone = useProjectsStore((s) => s.completeMilestone);
   const deleteMilestone = useProjectsStore((s) => s.deleteMilestone);
   const loadReports = useProjectsStore((s) => s.loadReports);
+  const loadAssistNotes = useProjectsStore((s) => s.loadAssistNotes);
 
   useEffect(() => {
     loadReports(project.id);
+    loadAssistNotes(project.id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project.id]);
 
@@ -248,8 +288,10 @@ function ProjectDetail({
   const [targetMonth, setTargetMonth] = useState(project.target_month);
   const [targetDatetime, setTargetDatetime] = useState(project.target_datetime);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   async function handleSave() {
+    setSaving(true);
     await updateProject(project.id, {
       title: title.trim() || project.title,
       description: description.trim() || null,
@@ -258,6 +300,10 @@ function ProjectDetail({
       targetMonth,
       targetDatetime,
     });
+    setSaving(false);
+    // Closes the card and returns to the list — per Jeremy's testing
+    // feedback, hitting Save with no visible result read as broken.
+    onBack();
   }
 
   async function handleArchive() {
@@ -325,16 +371,13 @@ function ProjectDetail({
         </div>
         <label className="flex flex-col gap-1">
           <span className="text-[0.66rem] tracking-wide text-[var(--ink-faint)] uppercase">Target month</span>
-          <select
+          <input
+            type="month"
             value={targetMonth}
             onChange={(e) => setTargetMonth(e.target.value)}
+            aria-label="Target month"
             className="rounded-lg border border-[var(--line)] bg-[var(--paper)] px-2 py-1.5 text-[0.76rem] text-[var(--ink)]"
-          >
-            <option value="2026-09">September</option>
-            <option value="2026-10">October</option>
-            <option value="2026-11">November</option>
-            <option value="2026-12">December</option>
-          </select>
+          />
         </label>
         <div className="flex flex-col gap-1">
           <span className="text-[0.66rem] tracking-wide text-[var(--ink-faint)] uppercase">
@@ -345,9 +388,10 @@ function ProjectDetail({
         <button
           type="button"
           onClick={() => void handleSave()}
-          className="rounded-lg bg-[var(--moss)] px-3 py-1.5 text-[0.78rem] text-white"
+          disabled={saving}
+          className="rounded-lg bg-[var(--moss)] px-3 py-1.5 text-[0.78rem] text-white disabled:opacity-60"
         >
-          Save changes
+          {saving ? "Saving…" : "Save changes"}
         </button>
       </div>
 
@@ -395,7 +439,7 @@ function ProjectDetail({
         )}
       </div>
 
-      <AssistPanel project={project} />
+      <AssistPanel project={project} notes={assistNotes} />
       <ReportsSection project={project} reports={reports} />
 
       <div className="mt-3 flex items-center gap-2 border-t border-dashed border-[var(--line)] pt-3">
@@ -447,10 +491,12 @@ export function ProjectsCompartment() {
   const milestonesByProject = useProjectsStore((s) => s.milestonesByProject);
   const loadMilestones = useProjectsStore((s) => s.loadMilestones);
   const reportsByProject = useProjectsStore((s) => s.reportsByProject);
+  const assistNotesByProject = useProjectsStore((s) => s.assistNotesByProject);
   const [showForm, setShowForm] = useState(false);
   const [title, setTitle] = useState("");
-  const [month, setMonth] = useState("2026-09");
+  const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7));
   const [priority, setPriority] = useState<ProjectPriority>("medium");
+  const [completionGoal, setCompletionGoal] = useState<string | null>(null);
   const [expandedProjectId, setExpandedProjectId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -466,9 +512,10 @@ export function ProjectsCompartment() {
     e.preventDefault();
     const trimmed = title.trim();
     if (!trimmed) return;
-    addProject({ title: trimmed, targetMonth: month, priority });
+    addProject({ title: trimmed, targetMonth: month, priority, targetDatetime: completionGoal });
     setTitle("");
     setPriority("medium");
+    setCompletionGoal(null);
     setShowForm(false);
   }
 
@@ -480,6 +527,7 @@ export function ProjectsCompartment() {
         project={expanded}
         milestones={milestonesByProject[expanded.id]}
         reports={reportsByProject[expanded.id]}
+        assistNotes={assistNotesByProject[expanded.id]}
         onBack={() => setExpandedProjectId(null)}
       />
     );
@@ -527,15 +575,13 @@ export function ProjectsCompartment() {
               <span className="text-[0.68rem] tracking-wide text-[var(--ink-faint)] uppercase">
                 Target month
               </span>
-              <select
+              <input
+                type="month"
                 value={month}
                 onChange={(e) => setMonth(e.target.value)}
+                aria-label="Target month"
                 className="rounded-lg border border-[var(--line)] bg-[var(--paper)] px-2 py-1.5 text-[0.78rem] text-[var(--ink)]"
-              >
-                <option value="2026-09">September</option>
-                <option value="2026-10">October</option>
-                <option value="2026-11">November</option>
-              </select>
+              />
             </label>
             <label className="flex flex-1 flex-col gap-1">
               <span className="text-[0.68rem] tracking-wide text-[var(--ink-faint)] uppercase">
@@ -551,6 +597,12 @@ export function ProjectsCompartment() {
                 <option value="low">Low priority</option>
               </select>
             </label>
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="text-[0.68rem] tracking-wide text-[var(--ink-faint)] uppercase">
+              Completion goal (optional)
+            </span>
+            <DateTimePicker value={completionGoal} onChange={setCompletionGoal} />
           </div>
           <button
             type="submit"

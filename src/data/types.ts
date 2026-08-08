@@ -95,6 +95,23 @@ export interface ProjectReport {
   failure_reason: string | null;
 }
 
+/**
+ * A kept record of an AI-assist run (sub-tasks, scheduling suggestion,
+ * tighten description, or a freeform question) against a project.
+ * These used to be shown once and discarded — Jeremy's own testing
+ * found that surprising ("all the ai stuff... vanished as soon as i
+ * exit the card"), so they're real persisted content now, same
+ * treatment as project_reports.
+ */
+export interface ProjectAssistNote {
+  id: string;
+  project_id: string;
+  action: string;
+  question: string | null;
+  content: string;
+  created_at: string;
+}
+
 export interface Milestone {
   id: string;
   project_id: string;

@@ -65,6 +65,7 @@ beforeEach(async () => {
   ollamaClient = {
     suggestContinuation: vi.fn().mockResolvedValue(null),
     classifyOnTopic: vi.fn().mockResolvedValue(true),
+    warmUpGhostText: vi.fn(),
   };
   resourceWatchdogClient = {
     checkPressure: vi.fn().mockResolvedValue({ underPressure: false, cpuPercent: 10, memPercent: 20 }),
@@ -115,6 +116,11 @@ describe("ZenModeEditor", () => {
     await renderZenMode();
     expect(screen.getByText("Write the devlog entry")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("Write for Write the devlog entry...")).toHaveValue("");
+  });
+
+  it("warms up the ghost-text model on mount so the first suggestion isn't a cold call", async () => {
+    await renderZenMode();
+    expect(ollamaClient.warmUpGhostText).toHaveBeenCalledTimes(1);
   });
 
   it("Exit zen mode calls onExit", async () => {
