@@ -95,7 +95,7 @@ export function DeviceBar({
         </button>
         <button
           type="button"
-          title="Emergency exit — fully closes the app"
+          title="Exit"
           onMouseDown={(e) => e.stopPropagation()}
           onClick={onExit}
           className="ml-1.5 flex h-[26px] w-[26px] items-center justify-center rounded-[7px] text-[0.85rem]"

@@ -26,6 +26,8 @@ export interface JournalsState {
   generateSessionJournal: (task: Task, sessionId: string) => Promise<void>;
   generateWeeklyRollup: () => Promise<void>;
   retryJournal: (journalId: string) => Promise<void>;
+  /** For the exit flow's "quit now" path — deletes whichever journal is still `pending`, a real discard rather than leaving it to fail. No-op if nothing's pending. */
+  discardPending: () => Promise<void>;
 }
 
 function upsert(journals: Journal[], updated: Journal): Journal[] {
@@ -132,6 +134,13 @@ export function createJournalsStore(repos: Repositories, client: OpenClawClient)
         filename: sessionJournalFilename(task, new Date(existing.generated_at)),
       });
       set({ journals: upsert(get().journals, result) });
+    },
+
+    async discardPending() {
+      const pending = get().journals.find((j) => j.status === "pending");
+      if (!pending) return;
+      await repos.journals.delete(pending.id);
+      set({ journals: get().journals.filter((j) => j.id !== pending.id) });
     },
   }));
 }

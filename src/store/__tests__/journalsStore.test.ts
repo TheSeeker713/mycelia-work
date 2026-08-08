@@ -146,4 +146,26 @@ describe("journalsStore", () => {
 
     expect(store.getState().journals.find((j) => j.id === pending.id)?.status).toBe("ok");
   });
+
+  it("discardPending deletes the pending journal for real — a delete, not a status change", async () => {
+    const pending = await repos.journals.createPending({ taskId, taskSessionId: sessionId, kind: "session" });
+    await useJournals.getState().loadRecent();
+    expect(useJournals.getState().journals.map((j) => j.id)).toContain(pending.id);
+
+    await useJournals.getState().discardPending();
+
+    expect(useJournals.getState().journals.map((j) => j.id)).not.toContain(pending.id);
+    expect(await repos.journals.getById(pending.id)).toBeNull();
+  });
+
+  it("discardPending is a no-op when nothing is pending", async () => {
+    const task = await repos.tasks.getById(taskId);
+    if (!task) throw new Error("test setup: task missing");
+    await useJournals.getState().generateSessionJournal(task, sessionId);
+    const before = useJournals.getState().journals;
+
+    await useJournals.getState().discardPending();
+
+    expect(useJournals.getState().journals).toEqual(before);
+  });
 });

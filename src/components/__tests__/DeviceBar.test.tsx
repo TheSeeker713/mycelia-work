@@ -46,11 +46,11 @@ describe("DeviceBar", () => {
     expect(props.onMinimize).toHaveBeenCalledTimes(1);
   });
 
-  it("the emergency exit button calls onExit", async () => {
+  it("the exit button calls onExit", async () => {
     const user = userEvent.setup();
     const props = renderDeviceBar();
 
-    await user.click(screen.getByTitle("Emergency exit — fully closes the app"));
+    await user.click(screen.getByTitle("Exit"));
     expect(props.onExit).toHaveBeenCalledTimes(1);
   });
 

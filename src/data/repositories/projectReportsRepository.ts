@@ -47,6 +47,11 @@ export function createProjectReportsRepository(executor: SqlExecutor) {
         [projectId],
       );
     },
+
+    /** A real delete, not a status change — for the exit flow's "quit now" path, which discards an in-flight draft rather than leaving it around as a failed row. */
+    async delete(id: string): Promise<void> {
+      await executor.execute("DELETE FROM project_reports WHERE id = ?", [id]);
+    },
   };
 }
 

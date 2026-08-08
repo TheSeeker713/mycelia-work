@@ -150,6 +150,67 @@ describe("useSelfVoicing", () => {
     expect(fakeClient.speak).toHaveBeenNthCalledWith(2, "Succeeds.", DEFAULT_PIPER_VOICE_ID);
   });
 
+  it("speakAndWait resolves only once that utterance finishes playing", async () => {
+    const { result } = renderHook(() => useSelfVoicing(), { wrapper });
+    let resolved = false;
+
+    let promise: Promise<void> = Promise.resolve();
+    act(() => {
+      promise = result.current.speakAndWait("Goodbye.").then(() => {
+        resolved = true;
+      });
+    });
+
+    await waitFor(() => expect(instances.length).toBe(1));
+    expect(resolved).toBe(false);
+
+    act(() => {
+      instances[0].finish();
+    });
+
+    await promise;
+    expect(resolved).toBe(true);
+  });
+
+  it("speakAndWait resolves immediately when self-voicing is disabled", async () => {
+    const { result } = renderHook(
+      () => ({ voicing: useSelfVoicing(), settings: useSettingsStore((s) => s) }),
+      { wrapper },
+    );
+    await act(async () => {
+      await result.current.settings.setSelfVoicingEnabled(false);
+    });
+
+    let resolved = false;
+    await act(async () => {
+      await result.current.voicing.speakAndWait("Goodbye.").then(() => {
+        resolved = true;
+      });
+    });
+
+    expect(resolved).toBe(true);
+    expect(fakeClient.speak).not.toHaveBeenCalled();
+  });
+
+  it("stop() also resolves any speakAndWait callers still queued, so nothing hangs", async () => {
+    const { result } = renderHook(() => useSelfVoicing(), { wrapper });
+    let resolved = false;
+
+    act(() => {
+      result.current.speak("First.");
+      result.current.speakAndWait("Second.").then(() => {
+        resolved = true;
+      });
+    });
+    await waitFor(() => expect(instances.length).toBe(1));
+
+    act(() => {
+      result.current.stop();
+    });
+
+    await waitFor(() => expect(resolved).toBe(true));
+  });
+
   it("passes the settingsStore's chosen voice id through to each speak() call", async () => {
     const { result } = renderHook(
       () => ({ voicing: useSelfVoicing(), settings: useSettingsStore((s) => s) }),

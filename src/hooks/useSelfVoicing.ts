@@ -4,9 +4,16 @@ import { useSettingsStore, useVoiceClient } from "../store/StoreProvider";
 export interface SelfVoicing {
   /** Enqueues text to be spoken — a no-op while the setting is off, or for empty text. Fails soft on any voice-service error. */
   speak: (text: string) => void;
+  /** Same as speak(), but resolves once that utterance actually finishes playing (or immediately if disabled/empty/skipped) — for callers that need to hold on the cue before doing something else, e.g. closing the app after the goodbye line. */
+  speakAndWait: (text: string) => Promise<void>;
   /** Clears anything queued and stops whatever's currently playing. */
   stop: () => void;
   speaking: boolean;
+}
+
+interface QueueItem {
+  text: string;
+  onDone: () => void;
 }
 
 /**
@@ -21,7 +28,7 @@ export function useSelfVoicing(): SelfVoicing {
   const client = useVoiceClient();
   const [speaking, setSpeaking] = useState(false);
 
-  const queueRef = useRef<string[]>([]);
+  const queueRef = useRef<QueueItem[]>([]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const processingRef = useRef(false);
   const stoppedRef = useRef(false);
@@ -31,9 +38,12 @@ export function useSelfVoicing(): SelfVoicing {
     processingRef.current = true;
 
     while (queueRef.current.length > 0 && !stoppedRef.current) {
-      const text = queueRef.current.shift() as string;
-      const blob = await client.speak(text, voiceId);
-      if (!blob || stoppedRef.current) continue;
+      const item = queueRef.current.shift() as QueueItem;
+      const blob = await client.speak(item.text, voiceId);
+      if (!blob || stoppedRef.current) {
+        item.onDone();
+        continue;
+      }
 
       const url = URL.createObjectURL(blob);
       setSpeaking(true);
@@ -51,6 +61,7 @@ export function useSelfVoicing(): SelfVoicing {
       } finally {
         URL.revokeObjectURL(url);
       }
+      item.onDone();
     }
 
     audioRef.current = null;
@@ -58,26 +69,37 @@ export function useSelfVoicing(): SelfVoicing {
     processingRef.current = false;
   }, [client, voiceId]);
 
-  const speak = useCallback(
-    (text: string) => {
-      if (!enabled) return;
+  const enqueue = useCallback(
+    (text: string): Promise<void> => {
+      if (!enabled) return Promise.resolve();
       const trimmed = text.trim();
-      if (!trimmed) return;
+      if (!trimmed) return Promise.resolve();
       stoppedRef.current = false;
-      queueRef.current.push(trimmed);
-      processQueue();
+      return new Promise<void>((resolve) => {
+        queueRef.current.push({ text: trimmed, onDone: resolve });
+        processQueue();
+      });
     },
     [enabled, processQueue],
   );
 
+  const speak = useCallback(
+    (text: string) => {
+      void enqueue(text);
+    },
+    [enqueue],
+  );
+
   const stop = useCallback(() => {
     stoppedRef.current = true;
+    const dropped = queueRef.current;
     queueRef.current = [];
+    dropped.forEach((item) => item.onDone());
     audioRef.current?.pause();
     setSpeaking(false);
   }, []);
 
   useEffect(() => stop, [stop]);
 
-  return { speak, stop, speaking };
+  return { speak, speakAndWait: enqueue, stop, speaking };
 }

@@ -223,6 +223,36 @@ describe("projectsStore", () => {
     expect(fromDb).toHaveLength(1);
   });
 
+  it("discardPendingReport deletes the pending report for real — a delete, not a status change", async () => {
+    await useProjectsStore.getState().addProject({
+      title: "Client portal revamp",
+      targetMonth: "2026-09",
+      priority: "low",
+    });
+    const project = useProjectsStore.getState().projects[0];
+    const pending = await repos.projectReports.createPending(project.id);
+    await useProjectsStore.getState().loadReports(project.id);
+    expect(useProjectsStore.getState().reportsByProject[project.id].map((r) => r.id)).toContain(pending.id);
+
+    await useProjectsStore.getState().discardPendingReport();
+
+    expect(useProjectsStore.getState().reportsByProject[project.id].map((r) => r.id)).not.toContain(pending.id);
+    const remaining = await repos.projectReports.listByProject(project.id);
+    expect(remaining.find((r) => r.id === pending.id)).toBeUndefined();
+  });
+
+  it("discardPendingReport is a no-op when nothing is pending", async () => {
+    await useProjectsStore.getState().addProject({
+      title: "Client portal revamp",
+      targetMonth: "2026-09",
+      priority: "low",
+    });
+
+    await useProjectsStore.getState().discardPendingReport();
+
+    expect(useProjectsStore.getState().reportsByProject).toEqual({});
+  });
+
   it("loadAssistNotes reads existing assist history for a project", async () => {
     await useProjectsStore.getState().addProject({
       title: "Client portal revamp",

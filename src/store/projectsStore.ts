@@ -23,6 +23,8 @@ export interface ProjectsState {
   generateReport: (project: Project) => Promise<void>;
   loadAssistNotes: (projectId: string) => Promise<void>;
   saveAssistNote: (projectId: string, action: string, content: string, question?: string | null) => Promise<void>;
+  /** For the exit flow's "quit now" path — deletes whichever report is still `pending`, a real discard rather than leaving it to fail. No-op if nothing's pending. */
+  discardPendingReport: () => Promise<void>;
 }
 
 export function createProjectsStore(repos: Repositories, client: OpenClawClient, gamification: GamificationStore) {
@@ -104,6 +106,20 @@ export function createProjectsStore(repos: Repositories, client: OpenClawClient,
     async saveAssistNote(projectId, action, content, question = null) {
       await repos.projectAssistNotes.create(projectId, action, content, question);
       await get().loadAssistNotes(projectId);
+    },
+
+    async discardPendingReport() {
+      const entry = Object.entries(get().reportsByProject)
+        .flatMap(([projectId, reports]) => reports.map((r) => ({ projectId, report: r })))
+        .find(({ report }) => report.status === "pending");
+      if (!entry) return;
+      await repos.projectReports.delete(entry.report.id);
+      set({
+        reportsByProject: {
+          ...get().reportsByProject,
+          [entry.projectId]: get().reportsByProject[entry.projectId].filter((r) => r.id !== entry.report.id),
+        },
+      });
     },
   }));
 }

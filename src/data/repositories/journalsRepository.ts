@@ -60,6 +60,11 @@ export function createJournalsRepository(executor: SqlExecutor) {
       );
     },
 
+    /** A real delete, not a status change — for the exit flow's "quit now" path, which discards an in-flight draft rather than leaving it around as a failed row. */
+    async delete(id: string): Promise<void> {
+      await executor.execute("DELETE FROM journals WHERE id = ?", [id]);
+    },
+
     async getById(id: string): Promise<Journal | null> {
       const rows = await executor.select<Journal>(
         "SELECT * FROM journals WHERE id = ?",

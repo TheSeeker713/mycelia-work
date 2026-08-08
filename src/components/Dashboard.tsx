@@ -37,6 +37,7 @@ import { OnboardingCoachMark } from "./OnboardingCoachMark";
 import { AccessibilityOnboarding } from "./AccessibilityOnboarding";
 import { AchievementToastStack } from "./AchievementToast";
 import { ProgressCompartment } from "./compartments/ProgressCompartment";
+import { ExitConfirmDialog } from "./ExitConfirmDialog";
 
 function TasksCompartment() {
   const tasks = useTasksStore((s) => s.tasks);
@@ -129,6 +130,7 @@ function CompartmentContent({
 export function Dashboard() {
   const [active, setActive] = useState<CompartmentName>("tasks");
   const [showOnboarding, setShowOnboarding] = useState(true);
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [zenMode, setZenMode] = useState<{ sessionId: string; taskTitle: string } | null>(null);
   const wasFullscreenBeforeZenRef = useRef(false);
   const controls = useWindowControls();
@@ -236,7 +238,7 @@ export function Dashboard() {
         <MenuBar
           pinned={controls.pinned}
           onTogglePin={controls.togglePin}
-          onExit={controls.emergencyExit}
+          onExit={() => setShowExitConfirm(true)}
           onBackToPocket={controls.exitFullscreen}
           onSelectCompartment={setActive}
           onReplayOnboarding={replayOnboarding}
@@ -258,7 +260,9 @@ export function Dashboard() {
           </div>
           <CompartmentTabs active={active} onSelect={setActive} />
           <AchievementToastStack />
-          {danglingSession ? (
+          {showExitConfirm ? (
+            <ExitConfirmDialog controls={controls} onCancel={() => setShowExitConfirm(false)} />
+          ) : danglingSession ? (
             <CheckInFlow
               activeSession={danglingSession}
               onResolve={resolveCheckIn}
@@ -286,7 +290,7 @@ export function Dashboard() {
         onTogglePin={controls.togglePin}
         onMinimize={controls.minimizeToTray}
         onExpandFullscreen={controls.enterFullscreen}
-        onExit={controls.emergencyExit}
+        onExit={() => setShowExitConfirm(true)}
       />
       <div className="relative flex flex-1 flex-col overflow-hidden">
         <div className="flex-1 overflow-hidden p-5 pr-9">
@@ -294,7 +298,9 @@ export function Dashboard() {
         </div>
         <CompartmentTabs active={active} onSelect={setActive} />
         <AchievementToastStack />
-        {danglingSession ? (
+        {showExitConfirm ? (
+          <ExitConfirmDialog controls={controls} onCancel={() => setShowExitConfirm(false)} />
+        ) : danglingSession ? (
           <CheckInFlow
             activeSession={danglingSession}
             onResolve={resolveCheckIn}

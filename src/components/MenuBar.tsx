@@ -50,7 +50,6 @@ export function MenuBar({
         </MenuAction>
         <MenuAction danger onClick={item(onExit)}>
           Exit Mycelia Time
-          <span className="text-[0.68rem] text-[var(--ink-faint)]">Ctrl+Shift+Q</span>
         </MenuAction>
       </MenuTrigger>
 
