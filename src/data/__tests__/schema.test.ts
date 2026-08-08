@@ -23,6 +23,9 @@ describe("applyMigrations", () => {
     expect(names).toContain("journals");
     expect(names).toContain("resource_events");
     expect(names).toContain("app_settings");
+    expect(names).toContain("gamification_stats");
+    expect(names).toContain("xp_events");
+    expect(names).toContain("unlocked_achievements");
   });
 
   it("is idempotent — running it twice doesn't error or double-apply", async () => {

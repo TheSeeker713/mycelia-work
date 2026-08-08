@@ -115,3 +115,60 @@ export interface ResourceEvent {
   kind: ResourceEventKind;
   detail: string | null;
 }
+
+/** Every distinct way XP gets awarded — see docs/reference/gamification-guide.md for what each one means. */
+export type XpSource =
+  | "clock_in"
+  | "hourly"
+  | "daily_4hr"
+  | "daily_8hr"
+  | "note"
+  | "project_created"
+  | "project_finished"
+  | "todo_completed"
+  | "daily_use"
+  | "streak_7"
+  | "streak_30"
+  | "welcome_back";
+
+export interface XpEvent {
+  id: string;
+  occurred_at: string;
+  source: XpSource;
+  amount: number;
+  /** Set only on the (small subset of) events that also grant a sticker — project-finished, streak milestones, welcome-back. */
+  sticker_key: string | null;
+}
+
+export type AchievementKind = "badge" | "sticker";
+
+/** One-time-only unlock records — level badges and the two streak-milestone stickers, which can each only ever fire once (badges because level only moves forward, streak milestones because streak_days never resets). Repeatable stickers (project-finished, welcome-back) are NOT recorded here — they're just logged as xp_events with a sticker_key, since they can happen any number of times. */
+export interface UnlockedAchievement {
+  id: string;
+  achievement_key: string;
+  kind: AchievementKind;
+  unlocked_at: string;
+}
+
+/**
+ * Singleton row (id is always "main"). `streak_days` is a cumulative
+ * count of distinct calendar days with real activity, not a
+ * consecutive-day streak — it only ever goes up, matching the
+ * no-punishment rule ("pause, don't reset") exactly, since a streak
+ * that never resets on a gap behaves identically to a plain count of
+ * active days. `daily_seconds`/`daily_hours_date`/`daily_*_awarded`
+ * track today's cumulative clocked time toward the 4hr/8hr bonuses,
+ * reset whenever the date rolls over.
+ */
+export interface GamificationStats {
+  id: string;
+  total_xp: number;
+  level: number;
+  streak_days: number;
+  last_active_date: string | null;
+  daily_hours_date: string | null;
+  daily_seconds: number;
+  daily_4hr_awarded: boolean;
+  daily_8hr_awarded: boolean;
+  updated_at: string;
+}

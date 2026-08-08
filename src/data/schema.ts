@@ -99,6 +99,35 @@ export const MIGRATIONS: string[] = [
     content TEXT,
     failure_reason TEXT
   )`,
+  `CREATE TABLE IF NOT EXISTS gamification_stats (
+    id TEXT PRIMARY KEY,
+    total_xp INTEGER NOT NULL DEFAULT 0,
+    level INTEGER NOT NULL DEFAULT 1,
+    streak_days INTEGER NOT NULL DEFAULT 0,
+    last_active_date TEXT,
+    daily_hours_date TEXT,
+    daily_seconds INTEGER NOT NULL DEFAULT 0,
+    daily_4hr_awarded INTEGER NOT NULL DEFAULT 0,
+    daily_8hr_awarded INTEGER NOT NULL DEFAULT 0,
+    updated_at TEXT NOT NULL
+  )`,
+  `CREATE TABLE IF NOT EXISTS xp_events (
+    id TEXT PRIMARY KEY,
+    occurred_at TEXT NOT NULL,
+    source TEXT NOT NULL CHECK (source IN (
+      'clock_in', 'hourly', 'daily_4hr', 'daily_8hr', 'note',
+      'project_created', 'project_finished', 'todo_completed',
+      'daily_use', 'streak_7', 'streak_30', 'welcome_back'
+    )),
+    amount INTEGER NOT NULL,
+    sticker_key TEXT
+  )`,
+  `CREATE TABLE IF NOT EXISTS unlocked_achievements (
+    id TEXT PRIMARY KEY,
+    achievement_key TEXT NOT NULL UNIQUE,
+    kind TEXT NOT NULL CHECK (kind IN ('badge', 'sticker')),
+    unlocked_at TEXT NOT NULL
+  )`,
 ];
 
 /**
