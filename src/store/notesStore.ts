@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { Note, Repositories } from "../data";
+import type { GamificationStore } from "./gamificationStore";
 
 export interface NotesState {
   notesBySession: Record<string, Note[]>;
@@ -10,7 +11,7 @@ export interface NotesState {
   setDraft: (text: string) => void;
 }
 
-export function createNotesStore(repos: Repositories) {
+export function createNotesStore(repos: Repositories, gamification: GamificationStore) {
   return create<NotesState>((set, get) => ({
     notesBySession: {},
     draft: "",
@@ -23,6 +24,7 @@ export function createNotesStore(repos: Repositories) {
     async addNote(sessionId, body) {
       await repos.notes.create(sessionId, body);
       await get().loadNotesForSession(sessionId);
+      await gamification.getState().recordNote();
     },
 
     setDraft(text) {

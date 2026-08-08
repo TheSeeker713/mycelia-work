@@ -3,11 +3,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { initDatabase, type Repositories } from "../../data";
 import { createTestExecutor } from "../../data/__tests__/testExecutor";
 import { createProjectsStore, type ProjectsStore } from "../projectsStore";
+import { createGamificationStore } from "../gamificationStore";
 import type { OpenClawClient } from "../../services/openclawClient";
 
 let repos: Repositories;
 let openClawClient: OpenClawClient;
 let useProjectsStore: ProjectsStore;
+let gamification: ReturnType<typeof createGamificationStore>;
 
 beforeEach(async () => {
   repos = await initDatabase(createTestExecutor());
@@ -17,7 +19,8 @@ beforeEach(async () => {
     call: vi.fn(),
     releaseDaemon: vi.fn(),
   };
-  useProjectsStore = createProjectsStore(repos, openClawClient);
+  gamification = createGamificationStore(repos);
+  useProjectsStore = createProjectsStore(repos, openClawClient, gamification);
 });
 
 describe("projectsStore", () => {
@@ -57,6 +60,47 @@ describe("projectsStore", () => {
     await useProjectsStore.getState().updateProject(id, { status: "in_progress" });
 
     expect(useProjectsStore.getState().projects[0].status).toBe("in_progress");
+  });
+
+  it("addProject awards gamification XP", async () => {
+    await gamification.getState().load();
+    await useProjectsStore.getState().addProject({
+      title: "Client portal revamp",
+      targetMonth: "2026-09",
+      priority: "low",
+    });
+
+    expect(
+      gamification.getState().recentXpEvents.some((e) => e.source === "project_created"),
+    ).toBe(true);
+  });
+
+  it("updateProject to done awards finish XP and a sticker, but only on that transition", async () => {
+    await gamification.getState().load();
+    await useProjectsStore.getState().addProject({
+      title: "Client portal revamp",
+      targetMonth: "2026-09",
+      priority: "low",
+    });
+    const id = useProjectsStore.getState().projects[0].id;
+
+    // Not yet "done" — no finish reward.
+    await useProjectsStore.getState().updateProject(id, { status: "in_progress" });
+    expect(
+      gamification.getState().recentXpEvents.some((e) => e.source === "project_finished"),
+    ).toBe(false);
+
+    await useProjectsStore.getState().updateProject(id, { status: "done" });
+    expect(
+      gamification.getState().pendingToasts.some((t) => t.key === "sticker_project_finished"),
+    ).toBe(true);
+
+    // Already done — patching something else shouldn't re-award it.
+    gamification.getState().dismissToast(gamification.getState().pendingToasts[0].id);
+    await useProjectsStore.getState().updateProject(id, { priority: "high" });
+    expect(
+      gamification.getState().recentXpEvents.filter((e) => e.source === "project_finished"),
+    ).toHaveLength(1);
   });
 
   it("archiveProject removes it from the default list", async () => {

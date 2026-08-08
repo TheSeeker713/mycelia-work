@@ -3,14 +3,17 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { initDatabase, type Repositories } from "../../data";
 import { createTestExecutor } from "../../data/__tests__/testExecutor";
 import { createNotesStore, type NotesStore } from "../notesStore";
+import { createGamificationStore } from "../gamificationStore";
 
 let repos: Repositories;
 let useNotesStore: NotesStore;
+let gamification: ReturnType<typeof createGamificationStore>;
 let sessionId: string;
 
 beforeEach(async () => {
   repos = await initDatabase(createTestExecutor());
-  useNotesStore = createNotesStore(repos);
+  gamification = createGamificationStore(repos);
+  useNotesStore = createNotesStore(repos, gamification);
   const task = await repos.tasks.create({ title: "Sample task" });
   const session = await repos.taskSessions.clockIn(task.id);
   sessionId = session.id;
@@ -26,6 +29,13 @@ describe("notesStore", () => {
 
     const notes = useNotesStore.getState().notesBySession[sessionId];
     expect(notes.map((n) => n.body)).toEqual(["First paragraph."]);
+  });
+
+  it("addNote awards gamification XP", async () => {
+    await gamification.getState().load();
+    await useNotesStore.getState().addNote(sessionId, "First paragraph.");
+
+    expect(gamification.getState().recentXpEvents.some((e) => e.source === "note")).toBe(true);
   });
 
   it("appends notes in order, keyed by session", async () => {

@@ -3,13 +3,16 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { initDatabase, type Repositories } from "../../data";
 import { createTestExecutor } from "../../data/__tests__/testExecutor";
 import { createTodosStore, type TodosStore } from "../todosStore";
+import { createGamificationStore } from "../gamificationStore";
 
 let repos: Repositories;
 let useTodosStore: TodosStore;
+let gamification: ReturnType<typeof createGamificationStore>;
 
 beforeEach(async () => {
   repos = await initDatabase(createTestExecutor());
-  useTodosStore = createTodosStore(repos);
+  gamification = createGamificationStore(repos);
+  useTodosStore = createTodosStore(repos, gamification);
 });
 
 describe("todosStore", () => {
@@ -32,6 +35,20 @@ describe("todosStore", () => {
     const id = useTodosStore.getState().todos[0].id;
     await useTodosStore.getState().completeTodo(id);
     expect(useTodosStore.getState().todos).toEqual([]);
+  });
+
+  it("completeTodo awards gamification XP, but creating a todo does not", async () => {
+    await gamification.getState().load();
+    await useTodosStore.getState().addTodo("Old todo");
+    expect(gamification.getState().recentXpEvents.some((e) => e.source === "todo_completed")).toBe(
+      false,
+    );
+
+    const id = useTodosStore.getState().todos[0].id;
+    await useTodosStore.getState().completeTodo(id);
+    expect(gamification.getState().recentXpEvents.some((e) => e.source === "todo_completed")).toBe(
+      true,
+    );
   });
 
   it("snoozeTodo increments the snooze count without completing it", async () => {

@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { Repositories, Todo } from "../data";
+import type { GamificationStore } from "./gamificationStore";
 
 export interface TodosState {
   todos: Todo[];
@@ -10,7 +11,7 @@ export interface TodosState {
   snoozeTodo: (id: string) => Promise<void>;
 }
 
-export function createTodosStore(repos: Repositories) {
+export function createTodosStore(repos: Repositories, gamification: GamificationStore) {
   return create<TodosState>((set, get) => ({
     todos: [],
     loading: false,
@@ -29,6 +30,7 @@ export function createTodosStore(repos: Repositories) {
     async completeTodo(id) {
       await repos.todos.complete(id);
       await get().loadTodos();
+      await gamification.getState().recordTodoCompleted();
     },
 
     async snoozeTodo(id) {

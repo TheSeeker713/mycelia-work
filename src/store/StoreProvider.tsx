@@ -85,12 +85,13 @@ export function StoreProvider({
     const ollama = ollamaClient ?? createHttpOllamaClient();
     const captureLog = captureLogClient ?? createTauriCaptureLogClient();
     const watchdog = resourceWatchdogClient ?? createTauriResourceWatchdogClient();
+    const gamification = createGamificationStore(repositories);
     return {
       useTasksStore: createTasksStore(repositories),
-      useProjectsStore: createProjectsStore(repositories, client),
-      useTodosStore: createTodosStore(repositories),
-      useSessionsStore: createSessionsStore(repositories),
-      useNotesStore: createNotesStore(repositories),
+      useProjectsStore: createProjectsStore(repositories, client, gamification),
+      useTodosStore: createTodosStore(repositories, gamification),
+      useSessionsStore: createSessionsStore(repositories, gamification),
+      useNotesStore: createNotesStore(repositories, gamification),
       useJournalsStore: createJournalsStore(repositories, client),
       useSettingsStore: createSettingsStore(repositories),
       useCaptureStore: createCaptureStore(repositories, {
@@ -99,7 +100,7 @@ export function StoreProvider({
         resourceWatchdogClient: watchdog,
       }),
       useResourceStore: createResourceStore(repositories),
-      useGamificationStore: createGamificationStore(repositories),
+      useGamificationStore: gamification,
       openClawClient: client,
       voiceClient: voice,
       ollamaClient: ollama,

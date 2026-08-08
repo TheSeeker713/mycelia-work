@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { Repositories, SessionEvent, Task, TaskSession } from "../data";
+import type { GamificationStore } from "./gamificationStore";
 
 /** Hard cap from the approved design: at most 3 simultaneous running tasks, to keep the UI and resource use simple. */
 export const MAX_CONCURRENT_SESSIONS = 3;
@@ -26,7 +27,7 @@ export interface SessionsState {
   resolveDanglingSession: (sessionId: string, clockedOutAt: string) => Promise<void>;
 }
 
-export function createSessionsStore(repos: Repositories) {
+export function createSessionsStore(repos: Repositories, gamification: GamificationStore) {
   return create<SessionsState>((set, get) => ({
     activeSessions: [],
     loading: false,
@@ -55,6 +56,7 @@ export function createSessionsStore(repos: Repositories) {
       const session = await repos.taskSessions.clockIn(task.id);
       const events = await repos.sessionEvents.listBySession(session.id);
       set({ activeSessions: [...activeSessions, { session, task, events }] });
+      await gamification.getState().recordClockIn();
       return { ok: true };
     },
 
@@ -83,17 +85,33 @@ export function createSessionsStore(repos: Repositories) {
     },
 
     async clockOut(sessionId) {
+      const active = get().activeSessions.find((a) => a.session.id === sessionId);
       await repos.taskSessions.clockOut(sessionId);
       set({
         activeSessions: get().activeSessions.filter((a) => a.session.id !== sessionId),
       });
+      if (active) {
+        const events = await repos.sessionEvents.listBySession(sessionId);
+        const elapsed = computeElapsedSeconds(active.session.clocked_in_at, events);
+        await gamification.getState().recordClockOut(elapsed);
+      }
     },
 
     async resolveDanglingSession(sessionId, clockedOutAt) {
+      const active = get().activeSessions.find((a) => a.session.id === sessionId);
       await repos.taskSessions.clockOut(sessionId, { isEstimated: true, clockedOutAt });
       set({
         activeSessions: get().activeSessions.filter((a) => a.session.id !== sessionId),
       });
+      if (active) {
+        const events = await repos.sessionEvents.listBySession(sessionId);
+        // Uses the (possibly backdated) resolved clock-out time as the
+        // elapsed-time boundary, not real "now" — a dangling session
+        // resolved days later shouldn't earn XP for the days it sat
+        // forgotten, only for the time it actually estimates as worked.
+        const elapsed = computeElapsedSeconds(active.session.clocked_in_at, events, new Date(clockedOutAt));
+        await gamification.getState().recordClockOut(elapsed);
+      }
     },
   }));
 }

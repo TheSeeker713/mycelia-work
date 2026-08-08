@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { initDatabase, type Repositories, type Task } from "../../data";
 import { createTestExecutor } from "../../data/__tests__/testExecutor";
 import {
@@ -10,6 +10,7 @@ import {
   MAX_CONCURRENT_SESSIONS,
   type SessionsStore,
 } from "../sessionsStore";
+import { createGamificationStore } from "../gamificationStore";
 
 describe("computeElapsedSeconds", () => {
   it("counts plain wall-clock time with no break events", () => {
@@ -53,11 +54,13 @@ describe("computeElapsedSeconds", () => {
 
 let repos: Repositories;
 let useSessionsStore: SessionsStore;
+let gamification: ReturnType<typeof createGamificationStore>;
 let tasks: Task[];
 
 beforeEach(async () => {
   repos = await initDatabase(createTestExecutor());
-  useSessionsStore = createSessionsStore(repos);
+  gamification = createGamificationStore(repos);
+  useSessionsStore = createSessionsStore(repos, gamification);
   tasks = [];
   for (const title of ["Task A", "Task B", "Task C", "Task D"]) {
     tasks.push(await repos.tasks.create({ title }));
@@ -73,6 +76,32 @@ describe("sessionsStore", () => {
     expect(active.length).toBe(1);
     expect(active[0].task.id).toBe(tasks[0].id);
     expect(active[0].session.status).toBe("running");
+  });
+
+  it("clockIn awards gamification XP for the clock-in and the day's first action", async () => {
+    await gamification.getState().load();
+    await useSessionsStore.getState().clockIn(tasks[0]);
+
+    expect(gamification.getState().stats!.total_xp).toBeGreaterThan(0);
+  });
+
+  it("clockOut awards gamification XP for the elapsed clocked time", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-06T09:00:00"));
+    try {
+      await gamification.getState().load();
+      await useSessionsStore.getState().clockIn(tasks[0]);
+      const sessionId = useSessionsStore.getState().activeSessions[0].session.id;
+
+      vi.setSystemTime(new Date("2026-08-06T11:30:00")); // 2h30m later -> 2 whole hours
+      await useSessionsStore.getState().clockOut(sessionId);
+
+      const { recentXpEvents } = gamification.getState();
+      const hourly = recentXpEvents.find((e) => e.source === "hourly");
+      expect(hourly?.amount).toBe(20); // 2 hours * XP.PER_HOUR (10)
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("refuses to clock in the same task twice", async () => {
@@ -132,7 +161,7 @@ describe("sessionsStore", () => {
     const sessionId = useSessionsStore.getState().activeSessions[0].session.id;
     await useSessionsStore.getState().startBreak(sessionId);
 
-    const fresh = createSessionsStore(repos);
+    const fresh = createSessionsStore(repos, createGamificationStore(repos));
     await fresh.getState().loadActiveSessions();
 
     expect(fresh.getState().activeSessions.length).toBe(1);

@@ -3,6 +3,7 @@ import type { CreateProjectInput, UpdateProjectInput } from "../data/repositorie
 import type { Milestone, Project, ProjectReport, Repositories } from "../data";
 import type { OpenClawClient } from "../services/openclawClient";
 import { runProjectReportGeneration } from "../services/projectAssist";
+import type { GamificationStore } from "./gamificationStore";
 
 export interface ProjectsState {
   projects: Project[];
@@ -21,7 +22,7 @@ export interface ProjectsState {
   generateReport: (project: Project) => Promise<void>;
 }
 
-export function createProjectsStore(repos: Repositories, client: OpenClawClient) {
+export function createProjectsStore(repos: Repositories, client: OpenClawClient, gamification: GamificationStore) {
   return create<ProjectsState>((set, get) => ({
     projects: [],
     milestonesByProject: {},
@@ -37,11 +38,16 @@ export function createProjectsStore(repos: Repositories, client: OpenClawClient)
     async addProject(input) {
       await repos.projects.create(input);
       await get().loadProjects();
+      await gamification.getState().recordProjectCreated();
     },
 
     async updateProject(id, patch) {
+      const before = await repos.projects.getById(id);
       await repos.projects.update(id, patch);
       await get().loadProjects();
+      if (patch.status === "done" && before && before.status !== "done") {
+        await gamification.getState().recordProjectFinished();
+      }
     },
 
     async archiveProject(id) {
