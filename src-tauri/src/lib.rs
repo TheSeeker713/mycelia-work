@@ -9,7 +9,6 @@ mod capture_log;
 mod journal_export;
 mod openclaw;
 mod resource_watchdog;
-mod rewards;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
@@ -104,9 +103,6 @@ pub fn run() {
             openclaw::openclaw_call_agent,
             openclaw::run_openclaw_agent,
             journal_export::export_workjournal_file,
-            rewards::verify_rewards_password,
-            rewards::list_reward_assets,
-            rewards::read_reward_asset,
             capture_log::append_capture_log,
             resource_watchdog::check_resource_pressure,
         ])

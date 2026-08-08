@@ -21,7 +21,6 @@ import {
 } from "./settingsStore";
 import { createTauriOpenClawClient, type OpenClawClient } from "../services/openclawClient";
 import { createHttpVoiceClient, type VoiceClient } from "../services/voiceClient";
-import { createTauriRewardsClient, type RewardsClient } from "../services/rewardsClient";
 import { createHttpOllamaClient, type OllamaClient } from "../services/ollamaClient";
 import { createTauriCaptureLogClient, type CaptureLogClient } from "../services/captureLogClient";
 import { createCaptureStore, type CaptureState, type CaptureStore } from "./captureStore";
@@ -43,7 +42,6 @@ interface StoresContextValue {
   useResourceStore: ResourceStore;
   openClawClient: OpenClawClient;
   voiceClient: VoiceClient;
-  rewardsClient: RewardsClient;
   ollamaClient: OllamaClient;
   captureLogClient: CaptureLogClient;
   resourceWatchdogClient: ResourceWatchdogClient;
@@ -55,7 +53,6 @@ export function StoreProvider({
   repositories,
   openClawClient,
   voiceClient,
-  rewardsClient,
   ollamaClient,
   captureLogClient,
   resourceWatchdogClient,
@@ -66,8 +63,6 @@ export function StoreProvider({
   openClawClient?: OpenClawClient;
   /** Injectable, like `openClawClient` — tests pass a fake instead of hitting the real local voice servers. */
   voiceClient?: VoiceClient;
-  /** Injectable, like `openClawClient` — tests pass a fake instead of hitting the real password/asset commands. */
-  rewardsClient?: RewardsClient;
   /** Injectable, like `openClawClient` — tests pass a fake instead of hitting the real local Ollama server. */
   ollamaClient?: OllamaClient;
   /** Injectable, like `openClawClient` — tests pass a fake instead of hitting the real capture-log Tauri command. */
@@ -81,7 +76,6 @@ export function StoreProvider({
   const stores = useMemo<StoresContextValue>(() => {
     const client = openClawClient ?? createTauriOpenClawClient();
     const voice = voiceClient ?? createHttpVoiceClient();
-    const rewards = rewardsClient ?? createTauriRewardsClient();
     const ollama = ollamaClient ?? createHttpOllamaClient();
     const captureLog = captureLogClient ?? createTauriCaptureLogClient();
     const watchdog = resourceWatchdogClient ?? createTauriResourceWatchdogClient();
@@ -101,7 +95,6 @@ export function StoreProvider({
       useResourceStore: createResourceStore(repositories),
       openClawClient: client,
       voiceClient: voice,
-      rewardsClient: rewards,
       ollamaClient: ollama,
       captureLogClient: captureLog,
       resourceWatchdogClient: watchdog,
@@ -165,10 +158,6 @@ export function useOpenClawClient(): OpenClawClient {
 
 export function useVoiceClient(): VoiceClient {
   return useStoresContext().voiceClient;
-}
-
-export function useRewardsClient(): RewardsClient {
-  return useStoresContext().rewardsClient;
 }
 
 export function useOllamaClient(): OllamaClient {

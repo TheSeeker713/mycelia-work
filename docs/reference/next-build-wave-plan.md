@@ -12,6 +12,21 @@
 > Jeremy directly for current repo status before assuming anything about
 > public distribution below (Section 3 Phase B in particular was written
 > against a "this app is public" assumption that may no longer hold).
+>
+> **Update (2026-08-06):** the repo is now actually private (flipped via
+> `gh repo edit`). Also, **the entire 11+11 plan (Section 1 below) is
+> cut** — Jeremy revised the gamification asset pipeline directly (see
+> `assets/gamification/README.md`) and no longer needs a hidden-unlock
+> gate or a DLC canvas to reach adult-content assets; that content now
+> just lives in the gamification system's normal, visible reward flow.
+> The hidden-unlock system that already existed in the app (the old
+> 18+ mechanic Section 1 was going to revise into 11+11) has been
+> **removed entirely, not revised** — `HiddenUnlockPanel.tsx`,
+> `rewards.rs`, `rewardsClient.ts`, the Help menu's "this should not be
+> here" entry, and the `rewardsUnlocked`/`eighteenPlusEnabled` settings
+> keys are all gone from the codebase as of this update. Section 1 below
+> is kept only as a historical record of that design — do not build any
+> of it.
 
 ## Context
 
@@ -77,7 +92,7 @@ that future phase is a real plug-in, not a from-scratch build.
 
 ---
 
-## Section 1 — Revise the hidden unlock: 18+ → "11+11"
+## Section 1 — ~~Revise the hidden unlock: 18+ → "11+11"~~ (CUT — see handoff note)
 
 **Files:** `src/components/HiddenUnlockPanel.tsx`, `src/components/MenuBar.tsx`
 (entry point text, unchanged path: full screen → Settings → Help →
@@ -634,7 +649,7 @@ design behind it.
 
 | # | Phase |
 |---|---|
-| 12 | 11+11 unlock revision (Section 1) |
+| ~~12~~ | ~~11+11 unlock revision (Section 1)~~ — cut, hidden-unlock system removed entirely instead (done 2026-08-06, not a phase) |
 | 13 | Gamification core — XP, levels/badges, no-punishment + welcome-back + Help disclosure (Section 2.1-2.4, 2.7) |
 | 14 | Emergency exit confirmation + in-flight-generation awareness (Section 2.6) |
 | 15 | AI backend: model transparency + OpenClaw retry/fallback (Section 3, Phase A) |
@@ -644,8 +659,8 @@ design behind it.
 | 19 | Windows packaging & final verification |
 | 20 | Auto-update (Section 4) — after packaging, since it needs a real release to check against |
 | — | **Not this app's work, no phase number:** MyKaia / `mykaia-task` (Cursor's job) |
-| — | **Deferred, no phase number yet:** DLC infinite-canvas media viewer (extension point designed in Section 1); the personal journal feature (designed in Section 2.2); Quest 3/VR |
-| — | **Cut, kept only as a record:** Android companion app (Section 2A) |
+| — | **Deferred, no phase number yet:** the personal journal feature (designed in Section 2.2); Quest 3/VR |
+| — | **Cut, kept only as a record:** Android companion app (Section 2A); 11+11 unlock + DLC infinite-canvas media viewer (Section 1) |
 
 This ordering is a recommendation, not a lock-in — flag any reordering
 you want and this doc gets updated to match before Phase 12 starts.

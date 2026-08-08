@@ -34,7 +34,6 @@ import { LibraryCompartment } from "./compartments/LibraryCompartment";
 import { SettingsCompartment } from "./compartments/SettingsCompartment";
 import { OnboardingCoachMark } from "./OnboardingCoachMark";
 import { AccessibilityOnboarding } from "./AccessibilityOnboarding";
-import { HiddenUnlockPanel } from "./HiddenUnlockPanel";
 
 function TasksCompartment() {
   const tasks = useTasksStore((s) => s.tasks);
@@ -126,7 +125,6 @@ function CompartmentContent({
 export function Dashboard() {
   const [active, setActive] = useState<CompartmentName>("tasks");
   const [showOnboarding, setShowOnboarding] = useState(true);
-  const [showHiddenUnlock, setShowHiddenUnlock] = useState(false);
   const [zenMode, setZenMode] = useState<{ sessionId: string; taskTitle: string } | null>(null);
   const wasFullscreenBeforeZenRef = useRef(false);
   const controls = useWindowControls();
@@ -143,8 +141,6 @@ export function Dashboard() {
   const settingsLoaded = useSettingsStore((s) => s.loaded);
   const accessibilityOnboardingSeen = useSettingsStore((s) => s.accessibilityOnboardingSeen);
   const loadSettings = useSettingsStore((s) => s.load);
-  const rewardsUnlocked = useSettingsStore((s) => s.rewardsUnlocked);
-  const setRewardsUnlocked = useSettingsStore((s) => s.setRewardsUnlocked);
 
   useEffect(() => {
     loadSettings();
@@ -238,8 +234,6 @@ export function Dashboard() {
           onBackToPocket={controls.exitFullscreen}
           onSelectCompartment={setActive}
           onReplayOnboarding={replayOnboarding}
-          showHiddenUnlockEntry={!rewardsUnlocked}
-          onOpenHiddenUnlock={() => setShowHiddenUnlock(true)}
         />
         <div className="relative flex flex-1 overflow-hidden">
           {/*
@@ -257,15 +251,7 @@ export function Dashboard() {
             <CompartmentContent active={active} onEnterZenMode={enterZenMode} />
           </div>
           <CompartmentTabs active={active} onSelect={setActive} />
-          {showHiddenUnlock ? (
-            <HiddenUnlockPanel
-              onUnlocked={() => {
-                setRewardsUnlocked(true);
-                setShowHiddenUnlock(false);
-              }}
-              onCancel={() => setShowHiddenUnlock(false)}
-            />
-          ) : danglingSession ? (
+          {danglingSession ? (
             <CheckInFlow
               activeSession={danglingSession}
               onResolve={resolveCheckIn}
@@ -280,9 +266,7 @@ export function Dashboard() {
               />
             )
           )}
-          {!showHiddenUnlock && !danglingSession && (
-            <CaptureDrawer activeSessionId={primarySessionId} />
-          )}
+          {!danglingSession && <CaptureDrawer activeSessionId={primarySessionId} />}
         </div>
       </FullscreenShell>
     );

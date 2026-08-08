@@ -10,8 +10,6 @@ export function MenuBar({
   onBackToPocket,
   onSelectCompartment,
   onReplayOnboarding,
-  showHiddenUnlockEntry,
-  onOpenHiddenUnlock,
 }: {
   pinned: boolean;
   onTogglePin: () => void;
@@ -19,9 +17,6 @@ export function MenuBar({
   onBackToPocket: () => void;
   onSelectCompartment: (name: CompartmentName) => void;
   onReplayOnboarding: () => void;
-  /** Hides itself permanently once the hidden unlock has already succeeded — nothing left to find. */
-  showHiddenUnlockEntry: boolean;
-  onOpenHiddenUnlock: () => void;
 }) {
   const [openMenu, setOpenMenu] = useState<MenuName | null>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -103,9 +98,6 @@ export function MenuBar({
         >
           About Mycelia Time
         </MenuAction>
-        {showHiddenUnlockEntry && (
-          <MenuAction onClick={item(onOpenHiddenUnlock)}>this should not be here</MenuAction>
-        )}
       </MenuTrigger>
 
       <button
