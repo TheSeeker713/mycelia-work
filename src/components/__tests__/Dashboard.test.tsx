@@ -245,8 +245,8 @@ describe("Dashboard", () => {
 
     await user.click(await screen.findByTitle("Expand to full screen"));
     await user.click(screen.getByRole("button", { name: "Library" }));
-    // Work Journal is the section shown expanded by default.
-    expect(screen.getByText("Work journal")).toBeInTheDocument();
+    // Reports is the section shown expanded by default.
+    expect(screen.getByText("Reports")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "File" }));
     await user.click(screen.getByText("New task"));
@@ -337,6 +337,70 @@ describe("Dashboard", () => {
     await waitFor(() => expect(voiceClient.speak).toHaveBeenCalledWith("Clocked out.", expect.any(String)));
   });
 
+  it("clocking out no longer generates a report automatically — it asks first", async () => {
+    const user = userEvent.setup();
+    renderDashboard();
+
+    const input = await screen.findByPlaceholderText("What are you working on?");
+    await user.type(input, "Old task{Enter}");
+    await user.click(await screen.findByText("Old task"));
+    await user.click(screen.getByRole("button", { name: "Clock in" }));
+    await user.click(screen.getByRole("button", { name: "Clock out" }));
+
+    expect(await screen.findByText("Clocked out of Old task")).toBeInTheDocument();
+    expect(ollamaClient.generateReport).not.toHaveBeenCalled();
+  });
+
+  it("clock-out popup: AI writes it kicks off generation and closes the popup", async () => {
+    const user = userEvent.setup();
+    ollamaClient.generateReport = vi.fn().mockResolvedValue("Made real progress.");
+    renderDashboard();
+
+    const input = await screen.findByPlaceholderText("What are you working on?");
+    await user.type(input, "Old task{Enter}");
+    await user.click(await screen.findByText("Old task"));
+    await user.click(screen.getByRole("button", { name: "Clock in" }));
+    await user.click(screen.getByRole("button", { name: "Clock out" }));
+
+    await user.click(await screen.findByRole("button", { name: "AI writes it" }));
+
+    expect(screen.queryByText(/Clocked out of Old task/)).not.toBeInTheDocument();
+    await waitFor(() => expect(ollamaClient.generateReport).toHaveBeenCalledTimes(1));
+  });
+
+  it("clock-out popup: I'll write it opens an empty, editable report in Library", async () => {
+    const user = userEvent.setup();
+    renderDashboard();
+
+    const input = await screen.findByPlaceholderText("What are you working on?");
+    await user.type(input, "Old task{Enter}");
+    await user.click(await screen.findByText("Old task"));
+    await user.click(screen.getByRole("button", { name: "Clock in" }));
+    await user.click(screen.getByRole("button", { name: "Clock out" }));
+
+    await user.click(await screen.findByRole("button", { name: "I'll write it" }));
+
+    expect(await screen.findByText("Reports")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Write what happened…")).toBeInTheDocument();
+    expect(ollamaClient.generateReport).not.toHaveBeenCalled();
+  });
+
+  it("clock-out popup: Skip for now dismisses without creating any report", async () => {
+    const user = userEvent.setup();
+    renderDashboard();
+
+    const input = await screen.findByPlaceholderText("What are you working on?");
+    await user.type(input, "Old task{Enter}");
+    await user.click(await screen.findByText("Old task"));
+    await user.click(screen.getByRole("button", { name: "Clock in" }));
+    await user.click(screen.getByRole("button", { name: "Clock out" }));
+
+    await user.click(await screen.findByText("Skip for now"));
+
+    expect(screen.queryByText(/Clocked out of Old task/)).not.toBeInTheDocument();
+    expect(ollamaClient.generateReport).not.toHaveBeenCalled();
+  });
+
   it("enforces the 3-concurrent-task limit — the 4th Clock in is disabled", async () => {
     const user = userEvent.setup();
     renderDashboard();
@@ -389,6 +453,10 @@ describe("Dashboard", () => {
     expect(resolved?.status).toBe("stopped");
     expect(resolved?.is_estimated).toBe(true);
     expect(resolved?.clocked_out_at).toBe(backdated);
+
+    // Resolving a dangling session offers the same clock-out report
+    // choice a normal clock-out does, rather than generating silently.
+    expect(await screen.findByText("Clocked out of Old forgotten task")).toBeInTheDocument();
   });
 
   it("Help menu no longer has the hidden unlock entry", async () => {

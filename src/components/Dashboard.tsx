@@ -37,9 +37,10 @@ import { AccessibilityOnboarding } from "./AccessibilityOnboarding";
 import { AchievementToastStack } from "./AchievementToast";
 import { ProgressCompartment } from "./compartments/ProgressCompartment";
 import { ExitConfirmDialog } from "./ExitConfirmDialog";
+import { ClockOutReportDialog } from "./ClockOutReportDialog";
 import { SystemStartup } from "./SystemStartup";
 
-function TasksCompartment() {
+function TasksCompartment({ onClockedOut }: { onClockedOut: (task: Task, sessionId: string) => void }) {
   const tasks = useTasksStore((s) => s.tasks);
   const loadTasks = useTasksStore((s) => s.loadTasks);
   const addTask = useTasksStore((s) => s.addTask);
@@ -52,7 +53,6 @@ function TasksCompartment() {
   const startBreak = useSessionsStore((s) => s.startBreak);
   const resumeFromBreak = useSessionsStore((s) => s.resumeFromBreak);
   const clockOut = useSessionsStore((s) => s.clockOut);
-  const generateSessionJournal = useJournalsStore((s) => s.generateSessionJournal);
   const selfVoicing = useSelfVoicing();
 
   useEffect(() => {
@@ -82,7 +82,7 @@ function TasksCompartment() {
     const active = activeSessions.find((a) => a.session.id === sessionId);
     await clockOut(sessionId);
     selfVoicing.speak("Clocked out.");
-    if (active) await generateSessionJournal(active.task, sessionId);
+    if (active) onClockedOut(active.task, sessionId);
   }
 
   return (
@@ -109,18 +109,26 @@ function TasksCompartment() {
 function CompartmentContent({
   active,
   onEnterZenMode,
+  onClockedOut,
+  focusJournalId,
+  onJournalFocused,
 }: {
   active: CompartmentName;
   onEnterZenMode: (sessionId: string, taskTitle: string) => void;
+  onClockedOut: (task: Task, sessionId: string) => void;
+  focusJournalId: string | null;
+  onJournalFocused: () => void;
 }) {
   return (
     <>
-      {active === "tasks" && <TasksCompartment />}
+      {active === "tasks" && <TasksCompartment onClockedOut={onClockedOut} />}
       {active === "notes" && <NotesCompartment onEnterZenMode={onEnterZenMode} />}
       {active === "todos" && <TodosCompartment />}
       {active === "projects" && <ProjectsCompartment />}
       {active === "progress" && <ProgressCompartment />}
-      {active === "library" && <LibraryCompartment />}
+      {active === "library" && (
+        <LibraryCompartment focusJournalId={focusJournalId} onJournalFocused={onJournalFocused} />
+      )}
       {active === "settings" && <SettingsCompartment />}
     </>
   );
@@ -133,6 +141,8 @@ export function Dashboard() {
   const [showOnboarding, setShowOnboarding] = useState(true);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [zenMode, setZenMode] = useState<{ sessionId: string; taskTitle: string } | null>(null);
+  const [clockOutPrompt, setClockOutPrompt] = useState<{ task: Task; sessionId: string } | null>(null);
+  const [focusJournalId, setFocusJournalId] = useState<string | null>(null);
   const wasFullscreenBeforeZenRef = useRef(false);
   const controls = useWindowControls();
   const selfVoicing = useSelfVoicing();
@@ -142,11 +152,13 @@ export function Dashboard() {
   const resolveDanglingSession = useSessionsStore((s) => s.resolveDanglingSession);
   const addNote = useNotesStore((s) => s.addNote);
   const generateSessionJournal = useJournalsStore((s) => s.generateSessionJournal);
+  const createManualReport = useJournalsStore((s) => s.createManualReport);
   const openClawClient = useOpenClawClient();
   const cardWidth = useMultiCardWidth(activeSessions.length, controls.fullscreen);
 
   const settingsLoaded = useSettingsStore((s) => s.loaded);
   const accessibilityOnboardingSeen = useSettingsStore((s) => s.accessibilityOnboardingSeen);
+  const grok4Enabled = useSettingsStore((s) => s.grok4Enabled);
   const loadSettings = useSettingsStore((s) => s.load);
   const loadGamification = useGamificationStore((s) => s.load);
 
@@ -194,7 +206,23 @@ export function Dashboard() {
     const { task, session } = danglingSession;
     await resolveDanglingSession(session.id, clockedOutAt);
     if (note) await addNote(session.id, note);
-    await generateSessionJournal(task, session.id);
+    setClockOutPrompt({ task, sessionId: session.id });
+  }
+
+  async function handleAiWritesReport(brief: string) {
+    if (!clockOutPrompt) return;
+    const { task, sessionId } = clockOutPrompt;
+    setClockOutPrompt(null);
+    await generateSessionJournal(task, sessionId, brief.trim() || undefined);
+  }
+
+  async function handleManualWritesReport() {
+    if (!clockOutPrompt) return;
+    const { task, sessionId } = clockOutPrompt;
+    setClockOutPrompt(null);
+    const manual = await createManualReport(task.id, sessionId);
+    setActive("library");
+    setFocusJournalId(manual.id);
   }
 
   useEffect(() => {
@@ -303,12 +331,26 @@ export function Dashboard() {
           className={controls.fullscreen ? "flex-1 overflow-hidden p-6 pr-12" : "flex-1 overflow-hidden p-5 pr-9"}
           style={controls.fullscreen ? { zoom: 2 } : undefined}
         >
-          <CompartmentContent active={active} onEnterZenMode={enterZenMode} />
+          <CompartmentContent
+            active={active}
+            onEnterZenMode={enterZenMode}
+            onClockedOut={(task, sessionId) => setClockOutPrompt({ task, sessionId })}
+            focusJournalId={focusJournalId}
+            onJournalFocused={() => setFocusJournalId(null)}
+          />
         </div>
         <CompartmentTabs active={active} onSelect={setActive} />
         <AchievementToastStack />
         {showExitConfirm ? (
           <ExitConfirmDialog controls={controls} onCancel={() => setShowExitConfirm(false)} />
+        ) : clockOutPrompt ? (
+          <ClockOutReportDialog
+            taskTitle={clockOutPrompt.task.title}
+            grok4Enabled={grok4Enabled}
+            onAiWrite={(brief) => void handleAiWritesReport(brief)}
+            onManualWrite={() => void handleManualWritesReport()}
+            onSkip={() => setClockOutPrompt(null)}
+          />
         ) : danglingSession ? (
           <CheckInFlow
             activeSession={danglingSession}

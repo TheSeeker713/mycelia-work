@@ -42,6 +42,43 @@ export function createJournalsRepository(executor: SqlExecutor) {
       return journal;
     },
 
+    /**
+     * A user-authored report — starts `ok` with empty content, no
+     * generation ever runs. `model_used` stays permanently null, which
+     * is also how the UI tells a manual report apart from an
+     * AI-generated one (always editable, vs. read-only once generated).
+     */
+    async createManual(input: CreatePendingJournalInput): Promise<Journal> {
+      const journal: Journal = {
+        id: newId(),
+        task_id: input.taskId ?? null,
+        task_session_id: input.taskSessionId ?? null,
+        generated_at: nowIso(),
+        model_used: null,
+        status: "ok",
+        content: "",
+        exported_path: null,
+        kind: input.kind,
+        failure_reason: null,
+      };
+      await executor.execute(
+        `INSERT INTO journals (id, task_id, task_session_id, generated_at, model_used, status, content, exported_path, kind)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          journal.id,
+          journal.task_id,
+          journal.task_session_id,
+          journal.generated_at,
+          journal.model_used,
+          journal.status,
+          journal.content,
+          journal.exported_path,
+          journal.kind,
+        ],
+      );
+      return journal;
+    },
+
     async markResult(
       id: string,
       status: JournalStatus,

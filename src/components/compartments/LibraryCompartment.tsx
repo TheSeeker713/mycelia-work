@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useJournalsStore, useTasksStore } from "../../store/StoreProvider";
 import { useSelfVoicing } from "../../hooks/useSelfVoicing";
 import type { Journal } from "../../data";
@@ -10,16 +10,35 @@ const STATUS_LABEL: Record<Journal["status"], string> = {
   failed: "Failed",
 };
 
+/**
+ * A manually-authored report (the clock-out popup's "I'll write it"
+ * path) never has a model recorded — `model_used` stays null forever,
+ * even after saving real content, which is also how this tells a
+ * manual report apart from an AI-generated one (always editable, vs.
+ * read-only once generated).
+ */
+function isManual(journal: Journal): boolean {
+  return journal.status === "ok" && journal.model_used === null;
+}
+
 function JournalEntry({
   journal,
   onRetry,
+  onSaveManual,
+  autoFocus,
+  onFocused,
 }: {
   journal: Journal;
   onRetry: (id: string) => void;
+  onSaveManual: (id: string, content: string) => void;
+  autoFocus: boolean;
+  onFocused: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [exportedTo, setExportedTo] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [draft, setDraft] = useState(journal.content ?? "");
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const selfVoicing = useSelfVoicing();
   const label = journal.kind === "weekly" ? "Weekly roll-up" : "Session journal";
   const when = new Date(journal.generated_at).toLocaleString([], {
@@ -29,6 +48,14 @@ function JournalEntry({
     minute: "2-digit",
   });
 
+  useEffect(() => {
+    if (autoFocus && textareaRef.current) {
+      textareaRef.current.focus();
+      onFocused();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoFocus]);
+
   async function handleExport() {
     if (!journal.content) return;
     setExporting(true);
@@ -37,6 +64,8 @@ function JournalEntry({
     setExporting(false);
     setExportedTo(path);
   }
+
+  const manual = isManual(journal);
 
   return (
     <li className="rounded-lg border border-[var(--line)] px-2.5 py-2">
@@ -52,7 +81,7 @@ function JournalEntry({
                 : "bg-[var(--line)] text-[var(--ink-faint)]")
           }
         >
-          {STATUS_LABEL[journal.status]}
+          {manual ? "Your report" : STATUS_LABEL[journal.status]}
         </span>
       </div>
       <div className="mt-0.5 text-[0.7rem] text-[var(--ink-faint)]">{when}</div>
@@ -61,7 +90,31 @@ function JournalEntry({
         <div className="progress-indeterminate mt-1.5" aria-hidden="true" />
       )}
 
-      {journal.status === "ok" && journal.content && (
+      {manual && (
+        <div className="mt-1.5">
+          <textarea
+            ref={textareaRef}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={() => {
+              if (draft !== journal.content) onSaveManual(journal.id, draft);
+            }}
+            rows={4}
+            placeholder="Write what happened…"
+            className="w-full resize-none rounded-lg border px-2 py-1.5 text-[0.78rem] text-[var(--ink)]"
+            style={{ borderColor: "var(--line)", background: "var(--paper)" }}
+          />
+          <button
+            type="button"
+            onClick={() => onSaveManual(journal.id, draft)}
+            className="mt-1 rounded-full border border-[var(--line)] px-2.5 py-1 text-[0.7rem] text-[var(--ink-soft)]"
+          >
+            Save
+          </button>
+        </div>
+      )}
+
+      {!manual && journal.status === "ok" && journal.content && (
         <div className="mt-1.5">
           <p
             className={
@@ -149,16 +202,25 @@ function SectionButton({
  * Archived tasks live here, not in a separate archive concept — Library
  * is already "the one place put-away things go" (books/notes land here
  * too once Phase 5's session-tied notes exist). Archiving is a soft
- * delete, so every entry can come back. The AI-generated work journal
- * — real kept content, per CLAUDE.md — lives here too, since Library is
- * already "past/completed things," which a closed-out session is.
+ * delete, so every entry can come back. Reports (formerly "Work
+ * journal" — AI-generated and manually-written both) live here too,
+ * since Library is already "past/completed things," which a closed-out
+ * session is. Internal naming (the `journals` table, `journalsStore`,
+ * `workJournal` section id below) stays as-is — this is a user-facing
+ * rename only.
  *
  * One section expanded at a time (Jeremy, after the first version tried
  * to show everything at once and it read as cluttered): the other two
- * collapse into a single button row each. Work Journal starts expanded
+ * collapse into a single button row each. Reports starts expanded
  * since it's the section actually worth glancing at day to day.
  */
-export function LibraryCompartment() {
+export function LibraryCompartment({
+  focusJournalId = null,
+  onJournalFocused = () => {},
+}: {
+  focusJournalId?: string | null;
+  onJournalFocused?: () => void;
+} = {}) {
   const [expandedSection, setExpandedSection] = useState<LibrarySection>("workJournal");
 
   const archivedTasks = useTasksStore((s) => s.archivedTasks);
@@ -169,11 +231,19 @@ export function LibraryCompartment() {
   const loadRecentJournals = useJournalsStore((s) => s.loadRecent);
   const retryJournal = useJournalsStore((s) => s.retryJournal);
   const generateWeeklyRollup = useJournalsStore((s) => s.generateWeeklyRollup);
+  const saveManualReport = useJournalsStore((s) => s.saveManualReport);
 
   useEffect(() => {
     loadArchivedTasks();
     loadRecentJournals();
   }, [loadArchivedTasks, loadRecentJournals]);
+
+  // A report waiting to be focused (just created from the clock-out
+  // popup) always lives in the Reports section — expand it so the
+  // entry is actually visible for the autofocus in JournalEntry to land on.
+  useEffect(() => {
+    if (focusJournalId) setExpandedSection("workJournal");
+  }, [focusJournalId]);
 
   return (
     <div className="flex h-full flex-col gap-2 overflow-y-auto">
@@ -218,7 +288,7 @@ export function LibraryCompartment() {
         <div className="flex flex-col">
           <div className="mb-2 flex items-center justify-between">
             <div className="text-[0.7rem] tracking-wide text-[var(--ink-faint)] uppercase">
-              Work journal
+              Reports
             </div>
             <button
               type="button"
@@ -230,19 +300,26 @@ export function LibraryCompartment() {
           </div>
           {journals.length === 0 ? (
             <p className="text-[0.82rem] text-[var(--ink-faint)]">
-              Nothing generated yet — clock out of a task to get one started.
+              Nothing here yet — clock out of a task to get a report started.
             </p>
           ) : (
             <ul className="flex flex-col gap-1.5">
               {journals.map((journal) => (
-                <JournalEntry key={journal.id} journal={journal} onRetry={retryJournal} />
+                <JournalEntry
+                  key={journal.id}
+                  journal={journal}
+                  onRetry={retryJournal}
+                  onSaveManual={saveManualReport}
+                  autoFocus={journal.id === focusJournalId}
+                  onFocused={onJournalFocused}
+                />
               ))}
             </ul>
           )}
         </div>
       ) : (
         <SectionButton
-          label="Work journal"
+          label="Reports"
           badge={journals.length > 0 ? String(journals.length) : undefined}
           onClick={() => setExpandedSection("workJournal")}
         />

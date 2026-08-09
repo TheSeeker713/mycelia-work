@@ -50,7 +50,7 @@ describe("useAiInFlight", () => {
     });
 
     expect(result.current.inFlight.active).toBe(true);
-    expect(result.current.inFlight.description).toBe("Writing a work journal entry");
+    expect(result.current.inFlight.description).toBe("Writing your report");
   });
 
   it("reports a pending weekly rollup distinctly from a session journal", async () => {
@@ -64,7 +64,7 @@ describe("useAiInFlight", () => {
       await result.current.journals.loadRecent();
     });
 
-    expect(result.current.inFlight.description).toBe("Writing your weekly rollup");
+    expect(result.current.inFlight.description).toBe("Writing your weekly report");
   });
 
   it("reports a pending project report as active", async () => {

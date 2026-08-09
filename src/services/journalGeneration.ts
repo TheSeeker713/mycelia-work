@@ -103,7 +103,7 @@ export function libraryExportFilename(journal: Journal): string {
  * a reference to it) so the generated entry doesn't read as AI-toned
  * filler, per CLAUDE.md — same document the devlogs themselves follow.
  */
-export function buildSessionJournalPrompt(log: RawSessionLog): string {
+export function buildSessionJournalPrompt(log: RawSessionLog, brief?: string): string {
   const { task, session, events, notes } = log;
 
   const eventLines = events
@@ -114,6 +114,11 @@ export function buildSessionJournalPrompt(log: RawSessionLog): string {
     notes.length > 0
       ? notes.map((n) => `- ${formatTimestamp(n.created_at)}: ${n.body}`).join("\n")
       : "(no notes taken during this session)";
+
+  // The clock-out prompt's optional "in a few words, what did you do?"
+  // field — folded in as Jeremy's own steer on what the entry should
+  // actually cover, not just inferred from the raw event/note log.
+  const briefSection = brief?.trim() ? `\n\nJeremy's own brief note on what he did:\n${brief.trim()}` : "";
 
   return `${voiceNotes}
 
@@ -133,7 +138,7 @@ Session event log:
 ${eventLines}
 
 Notes taken during the session:
-${noteLines}`;
+${noteLines}${briefSection}`;
 }
 
 export function buildWeeklyRollupPrompt(sessionJournals: Journal[], weekLabel: string): string {

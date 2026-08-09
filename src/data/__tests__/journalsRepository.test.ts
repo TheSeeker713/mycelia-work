@@ -25,6 +25,13 @@ describe("journalsRepository", () => {
     expect(journal.content).toBeNull();
   });
 
+  it("createManual starts ok with empty content and no model, ready to write into", async () => {
+    const journal = await journals.createManual({ taskId, kind: "session" });
+    expect(journal.status).toBe("ok");
+    expect(journal.content).toBe("");
+    expect(journal.model_used).toBeNull();
+  });
+
   it("markResult records a successful generation", async () => {
     const journal = await journals.createPending({ taskId, kind: "session" });
     await journals.markResult(journal.id, "ok", {

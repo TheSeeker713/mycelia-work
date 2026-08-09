@@ -32,7 +32,7 @@ export function useAiInFlight(): AiInFlight {
 
   let description: string | null = null;
   if (pendingJournal) {
-    description = pendingJournal.kind === "weekly" ? "Writing your weekly rollup" : "Writing a work journal entry";
+    description = pendingJournal.kind === "weekly" ? "Writing your weekly report" : "Writing your report";
   } else if (pendingReport) {
     description = "Writing a project status report";
   } else if (capturing) {

@@ -36,7 +36,7 @@ describe("LibraryCompartment — accordion", () => {
   it("shows Work Journal expanded and the other two sections collapsed into buttons by default", async () => {
     renderLibrary();
 
-    expect(await screen.findByText("Work journal")).toBeInTheDocument();
+    expect(await screen.findByText("Reports")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Archived tasks" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Books" })).toBeInTheDocument();
     // Not present as section headers while collapsed.
@@ -50,7 +50,7 @@ describe("LibraryCompartment — accordion", () => {
     await user.click(screen.getByRole("button", { name: "Archived tasks" }));
 
     expect(screen.getByText("Nothing archived yet.")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Work journal" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Reports" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Books" })).toBeInTheDocument();
   });
 
@@ -126,6 +126,37 @@ describe("LibraryCompartment — generation in progress", () => {
 
     expect(await screen.findByText("Generating…")).toBeInTheDocument();
     expect(container.querySelector(".progress-indeterminate")).toBeInTheDocument();
+  });
+});
+
+describe("LibraryCompartment — manual reports", () => {
+  it("shows a manual report as an editable textarea, saved on blur", async () => {
+    const user = userEvent.setup();
+    const task = await repos.tasks.create({ title: "Write the devlog entry" });
+    const session = await repos.taskSessions.clockIn(task.id);
+    await repos.journals.createManual({ taskId: task.id, taskSessionId: session.id, kind: "session" });
+
+    renderLibrary();
+
+    const textarea = await screen.findByPlaceholderText("Write what happened…");
+    await user.type(textarea, "Fixed the shadow clipping bug.");
+    await user.tab();
+
+    await waitFor(async () => {
+      const journals = await repos.journals.listRecent(10);
+      expect(journals[0].content).toBe("Fixed the shadow clipping bug.");
+    });
+  });
+
+  it("shows 'Your report' rather than a generation status badge for a manual entry", async () => {
+    const task = await repos.tasks.create({ title: "Write the devlog entry" });
+    const session = await repos.taskSessions.clockIn(task.id);
+    await repos.journals.createManual({ taskId: task.id, taskSessionId: session.id, kind: "session" });
+
+    renderLibrary();
+
+    expect(await screen.findByText("Your report")).toBeInTheDocument();
+    expect(screen.queryByText("Ready")).not.toBeInTheDocument();
   });
 });
 

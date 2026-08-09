@@ -127,7 +127,7 @@ describe("ExitConfirmDialog", () => {
       </StoreProvider>,
     );
 
-    expect(await screen.findByText(/Writing a work journal entry/)).toBeInTheDocument();
+    expect(await screen.findByText(/Writing your report/)).toBeInTheDocument();
     expect(screen.getByText("Wait, then exit")).toBeInTheDocument();
     expect(screen.getByText("Exit now anyway")).toBeInTheDocument();
 
