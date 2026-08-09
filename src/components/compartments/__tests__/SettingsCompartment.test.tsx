@@ -116,4 +116,40 @@ describe("SettingsCompartment", () => {
     expect(screen.queryByText("Rewards")).not.toBeInTheDocument();
     expect(screen.queryByText("18+")).not.toBeInTheDocument();
   });
+
+  it("Grok defaults off, and toggling it on persists the choice", async () => {
+    const user = userEvent.setup();
+    renderSettings();
+
+    const grokToggle = screen.getByLabelText(/Use Grok 4\.5/);
+    expect(grokToggle).not.toBeChecked();
+
+    await user.click(grokToggle);
+
+    expect(grokToggle).toBeChecked();
+    expect(await repos.settings.get("grok4_enabled")).toBe("true");
+  });
+
+  it("shows the local-model picker while Grok is off, defaulting to hermes3:8b", () => {
+    renderSettings();
+    expect(screen.getByLabelText("Local model")).toHaveValue("hermes3:8b");
+  });
+
+  it("hides the local-model picker once Grok is toggled on — it doesn't apply anymore", async () => {
+    const user = userEvent.setup();
+    renderSettings();
+
+    await user.click(screen.getByLabelText(/Use Grok 4\.5/));
+
+    expect(screen.queryByLabelText("Local model")).not.toBeInTheDocument();
+  });
+
+  it("changing the local-model picker persists the choice", async () => {
+    const user = userEvent.setup();
+    renderSettings();
+
+    await user.selectOptions(screen.getByLabelText("Local model"), "dolphin-phi:latest");
+
+    expect(await repos.settings.get("local_model_id")).toBe("dolphin-phi:latest");
+  });
 });

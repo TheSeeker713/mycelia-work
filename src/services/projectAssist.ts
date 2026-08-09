@@ -1,6 +1,13 @@
 import voiceNotes from "../../docs/reference/authentic-voice-notes.md?raw";
 import type { Project, ProjectReport, Repositories } from "../data";
-import { GROK4_ENABLED_KEY, resolveModelOverride, type OpenClawClient } from "./openclawClient";
+import {
+  DEFAULT_LOCAL_MODEL_ID,
+  GROK4_ENABLED_KEY,
+  LOCAL_MODEL_ID_KEY,
+  resolveModelOverride,
+  runOnceWithRetry,
+  type OpenClawClient,
+} from "./openclawClient";
 
 export type AssistAction = "sub_tasks" | "scheduling_suggestion" | "tighten_description" | "freeform_ask";
 
@@ -43,13 +50,14 @@ export async function runProjectAssist(
   client: OpenClawClient,
   freeformQuestion?: string,
   grok4Enabled = false,
+  localModelId: string = DEFAULT_LOCAL_MODEL_ID,
 ): Promise<string | null> {
   try {
     const result = await client.runOnce({
       sessionKey: `project-assist-${project.id}`,
       message: buildAssistPrompt(action, project, freeformQuestion),
       timeoutSecs: 45,
-      model: resolveModelOverride(grok4Enabled),
+      model: resolveModelOverride(grok4Enabled, localModelId),
     });
     return result.text.trim() || null;
   } catch {
@@ -90,11 +98,12 @@ export async function runProjectReportGeneration(params: {
   const { repos, client, reportId, project } = params;
   try {
     const grok4Enabled = (await repos.settings.get(GROK4_ENABLED_KEY)) === "true";
-    const result = await client.runOnce({
+    const localModelId = (await repos.settings.get(LOCAL_MODEL_ID_KEY)) ?? DEFAULT_LOCAL_MODEL_ID;
+    const result = await runOnceWithRetry(client, {
       sessionKey: `project-report-${project.id}`,
       message: buildStatusReportPrompt(project),
       timeoutSecs: 180,
-      model: resolveModelOverride(grok4Enabled),
+      model: resolveModelOverride(grok4Enabled, localModelId),
     });
     await repos.projectReports.markResult(reportId, { status: "ok", content: result.text, modelUsed: result.model });
   } catch (err) {

@@ -159,7 +159,7 @@ describe("runJournalGeneration", () => {
     expect(result.exported_path).toBe("docs/workjournal/2026-08-03_1200_test.md");
   });
 
-  it("fails closed to 'failed' rather than throwing when the model call rejects", async () => {
+  it("fails closed to 'failed' rather than throwing when the model call rejects on both the try and the automatic retry", async () => {
     fakeClient.runOnce = vi.fn().mockRejectedValue(new Error("Gateway unreachable"));
     const pending = await repos.journals.createPending({ taskId: realTaskId, taskSessionId: realSessionId, kind: "session" });
 
@@ -175,6 +175,29 @@ describe("runJournalGeneration", () => {
     expect(result.status).toBe("failed");
     expect(result.content).toBeNull();
     expect(result.failure_reason).toBe("Gateway unreachable");
+    expect(fakeClient.runOnce).toHaveBeenCalledTimes(2);
+  });
+
+  it("recovers via the automatic retry when only the first attempt fails", async () => {
+    vi.mocked(invoke).mockResolvedValue("docs/workjournal/2026-08-03_1200_test.md");
+    fakeClient.runOnce = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("transient"))
+      .mockResolvedValueOnce({ text: "Recovered on retry.", model: "ollama/hermes3:8b" });
+    const pending = await repos.journals.createPending({ taskId: realTaskId, taskSessionId: realSessionId, kind: "session" });
+
+    const result = await runJournalGeneration({
+      repos,
+      client: fakeClient,
+      journalId: pending.id,
+      sessionKey: "agent:main:mycelia-time-journal-s1",
+      prompt: "irrelevant for this test",
+      filename: "2026-08-03_1200_test.md",
+    });
+
+    expect(result.status).toBe("ok");
+    expect(result.content).toBe("Recovered on retry.");
+    expect(fakeClient.runOnce).toHaveBeenCalledTimes(2);
   });
 
   it("fails closed when the model call succeeds but the file export fails", async () => {

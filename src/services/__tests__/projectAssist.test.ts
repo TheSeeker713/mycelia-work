@@ -98,7 +98,7 @@ describe("runProjectReportGeneration", () => {
     expect(result.model_used).toBe("xai/grok-4.5");
   });
 
-  it("resolves the report to failed with a real reason when the call throws", async () => {
+  it("resolves the report to failed with a real reason when the call throws on both the try and the automatic retry", async () => {
     const client: OpenClawClient = {
       runOnce: vi.fn().mockRejectedValue(new Error("Gateway unreachable")),
       ensureDaemon: vi.fn(),
@@ -112,5 +112,26 @@ describe("runProjectReportGeneration", () => {
 
     expect(result.status).toBe("failed");
     expect(result.failure_reason).toBe("Gateway unreachable");
+    expect(client.runOnce).toHaveBeenCalledTimes(2);
+  });
+
+  it("recovers via the automatic retry when only the first attempt fails", async () => {
+    const client: OpenClawClient = {
+      runOnce: vi
+        .fn()
+        .mockRejectedValueOnce(new Error("transient"))
+        .mockResolvedValueOnce({ text: "Recovered on retry.", model: "ollama/hermes3:8b" }),
+      ensureDaemon: vi.fn(),
+      call: vi.fn(),
+      releaseDaemon: vi.fn(),
+      cancelActiveCall: vi.fn(),
+    };
+    const created = await repos.projectReports.createPending(realProject.id);
+
+    const result = await runProjectReportGeneration({ repos, client, reportId: created.id, project: realProject });
+
+    expect(result.status).toBe("ok");
+    expect(result.content).toBe("Recovered on retry.");
+    expect(client.runOnce).toHaveBeenCalledTimes(2);
   });
 });

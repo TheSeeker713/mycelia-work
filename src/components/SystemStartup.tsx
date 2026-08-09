@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { PocketShell } from "./PocketShell";
-import { useOllamaClient, useOpenClawClient, useVoiceClient } from "../store/StoreProvider";
+import { useOllamaClient, useOpenClawClient, useSettingsStore, useVoiceClient } from "../store/StoreProvider";
 
 type CheckStatus = "checking" | "online" | "unavailable";
 
@@ -55,6 +55,7 @@ export function SystemStartup({ onDone }: { onDone: () => void }) {
   const openClawClient = useOpenClawClient();
   const voiceClient = useVoiceClient();
   const ollamaClient = useOllamaClient();
+  const localModelId = useSettingsStore((s) => s.localModelId);
   const [checks, setChecks] = useState<Checks>({
     openclaw: "checking",
     voice: "checking",
@@ -82,6 +83,7 @@ export function SystemStartup({ onDone }: { onDone: () => void }) {
 
     async function checkOllama() {
       const available = await ollamaClient.isAvailable();
+      if (available) ollamaClient.warmUpModel(localModelId);
       if (!cancelled) setChecks((c) => ({ ...c, ollama: available ? "online" : "unavailable" }));
     }
 

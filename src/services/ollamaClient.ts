@@ -47,6 +47,8 @@ export interface OllamaClient {
   classifyOnTopic(text: string): Promise<boolean>;
   /** Fire-and-forget: loads GHOST_TEXT_MODEL into memory ahead of the user's first typing pause, so the real suggestion call lands warm. Never throws, nothing to await for correctness — call it and move on. */
   warmUpGhostText(): void;
+  /** Same idea as warmUpGhostText, generalized to any model id — used by the startup screen to pre-load whichever local model Settings' picker has selected as the Grok-off fallback, so the first real OpenClaw call doesn't pay its cold-load cost too. */
+  warmUpModel(modelId: string): void;
   /** Plain reachability check for the startup system-check screen — Ollama isn't something this app can start on its own (no known launch command, unlike OpenClaw/Voice-Agent), so this only reports whether it's already up. */
   isAvailable(): Promise<boolean>;
 }
@@ -101,17 +103,21 @@ export function createHttpOllamaClient(): OllamaClient {
     },
 
     warmUpGhostText() {
+      this.warmUpModel(GHOST_TEXT_MODEL);
+    },
+
+    warmUpModel(modelId) {
       // An empty prompt is Ollama's own idiom for "load this model into
       // memory, don't generate anything" — cheaper than a real
       // suggestion call, and exactly what's needed here.
       fetch(`${OLLAMA_URL}/api/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model: GHOST_TEXT_MODEL, prompt: "" }),
+        body: JSON.stringify({ model: modelId, prompt: "" }),
         signal: AbortSignal.timeout(SUGGEST_TIMEOUT_MS),
       }).catch(() => {
         // Best-effort — a failed warm-up just means the first real
-        // suggestion pays the cold-load cost itself.
+        // call pays the cold-load cost itself.
       });
     },
 

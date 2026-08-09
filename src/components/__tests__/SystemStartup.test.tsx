@@ -35,6 +35,7 @@ beforeEach(async () => {
     suggestContinuation: vi.fn(),
     classifyOnTopic: vi.fn(),
     warmUpGhostText: vi.fn(),
+    warmUpModel: vi.fn(),
     isAvailable: vi.fn().mockResolvedValue(true),
   };
   voiceClient = {
@@ -72,6 +73,20 @@ describe("SystemStartup", () => {
     expect(invoke).toHaveBeenCalledWith("ensure_voice_agent_running");
 
     await waitFor(() => expect(onDone).toHaveBeenCalledTimes(1));
+  });
+
+  it("warms the settings-selected local model once Ollama is confirmed reachable", async () => {
+    renderStartup();
+
+    await waitFor(() => expect(ollamaClient.warmUpModel).toHaveBeenCalledWith("hermes3:8b"));
+  });
+
+  it("never warms the model when Ollama isn't reachable", async () => {
+    ollamaClient.isAvailable = vi.fn().mockResolvedValue(false);
+    const { onDone } = renderStartup();
+
+    await waitFor(() => expect(onDone).toHaveBeenCalledTimes(1));
+    expect(ollamaClient.warmUpModel).not.toHaveBeenCalled();
   });
 
   it("still finishes when OpenClaw's daemon fails to start — one backend down doesn't block the others", async () => {

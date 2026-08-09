@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import type { Repositories } from "../data";
 import { DEFAULT_VOICE_ID } from "../services/voiceClient";
-import { GROK4_ENABLED_KEY } from "../services/openclawClient";
+import { DEFAULT_LOCAL_MODEL_ID, GROK4_ENABLED_KEY, LOCAL_MODEL_ID_KEY } from "../services/openclawClient";
 
 /** Both accessibility features default ON — CLAUDE.md: introduced during onboarding with an immediate opt-out, not opt-in. */
 const SELF_VOICING_KEY = "self_voicing_enabled";
@@ -12,9 +12,10 @@ const NARRATION_VOICE_ID_KEY = "narration_voice_id";
 const AI_SUGGESTIONS_KEY = "ai_suggestions_enabled";
 /** Defaults ON, disclosed in Settings — Phase 9 capture-agent logging, per the design doc's "configurable, disclosed plainly" requirement. */
 const CAPTURE_LOGGING_KEY = "capture_logging_enabled";
-// GROK4_ENABLED_KEY (defaults OFF, per Jeremy's explicit instruction) is
-// imported above, not declared here — openclawClient.ts owns it since
-// it's the module that actually reads the raw persisted value.
+// GROK4_ENABLED_KEY (defaults OFF, per Jeremy's explicit instruction) and
+// LOCAL_MODEL_ID_KEY are imported above, not declared here —
+// openclawClient.ts owns them since it's the module that actually reads
+// the raw persisted values.
 
 export interface SettingsState {
   loaded: boolean;
@@ -25,6 +26,7 @@ export interface SettingsState {
   aiSuggestionsEnabled: boolean;
   captureLoggingEnabled: boolean;
   grok4Enabled: boolean;
+  localModelId: string;
   load: () => Promise<void>;
   setSelfVoicingEnabled: (enabled: boolean) => Promise<void>;
   setSttEnabled: (enabled: boolean) => Promise<void>;
@@ -33,6 +35,7 @@ export interface SettingsState {
   setAiSuggestionsEnabled: (enabled: boolean) => Promise<void>;
   setCaptureLoggingEnabled: (enabled: boolean) => Promise<void>;
   setGrok4Enabled: (enabled: boolean) => Promise<void>;
+  setLocalModelId: (modelId: string) => Promise<void>;
 }
 
 function parseBool(value: string | null, defaultValue: boolean): boolean {
@@ -50,6 +53,7 @@ export function createSettingsStore(repos: Repositories) {
     aiSuggestionsEnabled: true,
     captureLoggingEnabled: true,
     grok4Enabled: false,
+    localModelId: DEFAULT_LOCAL_MODEL_ID,
 
     async load() {
       const all = await repos.settings.getAll();
@@ -61,6 +65,7 @@ export function createSettingsStore(repos: Repositories) {
         aiSuggestionsEnabled: parseBool(all[AI_SUGGESTIONS_KEY] ?? null, true),
         captureLoggingEnabled: parseBool(all[CAPTURE_LOGGING_KEY] ?? null, true),
         grok4Enabled: parseBool(all[GROK4_ENABLED_KEY] ?? null, false),
+        localModelId: all[LOCAL_MODEL_ID_KEY] ?? DEFAULT_LOCAL_MODEL_ID,
         loaded: true,
       });
     },
@@ -98,6 +103,11 @@ export function createSettingsStore(repos: Repositories) {
     async setGrok4Enabled(enabled) {
       await repos.settings.set(GROK4_ENABLED_KEY, String(enabled));
       set({ grok4Enabled: enabled });
+    },
+
+    async setLocalModelId(modelId) {
+      await repos.settings.set(LOCAL_MODEL_ID_KEY, modelId);
+      set({ localModelId: modelId });
     },
   }));
 }

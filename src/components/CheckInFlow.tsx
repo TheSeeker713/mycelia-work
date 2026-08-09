@@ -58,6 +58,7 @@ export function CheckInFlow({
   const resourceWatchdogClient = useResourceWatchdogClient();
   const logResourceEvent = useResourceStore((s) => s.logEvent);
   const grok4Enabled = useSettingsStore((s) => s.grok4Enabled);
+  const localModelId = useSettingsStore((s) => s.localModelId);
 
   async function releaseIfNeeded() {
     if (wasAlreadyRunningRef.current === null || daemonReleasedRef.current) return;
@@ -120,6 +121,7 @@ export function CheckInFlow({
         activeSession.session.clocked_in_at,
         sessionKeyRef.current,
         grok4Enabled,
+        localModelId,
       );
 
       if (cancelled) {
@@ -158,7 +160,7 @@ export function CheckInFlow({
     }
     setState({ phase: "connecting" });
     voiceCues.play("please_wait");
-    const turn = await continueCheckinConversation(client, sessionKeyRef.current, value, grok4Enabled);
+    const turn = await continueCheckinConversation(client, sessionKeyRef.current, value, grok4Enabled, localModelId);
     if (!turn) {
       await releaseIfNeeded();
       fallBackTo("unavailable");

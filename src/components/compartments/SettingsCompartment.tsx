@@ -3,6 +3,7 @@ import { useSettingsStore, useVoiceClient } from "../../store/StoreProvider";
 import { useSelfVoicing } from "../../hooks/useSelfVoicing";
 import { classifyVoicePerformance, measureTtsLatencySeconds, type VoicePerformance } from "../../services/hardwareCheck";
 import { NARRATION_VOICES } from "../../services/voiceClient";
+import { LOCAL_MODELS } from "../../services/openclawClient";
 
 const PERFORMANCE_LABEL: Record<VoicePerformance | "checking", string> = {
   checking: "Checking…",
@@ -30,6 +31,8 @@ export function SettingsCompartment() {
   const setCaptureLoggingEnabled = useSettingsStore((s) => s.setCaptureLoggingEnabled);
   const grok4Enabled = useSettingsStore((s) => s.grok4Enabled);
   const setGrok4Enabled = useSettingsStore((s) => s.setGrok4Enabled);
+  const localModelId = useSettingsStore((s) => s.localModelId);
+  const setLocalModelId = useSettingsStore((s) => s.setLocalModelId);
   const voiceClient = useVoiceClient();
   const selfVoicing = useSelfVoicing();
 
@@ -163,6 +166,25 @@ export function SettingsCompartment() {
             </span>
           </span>
         </label>
+        {!grok4Enabled && (
+          <div className="mt-2">
+            <select
+              value={localModelId}
+              onChange={(e) => setLocalModelId(e.target.value)}
+              aria-label="Local model"
+              className="w-full rounded-lg border border-[var(--line)] bg-[var(--paper)] px-2.5 py-1.5 text-[0.8rem] text-[var(--ink)] outline-none"
+            >
+              {LOCAL_MODELS.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+            <span className="mt-1 block text-[0.72rem] text-[var(--ink-faint)]">
+              Which installed Ollama model answers while Grok is off.
+            </span>
+          </div>
+        )}
       </div>
 
       <div className="mt-2 border-t border-dashed border-[var(--line)] pt-3">

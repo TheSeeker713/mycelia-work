@@ -17,6 +17,7 @@
 use serde::Serialize;
 use serde_json::Value;
 use std::io::Read;
+use std::net::{SocketAddr, TcpStream};
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -120,20 +121,32 @@ fn run_cli(args: &[&str], hard_timeout: Duration, cancel: Option<&AtomicBool>) -
         .map_err(|e| format!("couldn't parse openclaw output as JSON: {e}\n{stdout}"))
 }
 
-fn is_daemon_running(status_json: &Value) -> bool {
-    status_json
-        .pointer("/service/runtime/status")
-        .and_then(|v| v.as_str())
-        == Some("running")
+/// The Gateway's confirmed-live local port on this machine (`openclaw
+/// daemon status --json` output, checked 2026-08-08) — hardcoded is fine
+/// here, this is a private single-machine build (CLAUDE.md), not
+/// something that needs to support arbitrary configs.
+const OPENCLAW_GATEWAY_PORT: u16 = 18789;
+const GATEWAY_PROBE_TIMEOUT: Duration = Duration::from_millis(500);
+
+/// Replaces a CLI-based check (`openclaw daemon status --json`) that was
+/// live-measured taking ~22 real seconds on this machine on *every* call,
+/// completely ignoring its own `--timeout 5000` flag — Windows-specific
+/// overhead somewhere in that command's own status-enumeration logic,
+/// unrelated to the network (direct DNS/HTTP tests ruled that out). A
+/// raw TCP connect to the Gateway's own port answers the actual question
+/// ("is it up") in under a millisecond instead, with none of that tax.
+/// The CLI is still used to *start* the daemon (`daemon_start`) — a
+/// rarer operation where shelling out is unavoidable.
+/// Pulled out from `daemon_running()` so the probe logic itself is
+/// unit-testable against a real bound listener, without hardcoding the
+/// Gateway's specific port into the test.
+fn probe_tcp(port: u16, timeout: Duration) -> bool {
+    let addr: SocketAddr = ([127, 0, 0, 1], port).into();
+    TcpStream::connect_timeout(&addr, timeout).is_ok()
 }
 
 fn daemon_running() -> Result<bool, String> {
-    let json = run_cli(
-        &["daemon", "status", "--json", "--no-probe", "--timeout", "5000"],
-        DAEMON_COMMAND_TIMEOUT,
-        None,
-    )?;
-    Ok(is_daemon_running(&json))
+    Ok(probe_tcp(OPENCLAW_GATEWAY_PORT, GATEWAY_PROBE_TIMEOUT))
 }
 
 fn daemon_start() -> Result<(), String> {
@@ -230,8 +243,14 @@ fn call_agent(
     // The CLI's own --timeout should fire first under normal conditions;
     // this Rust-level deadline is the backstop for when it doesn't (a
     // hang before the CLI ever reaches its own timeout logic) — a real
-    // grace window, not a race against the CLI's own clock.
-    let hard_timeout = Duration::from_secs(timeout_secs) + Duration::from_secs(15);
+    // grace window, not a race against the CLI's own clock. 75s, not 15 —
+    // live-measured 2026-08-08: a trivial 2-word `openclaw agent` call
+    // took 62 real seconds on this machine even with the model already
+    // warm (OpenClaw's own CLI/gateway overhead, confirmed unrelated to
+    // model size or network), so 15s of grace was nowhere near enough
+    // margin to reliably tell "OpenClaw's normal overhead" apart from
+    // "actually stuck."
+    let hard_timeout = Duration::from_secs(timeout_secs) + Duration::from_secs(75);
     let json_result = run_cli(&args, hard_timeout, Some(cancel));
 
     let _ = std::fs::remove_file(&temp_path);
@@ -347,13 +366,21 @@ mod tests {
     use super::*;
 
     #[test]
-    fn is_daemon_running_reads_service_runtime_status() {
-        let running = serde_json::json!({ "service": { "runtime": { "status": "running" } } });
-        let stopped = serde_json::json!({ "service": { "runtime": { "status": "stopped" } } });
-        let missing = serde_json::json!({ "service": {} });
-        assert!(is_daemon_running(&running));
-        assert!(!is_daemon_running(&stopped));
-        assert!(!is_daemon_running(&missing));
+    fn probe_tcp_true_when_something_is_actually_listening() {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind an ephemeral port");
+        let port = listener.local_addr().unwrap().port();
+        assert!(probe_tcp(port, Duration::from_millis(200)));
+    }
+
+    #[test]
+    fn probe_tcp_false_when_nothing_is_listening() {
+        // Bind then immediately drop — the OS won't hand this exact
+        // ephemeral port back out instantly, but it's no longer accepting
+        // connections, which is what the probe actually checks.
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind an ephemeral port");
+        let port = listener.local_addr().unwrap().port();
+        drop(listener);
+        assert!(!probe_tcp(port, Duration::from_millis(200)));
     }
 
     /// Fixture captured from a real `openclaw agent --json` smoke test

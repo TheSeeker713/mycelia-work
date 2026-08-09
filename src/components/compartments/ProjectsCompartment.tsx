@@ -89,6 +89,7 @@ function AssistPanel({ project, notes }: { project: Project; notes: ProjectAssis
   const captureLogClient = useCaptureLogClient();
   const saveAssistNote = useProjectsStore((s) => s.saveAssistNote);
   const grok4Enabled = useSettingsStore((s) => s.grok4Enabled);
+  const localModelId = useSettingsStore((s) => s.localModelId);
   const [running, setRunning] = useState<AssistAction | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showAsk, setShowAsk] = useState(false);
@@ -97,7 +98,7 @@ function AssistPanel({ project, notes }: { project: Project; notes: ProjectAssis
   async function runAction(action: AssistAction, question?: string) {
     setRunning(action);
     setError(null);
-    const text = await runProjectAssist(action, project, openClawClient, question, grok4Enabled);
+    const text = await runProjectAssist(action, project, openClawClient, question, grok4Enabled, localModelId);
     setRunning(null);
     if (text) {
       await saveAssistNote(project.id, action, text, question ?? null);

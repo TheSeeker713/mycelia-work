@@ -116,10 +116,17 @@ describe("journalsStore", () => {
   it("retryJournal re-fetches fresh events/notes and re-runs generation for a session journal", async () => {
     const failing: OpenClawClient = {
       ...fakeClient,
-      runOnce: vi.fn().mockRejectedValueOnce(new Error("down")).mockResolvedValueOnce({
-        text: "Recovered on retry.",
-        model: "xai/grok-4.5",
-      }),
+      // generateSessionJournal now retries once automatically on failure
+      // (runOnceWithRetry) — two rejections are needed to genuinely land
+      // on "failed" before the explicit manual retryJournal below.
+      runOnce: vi
+        .fn()
+        .mockRejectedValueOnce(new Error("down"))
+        .mockRejectedValueOnce(new Error("still down"))
+        .mockResolvedValueOnce({
+          text: "Recovered on retry.",
+          model: "xai/grok-4.5",
+        }),
     };
     const store = createJournalsStore(repos, failing);
     const task = await repos.tasks.getById(taskId);
