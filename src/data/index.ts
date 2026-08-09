@@ -7,6 +7,7 @@ import { createSessionEventsRepository } from "./repositories/sessionEventsRepos
 import { createNotesRepository } from "./repositories/notesRepository";
 import { createTodosRepository } from "./repositories/todosRepository";
 import { createJournalsRepository } from "./repositories/journalsRepository";
+import { createJournalEntriesRepository } from "./repositories/journalEntriesRepository";
 import { createResourceEventsRepository } from "./repositories/resourceEventsRepository";
 import { createSettingsRepository } from "./repositories/settingsRepository";
 import { createMilestonesRepository } from "./repositories/milestonesRepository";
@@ -28,6 +29,7 @@ export function createRepositories(executor: SqlExecutor) {
     notes: createNotesRepository(executor),
     todos: createTodosRepository(executor),
     journals: createJournalsRepository(executor),
+    journalEntries: createJournalEntriesRepository(executor),
     resourceEvents: createResourceEventsRepository(executor),
     settings: createSettingsRepository(executor),
     milestones: createMilestonesRepository(executor),

@@ -129,6 +129,23 @@ describe("LibraryCompartment — generation in progress", () => {
   });
 });
 
+describe("LibraryCompartment — Journal section", () => {
+  it("collapses into a button by default, and Open Journal fires onEnterJournalZenMode", async () => {
+    const user = userEvent.setup();
+    const onEnterJournalZenMode = vi.fn();
+    render(
+      <StoreProvider repositories={repos} voiceClient={voiceClient}>
+        <LibraryCompartment onEnterJournalZenMode={onEnterJournalZenMode} />
+      </StoreProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Journal" }));
+    await user.click(screen.getByRole("button", { name: "Open Journal" }));
+
+    expect(onEnterJournalZenMode).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("LibraryCompartment — manual reports", () => {
   it("shows a manual report as an editable textarea, saved on blur", async () => {
     const user = userEvent.setup();

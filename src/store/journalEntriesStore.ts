@@ -1,0 +1,40 @@
+import { create } from "zustand";
+import type { DiaryEntry, Repositories } from "../data";
+
+export interface JournalEntriesState {
+  draft: DiaryEntry | null;
+  /** Fetches the one open draft, creating a blank one if none exists yet — safe to call every time the Journal opens. */
+  loadDraft: () => Promise<void>;
+  /** Debounced persistence from the editor — a no-op if there's no draft loaded yet. */
+  autosave: (contentJson: string) => Promise<void>;
+  /** The Save button: archives the current draft, then immediately seeds and loads the next blank one. */
+  commit: () => Promise<void>;
+}
+
+export function createJournalEntriesStore(repos: Repositories) {
+  return create<JournalEntriesState>((set, get) => ({
+    draft: null,
+
+    async loadDraft() {
+      const draft = await repos.journalEntries.getOrCreateOpenDraft();
+      set({ draft });
+    },
+
+    async autosave(contentJson) {
+      const { draft } = get();
+      if (!draft) return;
+      await repos.journalEntries.autosave(draft.id, contentJson);
+      set({ draft: { ...draft, content_json: contentJson } });
+    },
+
+    async commit() {
+      const { draft } = get();
+      if (!draft) return;
+      await repos.journalEntries.commitEntry(draft.id);
+      const fresh = await repos.journalEntries.getOrCreateOpenDraft();
+      set({ draft: fresh });
+    },
+  }));
+}
+
+export type JournalEntriesStore = ReturnType<typeof createJournalEntriesStore>;

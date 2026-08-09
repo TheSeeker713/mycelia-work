@@ -459,6 +459,24 @@ describe("Dashboard", () => {
     expect(await screen.findByText("Clocked out of Old forgotten task")).toBeInTheDocument();
   });
 
+  it("Journal: opening it from Library goes full screen with no chrome, Exit returns to the pocket view", async () => {
+    const user = userEvent.setup();
+    renderDashboard();
+
+    await user.click(await screen.findByRole("button", { name: "Library" }));
+    await user.click(screen.getByRole("button", { name: "Journal" }));
+    await user.click(screen.getByRole("button", { name: "Open Journal" }));
+
+    expect(await screen.findByText("Free write")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "File" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Library" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Exit" }));
+
+    expect(screen.getByTitle("Expand to full screen")).toBeInTheDocument();
+    expect(screen.queryByText("Free write")).not.toBeInTheDocument();
+  });
+
   it("Help menu no longer has the hidden unlock entry", async () => {
     const user = userEvent.setup();
     renderDashboard();

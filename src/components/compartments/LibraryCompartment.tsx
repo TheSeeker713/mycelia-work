@@ -174,7 +174,7 @@ function JournalEntry({
   );
 }
 
-type LibrarySection = "archived" | "workJournal" | "books";
+type LibrarySection = "archived" | "workJournal" | "journal" | "books";
 
 /** A collapsed section reads as one row: label, a count badge if there's anything behind it, click to expand. */
 function SectionButton({
@@ -217,9 +217,12 @@ function SectionButton({
 export function LibraryCompartment({
   focusJournalId = null,
   onJournalFocused = () => {},
+  onEnterJournalZenMode = () => {},
 }: {
   focusJournalId?: string | null;
   onJournalFocused?: () => void;
+  /** Opens the standalone free-write Journal — zen-mode-only, no compact view here. */
+  onEnterJournalZenMode?: () => void;
 } = {}) {
   const [expandedSection, setExpandedSection] = useState<LibrarySection>("workJournal");
 
@@ -323,6 +326,27 @@ export function LibraryCompartment({
           badge={journals.length > 0 ? String(journals.length) : undefined}
           onClick={() => setExpandedSection("workJournal")}
         />
+      )}
+
+      {expandedSection === "journal" ? (
+        <div className="flex flex-col">
+          <div className="mb-2 text-[0.7rem] tracking-wide text-[var(--ink-faint)] uppercase">
+            Journal
+          </div>
+          <p className="mb-2 text-[0.82rem] text-[var(--ink-faint)]">
+            A free-write space, separate from Reports — rich text, auto-timestamped
+            paragraphs, opens full screen.
+          </p>
+          <button
+            type="button"
+            onClick={onEnterJournalZenMode}
+            className="self-start rounded-lg bg-[var(--moss)] px-3 py-1.5 text-[0.8rem] text-white"
+          >
+            Open Journal
+          </button>
+        </div>
+      ) : (
+        <SectionButton label="Journal" onClick={() => setExpandedSection("journal")} />
       )}
 
       {expandedSection === "books" ? (

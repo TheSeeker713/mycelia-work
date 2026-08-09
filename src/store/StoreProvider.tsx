@@ -15,6 +15,11 @@ import {
 import { createNotesStore, type NotesState, type NotesStore } from "./notesStore";
 import { createJournalsStore, type JournalsState, type JournalsStore } from "./journalsStore";
 import {
+  createJournalEntriesStore,
+  type JournalEntriesState,
+  type JournalEntriesStore,
+} from "./journalEntriesStore";
+import {
   createSettingsStore,
   type SettingsState,
   type SettingsStore,
@@ -42,6 +47,7 @@ interface StoresContextValue {
   useSessionsStore: SessionsStore;
   useNotesStore: NotesStore;
   useJournalsStore: JournalsStore;
+  useJournalEntriesStore: JournalEntriesStore;
   useSettingsStore: SettingsStore;
   useCaptureStore: CaptureStore;
   useResourceStore: ResourceStore;
@@ -93,6 +99,7 @@ export function StoreProvider({
       useSessionsStore: createSessionsStore(repositories, gamification),
       useNotesStore: createNotesStore(repositories, gamification),
       useJournalsStore: createJournalsStore(repositories, client, ollama),
+      useJournalEntriesStore: createJournalEntriesStore(repositories),
       useSettingsStore: createSettingsStore(repositories),
       useCaptureStore: createCaptureStore(repositories, {
         ollamaClient: ollama,
@@ -157,6 +164,11 @@ export function useNotesStore<T>(selector: (state: NotesState) => T): T {
 
 export function useJournalsStore<T>(selector: (state: JournalsState) => T): T {
   const { useJournalsStore: useStore } = useStoresContext();
+  return useStore(selector);
+}
+
+export function useJournalEntriesStore<T>(selector: (state: JournalEntriesState) => T): T {
+  const { useJournalEntriesStore: useStore } = useStoresContext();
   return useStore(selector);
 }
 

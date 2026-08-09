@@ -12,6 +12,16 @@ const NARRATION_VOICE_ID_KEY = "narration_voice_id";
 const AI_SUGGESTIONS_KEY = "ai_suggestions_enabled";
 /** Defaults ON, disclosed in Settings — Phase 9 capture-agent logging, per the design doc's "configurable, disclosed plainly" requirement. */
 const CAPTURE_LOGGING_KEY = "capture_logging_enabled";
+/**
+ * The standalone Journal's own "Muse" AI-suggest toggle (Phase 16.5) —
+ * independent of `aiSuggestionsEnabled` above (that one's Notes' zen
+ * mode), not a mirror of it, per the design: a deliberate per-editor,
+ * in-header control. Only defaults from `aiSuggestionsEnabled`'s value
+ * on the very first read (no stored key yet) so a user who's already
+ * opted into AI suggestions elsewhere isn't surprised by Muse starting
+ * off — after that, the two are fully decoupled.
+ */
+const JOURNAL_MUSE_KEY = "journal_muse_enabled";
 // GROK4_ENABLED_KEY (defaults OFF, per Jeremy's explicit instruction) and
 // LOCAL_MODEL_ID_KEY are imported above, not declared here —
 // openclawClient.ts owns them since it's the module that actually reads
@@ -27,6 +37,7 @@ export interface SettingsState {
   captureLoggingEnabled: boolean;
   grok4Enabled: boolean;
   localModelId: string;
+  museEnabled: boolean;
   load: () => Promise<void>;
   setSelfVoicingEnabled: (enabled: boolean) => Promise<void>;
   setSttEnabled: (enabled: boolean) => Promise<void>;
@@ -36,6 +47,7 @@ export interface SettingsState {
   setCaptureLoggingEnabled: (enabled: boolean) => Promise<void>;
   setGrok4Enabled: (enabled: boolean) => Promise<void>;
   setLocalModelId: (modelId: string) => Promise<void>;
+  setMuseEnabled: (enabled: boolean) => Promise<void>;
 }
 
 function parseBool(value: string | null, defaultValue: boolean): boolean {
@@ -54,18 +66,22 @@ export function createSettingsStore(repos: Repositories) {
     captureLoggingEnabled: true,
     grok4Enabled: false,
     localModelId: DEFAULT_LOCAL_MODEL_ID,
+    museEnabled: true,
 
     async load() {
       const all = await repos.settings.getAll();
+      const aiSuggestionsEnabled = parseBool(all[AI_SUGGESTIONS_KEY] ?? null, true);
       set({
         selfVoicingEnabled: parseBool(all[SELF_VOICING_KEY] ?? null, true),
         sttEnabled: parseBool(all[STT_KEY] ?? null, true),
         accessibilityOnboardingSeen: parseBool(all[ONBOARDING_SEEN_KEY] ?? null, false),
         narrationVoiceId: all[NARRATION_VOICE_ID_KEY] ?? DEFAULT_VOICE_ID,
-        aiSuggestionsEnabled: parseBool(all[AI_SUGGESTIONS_KEY] ?? null, true),
+        aiSuggestionsEnabled,
         captureLoggingEnabled: parseBool(all[CAPTURE_LOGGING_KEY] ?? null, true),
         grok4Enabled: parseBool(all[GROK4_ENABLED_KEY] ?? null, false),
         localModelId: all[LOCAL_MODEL_ID_KEY] ?? DEFAULT_LOCAL_MODEL_ID,
+        // No stored key yet -> default from aiSuggestionsEnabled; once set, fully independent.
+        museEnabled: parseBool(all[JOURNAL_MUSE_KEY] ?? null, aiSuggestionsEnabled),
         loaded: true,
       });
     },
@@ -108,6 +124,11 @@ export function createSettingsStore(repos: Repositories) {
     async setLocalModelId(modelId) {
       await repos.settings.set(LOCAL_MODEL_ID_KEY, modelId);
       set({ localModelId: modelId });
+    },
+
+    async setMuseEnabled(enabled) {
+      await repos.settings.set(JOURNAL_MUSE_KEY, String(enabled));
+      set({ museEnabled: enabled });
     },
   }));
 }

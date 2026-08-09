@@ -80,6 +80,33 @@ describe("settingsStore", () => {
     expect(freshStore.getState().aiSuggestionsEnabled).toBe(false);
   });
 
+  it("defaults museEnabled to on before and after load, with no aiSuggestionsEnabled override", async () => {
+    expect(useSettings.getState().museEnabled).toBe(true);
+    await useSettings.getState().load();
+    expect(useSettings.getState().museEnabled).toBe(true);
+  });
+
+  it("museEnabled defaults from aiSuggestionsEnabled on first-ever load, not a hardcoded true", async () => {
+    await useSettings.getState().load();
+    await useSettings.getState().setAiSuggestionsEnabled(false);
+
+    const freshStore = createSettingsStore(repos);
+    await freshStore.getState().load();
+    expect(freshStore.getState().museEnabled).toBe(false);
+  });
+
+  it("setMuseEnabled persists the choice across reload, independent of aiSuggestionsEnabled", async () => {
+    await useSettings.getState().load();
+    await useSettings.getState().setMuseEnabled(false);
+    expect(useSettings.getState().museEnabled).toBe(false);
+    expect(useSettings.getState().aiSuggestionsEnabled).toBe(true);
+
+    const freshStore = createSettingsStore(repos);
+    await freshStore.getState().load();
+    expect(freshStore.getState().museEnabled).toBe(false);
+    expect(freshStore.getState().aiSuggestionsEnabled).toBe(true);
+  });
+
   it("defaults captureLoggingEnabled to on before and after load", async () => {
     expect(useSettings.getState().captureLoggingEnabled).toBe(true);
     await useSettings.getState().load();

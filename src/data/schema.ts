@@ -160,6 +160,24 @@ export const MIGRATIONS: string[] = [
   // reminder that already fired doesn't refire from a clean slate after
   // an app restart.
   `ALTER TABLE todos ADD COLUMN alerted_at TEXT`,
+  // The standalone free-write Journal (Phase 16.5) — deliberately its
+  // own table, separate from `journals` (which backs the unrelated
+  // AI-generated Reports feature). `content_json` is TipTap's own
+  // ProseMirror doc JSON, paragraphs carrying their own `createdAt`
+  // attribute — not a hand-built structure, so formatting and
+  // per-paragraph timestamps round-trip through close/reopen for free.
+  `CREATE TABLE IF NOT EXISTS journal_entries (
+    id TEXT PRIMARY KEY,
+    status TEXT NOT NULL CHECK (status IN ('draft', 'committed')),
+    content_json TEXT NOT NULL,
+    started_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    committed_at TEXT
+  )`,
+  // Enforces "at most one open draft at a time" at the DB level rather
+  // than trusting application logic alone.
+  `CREATE UNIQUE INDEX IF NOT EXISTS idx_journal_entries_single_draft
+   ON journal_entries(status) WHERE status = 'draft'`,
 ];
 
 /**

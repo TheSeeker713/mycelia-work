@@ -85,6 +85,25 @@ export interface Journal {
   failure_reason: string | null;
 }
 
+export type DiaryEntryStatus = "draft" | "committed";
+
+/**
+ * A row in the standalone free-write Journal (Phase 16.5) — deliberately
+ * named apart from `Journal`/`JournalStatus` above, which back the
+ * unrelated AI-generated Reports feature. `content_json` is TipTap's
+ * own `editor.getJSON()` doc, serialized — paragraphs carry their own
+ * `createdAt` attribute, so this one field is both the formatted
+ * content and the per-paragraph timestamp record.
+ */
+export interface DiaryEntry {
+  id: string;
+  status: DiaryEntryStatus;
+  content_json: string;
+  started_at: string;
+  updated_at: string;
+  committed_at: string | null;
+}
+
 export type ProjectReportStatus = "pending" | "ok" | "failed";
 
 export interface ProjectReport {
