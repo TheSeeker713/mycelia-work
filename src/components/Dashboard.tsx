@@ -85,7 +85,7 @@ function TasksCompartment() {
   }
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col overflow-y-auto">
       <TaskCapture onAdd={addTask} />
       <TaskList tasks={tasks} focusedTaskId={focusedTaskId} onFocus={focusTask} />
       <ActiveSessionsRow

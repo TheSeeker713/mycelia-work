@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { POCKET_CONTENT_HEIGHT } from "../constants/windowSizing";
 
 /**
  * Pocket and fullscreen chrome, unified into one component with the
@@ -44,13 +45,14 @@ export function Shell({
       <div
         className={
           mode === "pocket"
-            ? "flex h-[480px] flex-col overflow-hidden rounded-[22px] border border-[var(--line)] bg-[var(--paper-card)] text-[var(--ink)]"
+            ? "flex flex-col overflow-hidden rounded-[22px] border border-[var(--line)] bg-[var(--paper-card)] text-[var(--ink)]"
             : "flex h-screen w-screen flex-col bg-[var(--paper-card)] text-[var(--ink)]"
         }
         style={
           mode === "pocket"
             ? {
                 width: `${width}px`,
+                height: POCKET_CONTENT_HEIGHT,
                 boxShadow:
                   "0 1px 2px rgba(0,0,0,0.14), 0 6px 12px -2px rgba(0,0,0,0.16), 0 24px 44px -12px rgba(0,0,0,0.30)",
               }

@@ -18,7 +18,7 @@ export function TaskList({
   }
 
   return (
-    <ul className="flex flex-1 flex-col gap-1 overflow-y-auto">
+    <ul className="flex flex-col gap-1">
       {tasks.map((task) => {
         const focused = task.id === focusedTaskId;
         return (

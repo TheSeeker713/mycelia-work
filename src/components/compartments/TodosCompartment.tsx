@@ -31,14 +31,14 @@ export function TodosCompartment() {
   }
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col overflow-y-auto">
       <div className="mb-3 text-[0.78rem] font-semibold text-[var(--ink)]">Todos</div>
       {todos.length === 0 ? (
         <p className="py-4 text-center text-[0.82rem] text-[var(--ink-faint)]">
           Nothing on the list yet.
         </p>
       ) : (
-        <ul className="flex flex-1 flex-col gap-1.5 overflow-y-auto">
+        <ul className="flex flex-col gap-1.5">
           {todos.map((todo) => (
             <li key={todo.id} className="flex items-start gap-2">
               <button

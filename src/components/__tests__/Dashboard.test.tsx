@@ -493,4 +493,21 @@ describe("Dashboard", () => {
     await screen.findByPlaceholderText("What are you working on?");
     expect(voiceClient.speak).not.toHaveBeenCalled();
   });
+
+  it("the whole Tasks card is one scroll region, not just the task list", async () => {
+    renderDashboard();
+
+    const input = await screen.findByPlaceholderText("What are you working on?");
+    expect(input.closest(".overflow-y-auto")).not.toBeNull();
+  });
+
+  it("Settings scrolls as one region — it used to have no scroll handling at all", async () => {
+    const user = userEvent.setup();
+    renderDashboard();
+
+    await user.click(await screen.findByRole("button", { name: "Settings" }));
+
+    const heading = screen.getByText("Voice performance");
+    expect(heading.closest(".overflow-y-auto")).not.toBeNull();
+  });
 });

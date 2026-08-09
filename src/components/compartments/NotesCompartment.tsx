@@ -51,7 +51,7 @@ export function NotesCompartment({
   }
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col overflow-y-auto">
       <div className="mb-3 text-[0.78rem] font-semibold text-[var(--ink)]">Notes</div>
 
       {activeSessions.length > 1 && (
@@ -80,7 +80,7 @@ export function NotesCompartment({
           Nothing written yet for {selected.task.title}.
         </p>
       ) : (
-        <ul className="flex flex-1 flex-col gap-2 overflow-y-auto">
+        <ul className="flex flex-col gap-2">
           {notes.map((note) => (
             <li key={note.id} className="text-[0.82rem] leading-relaxed text-[var(--ink)]">
               <span className="mr-1.5 text-[0.68rem] text-[var(--ink-faint)] tabular-nums">

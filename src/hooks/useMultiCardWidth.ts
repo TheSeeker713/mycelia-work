@@ -1,14 +1,13 @@
 import { useEffect } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { LogicalSize } from "@tauri-apps/api/dpi";
+import { POCKET_WINDOW_HEIGHT, WINDOW_MARGIN } from "../constants/windowSizing";
 
 const BASE_CARD_WIDTH = 340;
 const SESSION_CARD_WIDTH = 280;
 const SESSION_CARD_GAP = 12;
 /** Matches Shell's pocket mode's content padding (p-5 left + pr-9 right for the tab stack). */
 const CONTENT_PADDING = 56;
-/** Matches the 70px-a-side shadow margin from tauri.conf.json / useWindowControls. */
-const WINDOW_MARGIN = 140;
 
 /**
  * Computes how wide the pocket card needs to be to fit `sessionCount`
@@ -35,7 +34,7 @@ export function useMultiCardWidth(sessionCount: number, fullscreen: boolean): nu
     // any promise exists. Needs a real try/catch around the call itself.
     try {
       getCurrentWindow()
-        .setSize(new LogicalSize(cardWidth + WINDOW_MARGIN, 620))
+        .setSize(new LogicalSize(cardWidth + WINDOW_MARGIN, POCKET_WINDOW_HEIGHT))
         .catch(() => {});
     } catch {
       // no Tauri bridge available; the view still uses cardWidth for layout

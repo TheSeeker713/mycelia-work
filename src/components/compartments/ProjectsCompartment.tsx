@@ -541,14 +541,14 @@ export function ProjectsCompartment() {
   }
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col overflow-y-auto">
       <div className="mb-3 text-[0.78rem] font-semibold text-[var(--ink)]">Projects</div>
       {projects.length === 0 ? (
         <p className="py-4 text-center text-[0.82rem] text-[var(--ink-faint)]">
           No projects yet.
         </p>
       ) : (
-        <ul className="flex flex-1 flex-col gap-2 overflow-y-auto">
+        <ul className="flex flex-col gap-2">
           {projects.map((project) => (
             <ProjectCard
               key={project.id}

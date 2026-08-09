@@ -45,7 +45,7 @@ export function SettingsCompartment() {
   }
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col overflow-y-auto">
       <div className="mb-3 text-[0.78rem] font-semibold text-[var(--ink)]">Settings</div>
 
       <div className="mb-2 text-[0.7rem] tracking-wide text-[var(--ink-faint)] uppercase">

@@ -15,14 +15,14 @@ export function TaskWorkspace({
 }) {
   if (!task) {
     return (
-      <div className="mt-auto border-t border-dashed border-[var(--line)] pt-3 text-[0.8rem] text-[var(--ink-faint)]">
+      <div className="mt-3 border-t border-dashed border-[var(--line)] pt-3 text-[0.8rem] text-[var(--ink-faint)]">
         Click a task to focus the workspace on it.
       </div>
     );
   }
 
   return (
-    <div className="mt-auto border-t border-dashed border-[var(--line)] pt-3">
+    <div className="mt-3 border-t border-dashed border-[var(--line)] pt-3">
       <div className="text-[1.05rem] leading-tight font-semibold text-[var(--ink)]">
         {task.title}
       </div>

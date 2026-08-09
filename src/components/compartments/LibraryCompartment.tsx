@@ -172,18 +172,18 @@ export function LibraryCompartment() {
   }, [loadArchivedTasks, loadRecentJournals]);
 
   return (
-    <div className="flex h-full flex-col gap-2">
+    <div className="flex h-full flex-col gap-2 overflow-y-auto">
       <div className="mb-1 text-[0.78rem] font-semibold text-[var(--ink)]">Library</div>
 
       {expandedSection === "archived" ? (
-        <div className="flex flex-1 flex-col overflow-hidden">
+        <div className="flex flex-col">
           <div className="mb-2 text-[0.7rem] tracking-wide text-[var(--ink-faint)] uppercase">
             Archived tasks
           </div>
           {archivedTasks.length === 0 ? (
             <p className="text-[0.82rem] text-[var(--ink-faint)]">Nothing archived yet.</p>
           ) : (
-            <ul className="flex flex-1 flex-col gap-1.5 overflow-y-auto">
+            <ul className="flex flex-col gap-1.5">
               {archivedTasks.map((task) => (
                 <li
                   key={task.id}
@@ -211,7 +211,7 @@ export function LibraryCompartment() {
       )}
 
       {expandedSection === "workJournal" ? (
-        <div className="flex flex-1 flex-col overflow-hidden">
+        <div className="flex flex-col">
           <div className="mb-2 flex items-center justify-between">
             <div className="text-[0.7rem] tracking-wide text-[var(--ink-faint)] uppercase">
               Work journal
@@ -229,7 +229,7 @@ export function LibraryCompartment() {
               Nothing generated yet — clock out of a task to get one started.
             </p>
           ) : (
-            <ul className="flex flex-1 flex-col gap-1.5 overflow-y-auto">
+            <ul className="flex flex-col gap-1.5">
               {journals.map((journal) => (
                 <JournalEntry key={journal.id} journal={journal} onRetry={retryJournal} />
               ))}
@@ -245,7 +245,7 @@ export function LibraryCompartment() {
       )}
 
       {expandedSection === "books" ? (
-        <div className="flex flex-1 flex-col overflow-hidden">
+        <div className="flex flex-col">
           <div className="mb-2 text-[0.7rem] tracking-wide text-[var(--ink-faint)] uppercase">
             Books
           </div>
