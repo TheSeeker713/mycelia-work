@@ -28,15 +28,35 @@ describe("createHttpOllamaClient", () => {
     });
 
     it("returns null (fails soft) when the server responds non-ok", async () => {
-      global.fetch = vi.fn().mockResolvedValue({ ok: false });
+      global.fetch = vi.fn().mockResolvedValue({ ok: false, status: 403 });
       const client = createHttpOllamaClient();
       expect(await client.suggestContinuation("some text")).toBeNull();
+    });
+
+    it("warns to the console (not silently) on a non-ok response — this is the class of bug that went unnoticed for a whole session", async () => {
+      global.fetch = vi.fn().mockResolvedValue({ ok: false, status: 403 });
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const client = createHttpOllamaClient();
+
+      await client.suggestContinuation("some text");
+
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("403"));
     });
 
     it("returns null (fails soft) when the server is unreachable", async () => {
       global.fetch = vi.fn().mockRejectedValue(new Error("ECONNREFUSED"));
       const client = createHttpOllamaClient();
       expect(await client.suggestContinuation("some text")).toBeNull();
+    });
+
+    it("warns to the console when the request itself throws", async () => {
+      global.fetch = vi.fn().mockRejectedValue(new Error("ECONNREFUSED"));
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const client = createHttpOllamaClient();
+
+      await client.suggestContinuation("some text");
+
+      expect(warnSpy).toHaveBeenCalled();
     });
 
     it("returns null for an empty response body", async () => {
@@ -156,6 +176,46 @@ describe("createHttpOllamaClient", () => {
       global.fetch = vi.fn().mockRejectedValue(new Error("ECONNREFUSED"));
       const client = createHttpOllamaClient();
       expect(await client.isAvailable()).toBe(false);
+    });
+  });
+
+  describe("generateReport", () => {
+    it("returns the trimmed response text on success", async () => {
+      global.fetch = vi
+        .fn()
+        .mockResolvedValue({ ok: true, json: () => Promise.resolve({ response: "  a real report  " }) });
+      const client = createHttpOllamaClient();
+
+      const result = await client.generateReport("write a report", "hermes3:8b", 90);
+
+      expect(result).toBe("a real report");
+      const [url, init] = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+      expect(url).toBe("http://127.0.0.1:11434/api/generate");
+      const body = JSON.parse(init.body as string);
+      expect(body.model).toBe("hermes3:8b");
+      expect(body.prompt).toBe("write a report");
+      expect(body.stream).toBe(false);
+    });
+
+    it("throws (does not fail soft) when the server responds non-ok — callers rely on this for retry/markResult('failed', ...)", async () => {
+      global.fetch = vi.fn().mockResolvedValue({ ok: false, status: 403 });
+      const client = createHttpOllamaClient();
+
+      await expect(client.generateReport("write a report", "hermes3:8b", 90)).rejects.toThrow("403");
+    });
+
+    it("throws on an empty response body", async () => {
+      global.fetch = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve({ response: "   " }) });
+      const client = createHttpOllamaClient();
+
+      await expect(client.generateReport("write a report", "hermes3:8b", 90)).rejects.toThrow("empty");
+    });
+
+    it("throws when the server is unreachable", async () => {
+      global.fetch = vi.fn().mockRejectedValue(new Error("ECONNREFUSED"));
+      const client = createHttpOllamaClient();
+
+      await expect(client.generateReport("write a report", "hermes3:8b", 90)).rejects.toThrow("ECONNREFUSED");
     });
   });
 });

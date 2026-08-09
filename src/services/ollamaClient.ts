@@ -1,3 +1,18 @@
+/**
+ * Ollama enforces its own server-side Origin allowlist independent of
+ * anything the browser does — confirmed live 2026-08-08 while
+ * diagnosing ghost text never firing: a request carrying
+ * `Origin: http://tauri.localhost` (what Tauri v2's WebView2 sends on
+ * Windows) got a flat 403 from Ollama itself, while the identical
+ * request via curl (no Origin header) or `Origin: http://localhost`
+ * both succeeded. Every call in this module goes through the browser
+ * `fetch`, so it's silently blocked unless Ollama's own
+ * `OLLAMA_ORIGINS` env var includes the app's actual origin. Fixed on
+ * this machine by setting `OLLAMA_ORIGINS=http://tauri.localhost,
+ * https://tauri.localhost` (user env var) and restarting Ollama — not
+ * something this repo's code can set for a future machine, so this
+ * comment is the durable trace of why.
+ */
 const OLLAMA_URL = "http://127.0.0.1:11434";
 const HEALTH_TIMEOUT_MS = 1500;
 /**
@@ -81,11 +96,19 @@ export function createHttpOllamaClient(): OllamaClient {
           }),
           signal: AbortSignal.timeout(SUGGEST_TIMEOUT_MS),
         });
-        if (!res.ok) return null;
+        if (!res.ok) {
+          // Fails soft to no-suggestion either way, but a silent 403/500
+          // is exactly the class of bug that went unnoticed for a whole
+          // session (the Origin-allowlist issue documented above) — a
+          // console warning costs nothing and makes the next one visible.
+          console.warn(`Ghost-text suggestion request failed: HTTP ${res.status}`);
+          return null;
+        }
         const data = (await res.json()) as { response?: string };
         const suggestion = data.response?.trim();
         return suggestion || null;
-      } catch {
+      } catch (err) {
+        console.warn("Ghost-text suggestion request failed:", err);
         return null;
       }
     },
