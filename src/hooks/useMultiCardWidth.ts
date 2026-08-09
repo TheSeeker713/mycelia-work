@@ -5,7 +5,7 @@ import { LogicalSize } from "@tauri-apps/api/dpi";
 const BASE_CARD_WIDTH = 340;
 const SESSION_CARD_WIDTH = 280;
 const SESSION_CARD_GAP = 12;
-/** Matches PocketShell's content padding (p-5 left + pr-9 right for the tab stack). */
+/** Matches Shell's pocket mode's content padding (p-5 left + pr-9 right for the tab stack). */
 const CONTENT_PADDING = 56;
 /** Matches the 70px-a-side shadow margin from tauri.conf.json / useWindowControls. */
 const WINDOW_MARGIN = 140;
@@ -23,7 +23,7 @@ export function computeCardWidth(sessionCount: number): number {
   return Math.max(BASE_CARD_WIDTH, neededContentWidth + CONTENT_PADDING);
 }
 
-/** Resizes the real window to match, and returns the card width for PocketShell. Does nothing while full-screen — that mode manages its own size. */
+/** Resizes the real window to match, and returns the card width for Shell's pocket mode. Does nothing while full-screen — that mode manages its own size. */
 export function useMultiCardWidth(sessionCount: number, fullscreen: boolean): number {
   const cardWidth = computeCardWidth(sessionCount);
 

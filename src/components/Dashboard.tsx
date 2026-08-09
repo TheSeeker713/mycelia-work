@@ -15,8 +15,7 @@ import { useIdleWatcher } from "../hooks/useIdleWatcher";
 import { useSelfVoicing } from "../hooks/useSelfVoicing";
 import { ZenModeEditor } from "./ZenModeEditor";
 import { CaptureDrawer } from "./CaptureDrawer";
-import { PocketShell } from "./PocketShell";
-import { FullscreenShell } from "./FullscreenShell";
+import { Shell } from "./Shell";
 import { DeviceBar } from "./DeviceBar";
 import { MenuBar } from "./MenuBar";
 import { CompartmentTabs, type CompartmentName } from "./CompartmentTabs";
@@ -243,19 +242,27 @@ export function Dashboard() {
 
   if (zenMode) {
     return (
-      <FullscreenShell>
+      <Shell mode="fullscreen">
         <ZenModeEditor
           sessionId={zenMode.sessionId}
           taskTitle={zenMode.taskTitle}
           onExit={exitZenMode}
         />
-      </FullscreenShell>
+      </Shell>
     );
   }
 
-  if (controls.fullscreen) {
-    return (
-      <FullscreenShell>
+  // Pocket and fullscreen share one return path (Shell varies only by
+  // `mode`, not by wrapper depth) so CompartmentContent — and every
+  // compartment's own local state underneath it — never unmounts on a
+  // pocket↔fullscreen toggle. Zen mode stays a genuinely separate branch
+  // above: its own content (the notes draft) already lives in
+  // useNotesStore, not local state, so it has nothing to lose here, and
+  // it renders a completely different component (ZenModeEditor) rather
+  // than the compartment/chrome tree at all.
+  return (
+    <Shell mode={controls.fullscreen ? "fullscreen" : "pocket"} width={cardWidth}>
+      {controls.fullscreen ? (
         <MenuBar
           pinned={controls.pinned}
           onTogglePin={controls.togglePin}
@@ -264,57 +271,36 @@ export function Dashboard() {
           onSelectCompartment={setActive}
           onReplayOnboarding={replayOnboarding}
         />
-        <div className="relative flex flex-1 overflow-hidden">
-          {/*
-            Full-screen mode reuses the same compact compartment
-            components the pocket view uses, which left everything
-            reading just as small on a full monitor as it does in the
-            tiny pocket card — the opposite of what "expand to full
-            screen" should feel like. `zoom` (not `transform: scale`)
-            reflows the whole subtree, including its own padding, at
-            2x rather than just visually stretching it, so this stays
-            one line instead of hand-doubling every size/padding value
-            in every compartment.
-          */}
-          <div className="flex-1 overflow-hidden p-6 pr-12" style={{ zoom: 2 }}>
-            <CompartmentContent active={active} onEnterZenMode={enterZenMode} />
-          </div>
-          <CompartmentTabs active={active} onSelect={setActive} />
-          <AchievementToastStack />
-          {showExitConfirm ? (
-            <ExitConfirmDialog controls={controls} onCancel={() => setShowExitConfirm(false)} />
-          ) : danglingSession ? (
-            <CheckInFlow
-              activeSession={danglingSession}
-              onResolve={resolveCheckIn}
-              client={openClawClient}
-            />
-          ) : (
-            idle.showToast && (
-              <ShortIdleToast
-                idleSeconds={idle.idleSeconds}
-                onKeepAsWork={idle.dismiss}
-                onLogAsBreak={logIdleAsBreak}
-              />
-            )
-          )}
-          {!danglingSession && <CaptureDrawer activeSessionId={primarySessionId} />}
-        </div>
-      </FullscreenShell>
-    );
-  }
-
-  return (
-    <PocketShell width={cardWidth}>
-      <DeviceBar
-        pinned={controls.pinned}
-        onTogglePin={controls.togglePin}
-        onMinimize={controls.minimizeToTray}
-        onExpandFullscreen={controls.enterFullscreen}
-        onExit={() => setShowExitConfirm(true)}
-      />
-      <div className="relative flex flex-1 flex-col overflow-hidden">
-        <div className="flex-1 overflow-hidden p-5 pr-9">
+      ) : (
+        <DeviceBar
+          pinned={controls.pinned}
+          onTogglePin={controls.togglePin}
+          onMinimize={controls.minimizeToTray}
+          onExpandFullscreen={controls.enterFullscreen}
+          onExit={() => setShowExitConfirm(true)}
+        />
+      )}
+      <div
+        className={
+          controls.fullscreen
+            ? "relative flex flex-1 overflow-hidden"
+            : "relative flex flex-1 flex-col overflow-hidden"
+        }
+      >
+        {/*
+          Full-screen mode reuses the same compact compartment components
+          the pocket view uses, which left everything reading just as
+          small on a full monitor as it does in the tiny pocket card —
+          the opposite of what "expand to full screen" should feel like.
+          `zoom` (not `transform: scale`) reflows the whole subtree,
+          including its own padding, at 2x rather than just visually
+          stretching it, so this stays one line instead of hand-doubling
+          every size/padding value in every compartment.
+        */}
+        <div
+          className={controls.fullscreen ? "flex-1 overflow-hidden p-6 pr-12" : "flex-1 overflow-hidden p-5 pr-9"}
+          style={controls.fullscreen ? { zoom: 2 } : undefined}
+        >
           <CompartmentContent active={active} onEnterZenMode={enterZenMode} />
         </div>
         <CompartmentTabs active={active} onSelect={setActive} />
@@ -333,19 +319,22 @@ export function Dashboard() {
             onKeepAsWork={idle.dismiss}
             onLogAsBreak={logIdleAsBreak}
           />
-        ) : settingsLoaded && !accessibilityOnboardingSeen ? (
-          // AccessibilityOnboarding already persists "seen" itself before
-          // calling this — once accessibilityOnboardingSeen flips true,
-          // this branch stops matching and the overlay unmounts on its
-          // own, so there's nothing extra to do here.
+        ) : !controls.fullscreen && settingsLoaded && !accessibilityOnboardingSeen ? (
+          // Onboarding never shows in full-screen mode — unchanged from
+          // before this restructure. AccessibilityOnboarding already
+          // persists "seen" itself before calling this — once
+          // accessibilityOnboardingSeen flips true, this branch stops
+          // matching and the overlay unmounts on its own, so there's
+          // nothing extra to do here.
           <AccessibilityOnboarding onDone={() => {}} />
         ) : (
+          !controls.fullscreen &&
           showOnboarding && (
             <OnboardingCoachMark onDismiss={() => setShowOnboarding(false)} />
           )
         )}
         {!danglingSession && <CaptureDrawer activeSessionId={primarySessionId} />}
       </div>
-    </PocketShell>
+    </Shell>
   );
 }

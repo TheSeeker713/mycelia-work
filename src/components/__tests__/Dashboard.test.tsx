@@ -197,6 +197,35 @@ describe("Dashboard", () => {
     expect(screen.queryByRole("button", { name: "File" })).not.toBeInTheDocument();
   });
 
+  it("an in-progress new-project draft survives expanding to full screen and back — the pocket/fullscreen shell no longer remounts the compartment tree", async () => {
+    const user = userEvent.setup();
+    renderDashboard();
+
+    await user.click(await screen.findByRole("button", { name: "Projects" }));
+    await user.click(screen.getByText("+ New project"));
+    await user.type(screen.getByLabelText("New project title"), "Redesign onboarding flow");
+
+    await user.click(screen.getByTitle("Expand to full screen"));
+    expect(screen.getByLabelText("New project title")).toHaveValue("Redesign onboarding flow");
+
+    await user.click(screen.getByRole("button", { name: /Back to pocket view/ }));
+    expect(screen.getByLabelText("New project title")).toHaveValue("Redesign onboarding flow");
+  });
+
+  it("a partially-typed todo survives expanding to full screen and back too", async () => {
+    const user = userEvent.setup();
+    renderDashboard();
+
+    await user.click(await screen.findByRole("button", { name: "Todos" }));
+    await user.type(screen.getByLabelText("New todo"), "Follow up with the vendor");
+
+    await user.click(screen.getByTitle("Expand to full screen"));
+    expect(screen.getByLabelText("New todo")).toHaveValue("Follow up with the vendor");
+
+    await user.click(screen.getByRole("button", { name: /Back to pocket view/ }));
+    expect(screen.getByLabelText("New todo")).toHaveValue("Follow up with the vendor");
+  });
+
   it("Escape exits full screen back to the pocket view", async () => {
     const user = userEvent.setup();
     renderDashboard();

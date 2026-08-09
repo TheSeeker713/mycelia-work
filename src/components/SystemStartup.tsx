@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { PocketShell } from "./PocketShell";
+import { Shell } from "./Shell";
 import { useOllamaClient, useOpenClawClient, useSettingsStore, useVoiceClient } from "../store/StoreProvider";
 
 type CheckStatus = "checking" | "online" | "unavailable";
@@ -131,7 +131,7 @@ export function SystemStartup({ onDone }: { onDone: () => void }) {
   }, [checks]);
 
   return (
-    <PocketShell>
+    <Shell mode="pocket">
       <div className="flex h-full flex-col items-center justify-center gap-4 px-6">
         <div className="text-[0.82rem] font-semibold text-[var(--ink)]">Mycelia Time</div>
         <div className="flex w-full flex-col gap-2">
@@ -150,6 +150,6 @@ export function SystemStartup({ onDone }: { onDone: () => void }) {
           Continue now
         </button>
       </div>
-    </PocketShell>
+    </Shell>
   );
 }

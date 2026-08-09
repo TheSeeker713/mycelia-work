@@ -4,7 +4,7 @@ import { LogicalSize } from "@tauri-apps/api/dpi";
 
 // Must match tauri.conf.json's initial window size — 70px of invisible
 // margin around the 340x480 card, enough for the shadow's blur to fully
-// fade before hitting the window edge (see PocketShell.tsx).
+// fade before hitting the window edge (see Shell.tsx).
 const POCKET_SIZE = new LogicalSize(480, 620);
 
 /** Centralizes the window-level actions shared by DeviceBar (pocket mode) and MenuBar (full-screen mode). */
