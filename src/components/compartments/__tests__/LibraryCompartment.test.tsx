@@ -112,6 +112,23 @@ describe("LibraryCompartment — Read aloud", () => {
   });
 });
 
+describe("LibraryCompartment — generation in progress", () => {
+  it("shows an indeterminate progress bar next to a pending journal", async () => {
+    const task = await repos.tasks.create({ title: "Write the devlog entry" });
+    const session = await repos.taskSessions.clockIn(task.id);
+    await repos.journals.createPending({
+      taskId: task.id,
+      taskSessionId: session.id,
+      kind: "session",
+    });
+
+    const { container } = renderLibrary();
+
+    expect(await screen.findByText("Generating…")).toBeInTheDocument();
+    expect(container.querySelector(".progress-indeterminate")).toBeInTheDocument();
+  });
+});
+
 describe("LibraryCompartment — failed journals", () => {
   it("shows the failure reason next to a failed journal, and Retry re-runs it", async () => {
     const task = await repos.tasks.create({ title: "Write the devlog entry" });

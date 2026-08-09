@@ -57,6 +57,10 @@ function JournalEntry({
       </div>
       <div className="mt-0.5 text-[0.7rem] text-[var(--ink-faint)]">{when}</div>
 
+      {journal.status === "pending" && (
+        <div className="progress-indeterminate mt-1.5" aria-hidden="true" />
+      )}
+
       {journal.status === "ok" && journal.content && (
         <div className="mt-1.5">
           <p

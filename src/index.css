@@ -61,6 +61,47 @@
   }
 }
 
+/* Indeterminate progress bar for AI generation in flight — a sweeping
+   bar rather than a real percentage, since generation time genuinely
+   can't be predicted (see LibraryCompartment.tsx's JournalEntry). */
+@keyframes progress-sweep {
+  0% {
+    left: -40%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+.progress-indeterminate {
+  position: relative;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--line);
+}
+
+.progress-indeterminate::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -40%;
+  width: 40%;
+  border-radius: 999px;
+  background: var(--moss);
+  animation: progress-sweep 1.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progress-indeterminate::after {
+    animation: none;
+    left: 0;
+    width: 100%;
+    opacity: 0.5;
+  }
+}
+
 body {
   margin: 0;
   font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
