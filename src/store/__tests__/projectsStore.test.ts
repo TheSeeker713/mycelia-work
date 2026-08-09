@@ -5,14 +5,20 @@ import { createTestExecutor } from "../../data/__tests__/testExecutor";
 import { createProjectsStore, type ProjectsStore } from "../projectsStore";
 import { createGamificationStore } from "../gamificationStore";
 import type { OpenClawClient } from "../../services/openclawClient";
+import type { OllamaClient } from "../../services/ollamaClient";
 
 let repos: Repositories;
 let openClawClient: OpenClawClient;
+let ollamaClient: OllamaClient;
 let useProjectsStore: ProjectsStore;
 let gamification: ReturnType<typeof createGamificationStore>;
 
 beforeEach(async () => {
   repos = await initDatabase(createTestExecutor());
+  // Grok on so this file keeps exercising the OpenClaw path — the
+  // grok-off/direct-Ollama path has its own coverage in
+  // projectAssist.test.ts.
+  await repos.settings.set("grok4_enabled", "true");
   openClawClient = {
     runOnce: vi.fn().mockResolvedValue({ text: "Real progress this week.", model: "test" }),
     ensureDaemon: vi.fn(),
@@ -20,8 +26,16 @@ beforeEach(async () => {
     releaseDaemon: vi.fn(),
     cancelActiveCall: vi.fn(),
   };
+  ollamaClient = {
+    suggestContinuation: vi.fn(),
+    classifyOnTopic: vi.fn(),
+    warmUpGhostText: vi.fn(),
+    warmUpModel: vi.fn(),
+    isAvailable: vi.fn().mockResolvedValue(true),
+    generateReport: vi.fn(),
+  };
   gamification = createGamificationStore(repos);
-  useProjectsStore = createProjectsStore(repos, openClawClient, gamification);
+  useProjectsStore = createProjectsStore(repos, openClawClient, gamification, ollamaClient);
 });
 
 describe("projectsStore", () => {

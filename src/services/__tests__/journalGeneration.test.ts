@@ -3,6 +3,7 @@ import type { Note, SessionEvent, Task, TaskSession } from "../../data";
 import { initDatabase, type Repositories } from "../../data";
 import { createTestExecutor } from "../../data/__tests__/testExecutor";
 import type { OpenClawClient } from "../openclawClient";
+import type { OllamaClient } from "../ollamaClient";
 import {
   STALE_PENDING_THRESHOLD_MS,
   buildSessionJournalPrompt,
@@ -118,6 +119,7 @@ describe("buildWeeklyRollupPrompt", () => {
 describe("runJournalGeneration", () => {
   let repos: Repositories;
   let fakeClient: OpenClawClient;
+  let fakeOllama: OllamaClient;
   let realTaskId: string;
   let realSessionId: string;
 
@@ -131,12 +133,25 @@ describe("runJournalGeneration", () => {
     realTaskId = realTask.id;
     realSessionId = (await repos.taskSessions.clockIn(realTaskId)).id;
     vi.mocked(invoke).mockReset();
+    // Grok on by default in this describe block, so the existing
+    // OpenClaw-path tests below keep exercising fakeClient — the
+    // grok-off/direct-Ollama path has its own describe block further
+    // down.
+    await repos.settings.set("grok4_enabled", "true");
     fakeClient = {
       runOnce: vi.fn().mockResolvedValue({ text: "A generated journal entry.", model: "xai/grok-4.5" }),
       ensureDaemon: vi.fn().mockResolvedValue(true),
       call: vi.fn().mockResolvedValue({ text: "turn", model: "xai/grok-4.5" }),
       releaseDaemon: vi.fn().mockResolvedValue(undefined),
     cancelActiveCall: vi.fn(),
+    };
+    fakeOllama = {
+      suggestContinuation: vi.fn(),
+      classifyOnTopic: vi.fn(),
+      warmUpGhostText: vi.fn(),
+      warmUpModel: vi.fn(),
+      isAvailable: vi.fn().mockResolvedValue(true),
+      generateReport: vi.fn().mockResolvedValue("A locally-generated journal entry."),
     };
   });
 
@@ -147,6 +162,7 @@ describe("runJournalGeneration", () => {
     const result = await runJournalGeneration({
       repos,
       client: fakeClient,
+      ollama: fakeOllama,
       journalId: pending.id,
       sessionKey: "agent:main:mycelia-time-journal-s1",
       prompt: "irrelevant for this test",
@@ -166,6 +182,7 @@ describe("runJournalGeneration", () => {
     const result = await runJournalGeneration({
       repos,
       client: fakeClient,
+      ollama: fakeOllama,
       journalId: pending.id,
       sessionKey: "agent:main:mycelia-time-journal-s1",
       prompt: "irrelevant for this test",
@@ -189,6 +206,7 @@ describe("runJournalGeneration", () => {
     const result = await runJournalGeneration({
       repos,
       client: fakeClient,
+      ollama: fakeOllama,
       journalId: pending.id,
       sessionKey: "agent:main:mycelia-time-journal-s1",
       prompt: "irrelevant for this test",
@@ -207,6 +225,7 @@ describe("runJournalGeneration", () => {
     const result = await runJournalGeneration({
       repos,
       client: fakeClient,
+      ollama: fakeOllama,
       journalId: pending.id,
       sessionKey: "agent:main:mycelia-time-journal-s1",
       prompt: "irrelevant for this test",
@@ -214,6 +233,101 @@ describe("runJournalGeneration", () => {
     });
 
     expect(result.status).toBe("failed");
+  });
+});
+
+describe("runJournalGeneration (Grok off — direct-Ollama path)", () => {
+  let repos: Repositories;
+  let fakeClient: OpenClawClient;
+  let fakeOllama: OllamaClient;
+  let realTaskId: string;
+  let realSessionId: string;
+
+  beforeEach(async () => {
+    repos = await initDatabase(createTestExecutor());
+    const realTask = await repos.tasks.create({ title: "Write the devlog entry" });
+    realTaskId = realTask.id;
+    realSessionId = (await repos.taskSessions.clockIn(realTaskId)).id;
+    vi.mocked(invoke).mockReset();
+    vi.mocked(invoke).mockResolvedValue("docs/workjournal/2026-08-03_1200_test.md");
+    // Grok off is the default (no setting row) — asserted explicitly
+    // here anyway so this block's intent reads clearly on its own.
+    await repos.settings.set("grok4_enabled", "false");
+    fakeClient = {
+      runOnce: vi.fn(),
+      ensureDaemon: vi.fn().mockResolvedValue(true),
+      call: vi.fn(),
+      releaseDaemon: vi.fn().mockResolvedValue(undefined),
+      cancelActiveCall: vi.fn(),
+    };
+    fakeOllama = {
+      suggestContinuation: vi.fn(),
+      classifyOnTopic: vi.fn(),
+      warmUpGhostText: vi.fn(),
+      warmUpModel: vi.fn(),
+      isAvailable: vi.fn().mockResolvedValue(true),
+      generateReport: vi.fn().mockResolvedValue("A locally-generated journal entry."),
+    };
+  });
+
+  it("calls Ollama directly, never OpenClaw, when Grok is off", async () => {
+    const pending = await repos.journals.createPending({ taskId: realTaskId, taskSessionId: realSessionId, kind: "session" });
+
+    const result = await runJournalGeneration({
+      repos,
+      client: fakeClient,
+      ollama: fakeOllama,
+      journalId: pending.id,
+      sessionKey: "agent:main:mycelia-time-journal-s1",
+      prompt: "irrelevant for this test",
+      filename: "2026-08-03_1200_test.md",
+    });
+
+    expect(result.status).toBe("ok");
+    expect(result.content).toBe("A locally-generated journal entry.");
+    expect(fakeOllama.generateReport).toHaveBeenCalledTimes(1);
+    expect(fakeClient.runOnce).not.toHaveBeenCalled();
+  });
+
+  it("recovers via one automatic retry when only the first local attempt fails", async () => {
+    fakeOllama.generateReport = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("cold load timed out"))
+      .mockResolvedValueOnce("Recovered on retry.");
+    const pending = await repos.journals.createPending({ taskId: realTaskId, taskSessionId: realSessionId, kind: "session" });
+
+    const result = await runJournalGeneration({
+      repos,
+      client: fakeClient,
+      ollama: fakeOllama,
+      journalId: pending.id,
+      sessionKey: "agent:main:mycelia-time-journal-s1",
+      prompt: "irrelevant for this test",
+      filename: "2026-08-03_1200_test.md",
+    });
+
+    expect(result.status).toBe("ok");
+    expect(result.content).toBe("Recovered on retry.");
+    expect(fakeOllama.generateReport).toHaveBeenCalledTimes(2);
+  });
+
+  it("fails closed to 'failed' when both the local attempt and its retry reject", async () => {
+    fakeOllama.generateReport = vi.fn().mockRejectedValue(new Error("Ollama unreachable"));
+    const pending = await repos.journals.createPending({ taskId: realTaskId, taskSessionId: realSessionId, kind: "session" });
+
+    const result = await runJournalGeneration({
+      repos,
+      client: fakeClient,
+      ollama: fakeOllama,
+      journalId: pending.id,
+      sessionKey: "agent:main:mycelia-time-journal-s1",
+      prompt: "irrelevant for this test",
+      filename: "2026-08-03_1200_test.md",
+    });
+
+    expect(result.status).toBe("failed");
+    expect(result.failure_reason).toBe("Ollama unreachable");
+    expect(fakeOllama.generateReport).toHaveBeenCalledTimes(2);
   });
 });
 

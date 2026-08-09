@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { initDatabase, type Project, type Repositories } from "../../data";
 import { createTestExecutor } from "../../data/__tests__/testExecutor";
 import type { OpenClawClient } from "../openclawClient";
+import type { OllamaClient } from "../ollamaClient";
 import {
   buildAssistPrompt,
   buildStatusReportPrompt,
@@ -71,14 +72,27 @@ describe("runProjectAssist", () => {
 describe("runProjectReportGeneration", () => {
   let repos: Repositories;
   let realProject: Project;
+  let ollama: OllamaClient;
 
   beforeEach(async () => {
     repos = await initDatabase(createTestExecutor());
+    // Grok on by default in this describe block, so these tests keep
+    // exercising the OpenClaw path — the grok-off/direct-Ollama path
+    // has its own describe block further down.
+    await repos.settings.set("grok4_enabled", "true");
     realProject = await repos.projects.create({
       title: "Redesign onboarding flow",
       targetMonth: "2026-09",
       priority: "high",
     });
+    ollama = {
+      suggestContinuation: vi.fn(),
+      classifyOnTopic: vi.fn(),
+      warmUpGhostText: vi.fn(),
+      warmUpModel: vi.fn(),
+      isAvailable: vi.fn().mockResolvedValue(true),
+      generateReport: vi.fn(),
+    };
   });
 
   it("resolves the report to ok with content and model on success", async () => {
@@ -91,7 +105,7 @@ describe("runProjectReportGeneration", () => {
     };
     const created = await repos.projectReports.createPending(realProject.id);
 
-    const result = await runProjectReportGeneration({ repos, client, reportId: created.id, project: realProject });
+    const result = await runProjectReportGeneration({ repos, client, ollama, reportId: created.id, project: realProject });
 
     expect(result.status).toBe("ok");
     expect(result.content).toBe("Made real progress this week.");
@@ -108,7 +122,7 @@ describe("runProjectReportGeneration", () => {
     };
     const created = await repos.projectReports.createPending(realProject.id);
 
-    const result = await runProjectReportGeneration({ repos, client, reportId: created.id, project: realProject });
+    const result = await runProjectReportGeneration({ repos, client, ollama, reportId: created.id, project: realProject });
 
     expect(result.status).toBe("failed");
     expect(result.failure_reason).toBe("Gateway unreachable");
@@ -128,10 +142,64 @@ describe("runProjectReportGeneration", () => {
     };
     const created = await repos.projectReports.createPending(realProject.id);
 
-    const result = await runProjectReportGeneration({ repos, client, reportId: created.id, project: realProject });
+    const result = await runProjectReportGeneration({ repos, client, ollama, reportId: created.id, project: realProject });
 
     expect(result.status).toBe("ok");
     expect(result.content).toBe("Recovered on retry.");
     expect(client.runOnce).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("runProjectReportGeneration (Grok off — direct-Ollama path)", () => {
+  let repos: Repositories;
+  let realProject: Project;
+  let client: OpenClawClient;
+  let ollama: OllamaClient;
+
+  beforeEach(async () => {
+    repos = await initDatabase(createTestExecutor());
+    await repos.settings.set("grok4_enabled", "false");
+    realProject = await repos.projects.create({
+      title: "Redesign onboarding flow",
+      targetMonth: "2026-09",
+      priority: "high",
+    });
+    client = {
+      runOnce: vi.fn(),
+      ensureDaemon: vi.fn(),
+      call: vi.fn(),
+      releaseDaemon: vi.fn(),
+      cancelActiveCall: vi.fn(),
+    };
+    ollama = {
+      suggestContinuation: vi.fn(),
+      classifyOnTopic: vi.fn(),
+      warmUpGhostText: vi.fn(),
+      warmUpModel: vi.fn(),
+      isAvailable: vi.fn().mockResolvedValue(true),
+      generateReport: vi.fn().mockResolvedValue("Made real local progress this week."),
+    };
+  });
+
+  it("calls Ollama directly, never OpenClaw, when Grok is off", async () => {
+    const created = await repos.projectReports.createPending(realProject.id);
+
+    const result = await runProjectReportGeneration({ repos, client, ollama, reportId: created.id, project: realProject });
+
+    expect(result.status).toBe("ok");
+    expect(result.content).toBe("Made real local progress this week.");
+    expect(ollama.generateReport).toHaveBeenCalledTimes(1);
+    expect(client.runOnce).not.toHaveBeenCalled();
+  });
+
+  it("fails closed to 'failed' when both the local attempt and its retry reject", async () => {
+    ollama.generateReport = vi.fn().mockRejectedValue(new Error("Ollama unreachable"));
+    const created = await repos.projectReports.createPending(realProject.id);
+
+    const result = await runProjectReportGeneration({ repos, client, ollama, reportId: created.id, project: realProject });
+
+    expect(result.status).toBe("failed");
+    expect(result.failure_reason).toBe("Ollama unreachable");
+    expect(ollama.generateReport).toHaveBeenCalledTimes(2);
   });
 });

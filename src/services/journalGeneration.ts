@@ -14,8 +14,10 @@ import {
   LOCAL_MODEL_ID_KEY,
   resolveModelOverride,
   runOnceWithRetry,
+  type OpenClawCallResult,
   type OpenClawClient,
 } from "./openclawClient";
+import type { OllamaClient } from "./ollamaClient";
 
 export interface RawSessionLog {
   task: Task;
@@ -180,6 +182,29 @@ export function sweepStalePendingJournals(repos: Repositories, now: Date = new D
 }
 
 /**
+ * Grok-off reports skip OpenClaw's CLI/gateway entirely (see
+ * `OllamaClient.generateReport`'s doc comment) — no ~60s fixed tax to
+ * budget for, only real local-model inference time, so this stays well
+ * under `runOnceWithRetry`'s 180s OpenClaw-path timeout.
+ */
+const LOCAL_REPORT_TIMEOUT_SECS = 90;
+
+/** Same one-retry contract as `runOnceWithRetry`, for the direct-Ollama path. */
+async function runLocalReportWithRetry(
+  ollama: OllamaClient,
+  prompt: string,
+  model: string,
+): Promise<OpenClawCallResult> {
+  try {
+    const text = await ollama.generateReport(prompt, model, LOCAL_REPORT_TIMEOUT_SECS);
+    return { text, model };
+  } catch {
+    const text = await ollama.generateReport(prompt, model, LOCAL_REPORT_TIMEOUT_SECS);
+    return { text, model };
+  }
+}
+
+/**
  * Runs one generation attempt against an already-`pending` journal row
  * and always resolves it to `ok` or `failed` — never leaves it dangling
  * `pending` on a thrown error, so the UI's retry affordance always has
@@ -188,21 +213,24 @@ export function sweepStalePendingJournals(repos: Repositories, now: Date = new D
 export async function runJournalGeneration(params: {
   repos: Repositories;
   client: OpenClawClient;
+  ollama: OllamaClient;
   journalId: string;
   sessionKey: string;
   prompt: string;
   filename: string;
 }): Promise<Journal> {
-  const { repos, client, journalId, sessionKey, prompt, filename } = params;
+  const { repos, client, ollama, journalId, sessionKey, prompt, filename } = params;
   try {
     const grok4Enabled = (await repos.settings.get(GROK4_ENABLED_KEY)) === "true";
     const localModelId = (await repos.settings.get(LOCAL_MODEL_ID_KEY)) ?? DEFAULT_LOCAL_MODEL_ID;
-    const result = await runOnceWithRetry(client, {
-      sessionKey,
-      message: prompt,
-      timeoutSecs: 180,
-      model: resolveModelOverride(grok4Enabled, localModelId),
-    });
+    const result = grok4Enabled
+      ? await runOnceWithRetry(client, {
+          sessionKey,
+          message: prompt,
+          timeoutSecs: 180,
+          model: resolveModelOverride(grok4Enabled, localModelId),
+        })
+      : await runLocalReportWithRetry(ollama, prompt, localModelId);
     const exportedPath = await exportWorkJournalFile(filename, result.text);
     await repos.journals.markResult(journalId, "ok", {
       modelUsed: result.model,

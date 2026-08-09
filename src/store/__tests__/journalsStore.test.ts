@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { initDatabase, type Repositories, type SqlExecutor } from "../../data";
 import { createTestExecutor } from "../../data/__tests__/testExecutor";
 import type { OpenClawClient } from "../../services/openclawClient";
+import type { OllamaClient } from "../../services/ollamaClient";
 import { createJournalsStore, type JournalsStore } from "../journalsStore";
 
 vi.mock("@tauri-apps/api/core", () => ({
@@ -13,6 +14,7 @@ import { invoke } from "@tauri-apps/api/core";
 let executor: SqlExecutor;
 let repos: Repositories;
 let fakeClient: OpenClawClient;
+let fakeOllama: OllamaClient;
 let useJournals: JournalsStore;
 let taskId: string;
 let sessionId: string;
@@ -22,6 +24,10 @@ beforeEach(async () => {
   repos = await initDatabase(executor);
   vi.mocked(invoke).mockReset();
   vi.mocked(invoke).mockResolvedValue("docs/workjournal/fake-path.md");
+  // Grok on so this whole file keeps exercising the OpenClaw path it
+  // was written against — the direct-Ollama path has its own coverage
+  // in journalGeneration.test.ts.
+  await repos.settings.set("grok4_enabled", "true");
 
   fakeClient = {
     runOnce: vi.fn().mockResolvedValue({ text: "Generated entry.", model: "xai/grok-4.5" }),
@@ -30,6 +36,14 @@ beforeEach(async () => {
     releaseDaemon: vi.fn().mockResolvedValue(undefined),
     cancelActiveCall: vi.fn(),
   };
+  fakeOllama = {
+    suggestContinuation: vi.fn(),
+    classifyOnTopic: vi.fn(),
+    warmUpGhostText: vi.fn(),
+    warmUpModel: vi.fn(),
+    isAvailable: vi.fn().mockResolvedValue(true),
+    generateReport: vi.fn(),
+  };
 
   const task = await repos.tasks.create({ title: "Write the devlog entry" });
   taskId = task.id;
@@ -37,7 +51,7 @@ beforeEach(async () => {
   sessionId = session.id;
   await repos.taskSessions.clockOut(sessionId);
 
-  useJournals = createJournalsStore(repos, fakeClient);
+  useJournals = createJournalsStore(repos, fakeClient, fakeOllama);
 });
 
 describe("journalsStore", () => {
@@ -128,7 +142,7 @@ describe("journalsStore", () => {
           model: "xai/grok-4.5",
         }),
     };
-    const store = createJournalsStore(repos, failing);
+    const store = createJournalsStore(repos, failing, fakeOllama);
     const task = await repos.tasks.getById(taskId);
     if (!task) throw new Error("test setup: task missing");
 
@@ -146,7 +160,7 @@ describe("journalsStore", () => {
 
   it("retryJournal re-runs a weekly roll-up using its own kind's path", async () => {
     const pending = await repos.journals.createPending({ kind: "weekly" });
-    const store = createJournalsStore(repos, fakeClient);
+    const store = createJournalsStore(repos, fakeClient, fakeOllama);
     await store.getState().loadRecent();
 
     await store.getState().retryJournal(pending.id);

@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import type { Journal, Repositories, Task } from "../data";
 import type { OpenClawClient } from "../services/openclawClient";
+import type { OllamaClient } from "../services/ollamaClient";
 import {
   buildSessionJournalPrompt,
   buildWeeklyRollupPrompt,
@@ -36,7 +37,7 @@ function upsert(journals: Journal[], updated: Journal): Journal[] {
     : [updated, ...journals];
 }
 
-export function createJournalsStore(repos: Repositories, client: OpenClawClient) {
+export function createJournalsStore(repos: Repositories, client: OpenClawClient, ollama: OllamaClient) {
   return create<JournalsState>((set, get) => ({
     journals: [],
 
@@ -63,6 +64,7 @@ export function createJournalsStore(repos: Repositories, client: OpenClawClient)
       const result = await runJournalGeneration({
         repos,
         client,
+        ollama,
         journalId: pending.id,
         sessionKey: `agent:main:mycelia-time-journal-${session.id}`,
         prompt: buildSessionJournalPrompt({ task, session, events, notes }),
@@ -84,6 +86,7 @@ export function createJournalsStore(repos: Repositories, client: OpenClawClient)
       const result = await runJournalGeneration({
         repos,
         client,
+        ollama,
         journalId: pending.id,
         sessionKey: `agent:main:mycelia-time-weekly-${pending.id}`,
         prompt: buildWeeklyRollupPrompt(recentSessionJournals, generatedAt.toLocaleDateString()),
@@ -109,6 +112,7 @@ export function createJournalsStore(repos: Repositories, client: OpenClawClient)
         const result = await runJournalGeneration({
           repos,
           client,
+          ollama,
           journalId,
           sessionKey: `agent:main:mycelia-time-weekly-${journalId}`,
           prompt: buildWeeklyRollupPrompt(recentSessionJournals, generatedAt.toLocaleDateString()),
@@ -128,6 +132,7 @@ export function createJournalsStore(repos: Repositories, client: OpenClawClient)
       const result = await runJournalGeneration({
         repos,
         client,
+        ollama,
         journalId,
         sessionKey: `agent:main:mycelia-time-journal-${session.id}`,
         prompt: buildSessionJournalPrompt({ task, session, events, notes }),

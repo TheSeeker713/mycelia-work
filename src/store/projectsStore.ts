@@ -2,6 +2,7 @@ import { create } from "zustand";
 import type { CreateProjectInput, UpdateProjectInput } from "../data/repositories/projectsRepository";
 import type { Milestone, Project, ProjectAssistNote, ProjectReport, Repositories } from "../data";
 import type { OpenClawClient } from "../services/openclawClient";
+import type { OllamaClient } from "../services/ollamaClient";
 import { runProjectReportGeneration } from "../services/projectAssist";
 import type { GamificationStore } from "./gamificationStore";
 
@@ -27,7 +28,12 @@ export interface ProjectsState {
   discardPendingReport: () => Promise<void>;
 }
 
-export function createProjectsStore(repos: Repositories, client: OpenClawClient, gamification: GamificationStore) {
+export function createProjectsStore(
+  repos: Repositories,
+  client: OpenClawClient,
+  gamification: GamificationStore,
+  ollama: OllamaClient,
+) {
   return create<ProjectsState>((set, get) => ({
     projects: [],
     milestonesByProject: {},
@@ -94,7 +100,7 @@ export function createProjectsStore(repos: Repositories, client: OpenClawClient,
           [project.id]: [pending, ...(get().reportsByProject[project.id] ?? [])],
         },
       });
-      await runProjectReportGeneration({ repos, client, reportId: pending.id, project });
+      await runProjectReportGeneration({ repos, client, ollama, reportId: pending.id, project });
       await get().loadReports(project.id);
     },
 

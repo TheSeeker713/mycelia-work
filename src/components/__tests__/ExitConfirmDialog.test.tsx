@@ -27,6 +27,10 @@ function fakeControls(): WindowControls {
 
 beforeEach(async () => {
   repos = await initDatabase(createTestExecutor());
+  // Grok on so generation routes through the fake OpenClawClient below
+  // rather than a real (network-calling) Ollama client — this suite is
+  // about the exit flow's control flow, not report generation itself.
+  await repos.settings.set("grok4_enabled", "true");
   openClawClient = {
     runOnce: vi.fn(),
     ensureDaemon: vi.fn(),

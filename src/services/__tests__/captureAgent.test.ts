@@ -128,6 +128,7 @@ describe("routeCapture", () => {
       warmUpGhostText: vi.fn(),
     warmUpModel: vi.fn(),
     isAvailable: vi.fn().mockResolvedValue(true),
+    generateReport: vi.fn(),
     };
     const openClawClient = {
       runOnce:

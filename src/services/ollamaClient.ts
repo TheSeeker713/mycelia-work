@@ -51,6 +51,17 @@ export interface OllamaClient {
   warmUpModel(modelId: string): void;
   /** Plain reachability check for the startup system-check screen — Ollama isn't something this app can start on its own (no known launch command, unlike OpenClaw/Voice-Agent), so this only reports whether it's already up. */
   isAvailable(): Promise<boolean>;
+  /**
+   * Direct-to-Ollama call for full-length report generation (journal/project
+   * reports) when Grok is off — bypasses OpenClaw's CLI/gateway entirely.
+   * OpenClaw carries a fixed ~60s tax on every call regardless of backing
+   * model (measured live during Phase 15.1 planning), which local calls
+   * never needed to pay in the first place. Throws on failure/empty
+   * response/timeout — unlike suggestContinuation's fail-soft contract —
+   * so callers' existing retry-once + markResult('failed', ...) handling
+   * applies unchanged.
+   */
+  generateReport(prompt: string, model: string, timeoutSecs: number): Promise<string>;
 }
 
 export function createHttpOllamaClient(): OllamaClient {
@@ -130,6 +141,24 @@ export function createHttpOllamaClient(): OllamaClient {
       } catch {
         return false;
       }
+    },
+
+    async generateReport(prompt, model, timeoutSecs) {
+      const res = await fetch(`${OLLAMA_URL}/api/generate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model, prompt, stream: false }),
+        signal: AbortSignal.timeout(timeoutSecs * 1000),
+      });
+      if (!res.ok) {
+        throw new Error(`Ollama returned ${res.status}`);
+      }
+      const data = (await res.json()) as { response?: string };
+      const text = data.response?.trim();
+      if (!text) {
+        throw new Error("Ollama returned an empty response");
+      }
+      return text;
     },
   };
 }

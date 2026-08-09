@@ -88,11 +88,11 @@ export function StoreProvider({
     const gamification = createGamificationStore(repositories);
     return {
       useTasksStore: createTasksStore(repositories),
-      useProjectsStore: createProjectsStore(repositories, client, gamification),
+      useProjectsStore: createProjectsStore(repositories, client, gamification, ollama),
       useTodosStore: createTodosStore(repositories, gamification),
       useSessionsStore: createSessionsStore(repositories, gamification),
       useNotesStore: createNotesStore(repositories, gamification),
-      useJournalsStore: createJournalsStore(repositories, client),
+      useJournalsStore: createJournalsStore(repositories, client, ollama),
       useSettingsStore: createSettingsStore(repositories),
       useCaptureStore: createCaptureStore(repositories, {
         ollamaClient: ollama,

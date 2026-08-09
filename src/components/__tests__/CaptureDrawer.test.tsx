@@ -31,6 +31,7 @@ beforeEach(async () => {
     warmUpGhostText: vi.fn(),
     warmUpModel: vi.fn(),
     isAvailable: vi.fn().mockResolvedValue(true),
+    generateReport: vi.fn(),
   };
   openClawClient = {
     runOnce: vi.fn().mockResolvedValue(layer1('{"action":"decline","payload":{}}')),

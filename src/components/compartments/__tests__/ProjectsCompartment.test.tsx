@@ -14,6 +14,10 @@ let captureLogClient: CaptureLogClient;
 
 beforeEach(async () => {
   repos = await initDatabase(createTestExecutor());
+  // Grok on so assist/report generation routes through the fake
+  // OpenClawClient below rather than a real (network-calling) Ollama
+  // client — this suite is about the Projects UI, not report generation.
+  await repos.settings.set("grok4_enabled", "true");
   openClawClient = {
     runOnce: vi.fn().mockResolvedValue({ text: "- Wireframe the flow\n- Write copy", model: "test" }),
     ensureDaemon: vi.fn(),
