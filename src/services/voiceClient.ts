@@ -9,19 +9,34 @@ const HEALTH_TIMEOUT_MS = 1500;
  * still small/fast enough for live use, unlike the other engine tested
  * (Qwen3-TTS, a voice-cloning model taking 20-40s per line on this
  * machine — fine for something pre-baked once, not for "needs to feel
- * instant"). `af_heart` at +200 cents is the actual locked-in pick after
- * comparing three voices and a 5-500 cent pitch range — the server
- * defaults to this exact combination too, so `pitchShiftCents` here just
- * keeps the two in sync rather than being a second source of truth.
+ * instant"). `af_heart` at +200 cents was the first locked-in pick after
+ * comparing three voices and a 5-500 cent pitch range; the roster below
+ * (12 entries, confirmed live against Kokoro's actual voice catalog and
+ * approved after a full audition 2026-08-08) adds three pitch steps of
+ * Heart plus 8 more male/female voices. `voice` is the literal Kokoro
+ * voice id sent to the server — distinct from `id`, since the three
+ * Heart entries share one `voice` at three different `pitchShiftCents`.
  */
 export const NARRATION_VOICES = [
-  { id: "af_heart", label: "Heart", pitchShiftCents: 200 },
+  { id: "af_heart_200", label: "Heart — Bright", voice: "af_heart", pitchShiftCents: 200 },
+  { id: "af_heart_150", label: "Heart — Warm", voice: "af_heart", pitchShiftCents: 150 },
+  { id: "af_heart_100", label: "Heart — Soft", voice: "af_heart", pitchShiftCents: 100 },
+  { id: "af_sarah", label: "Sarah", voice: "af_sarah", pitchShiftCents: 0 },
+  { id: "af_sky", label: "Sky", voice: "af_sky", pitchShiftCents: 0 },
+  { id: "af_nova", label: "Nova", voice: "af_nova", pitchShiftCents: 0 },
+  { id: "af_kore", label: "Kore", voice: "af_kore", pitchShiftCents: 0 },
+  { id: "am_adam", label: "Adam", voice: "am_adam", pitchShiftCents: 0 },
+  { id: "am_michael", label: "Michael", voice: "am_michael", pitchShiftCents: 0 },
+  { id: "am_onyx", label: "Onyx", voice: "am_onyx", pitchShiftCents: 0 },
+  { id: "am_liam", label: "Liam", voice: "am_liam", pitchShiftCents: 0 },
+  { id: "am_echo", label: "Echo", voice: "am_echo", pitchShiftCents: 0 },
 ] as const;
 
 export const DEFAULT_VOICE_ID = NARRATION_VOICES[0].id;
 
-function pitchShiftFor(voiceId: string): number {
-  return NARRATION_VOICES.find((v) => v.id === voiceId)?.pitchShiftCents ?? 0;
+function resolveVoice(voiceId: string): { voice: string; pitchShiftCents: number } {
+  const entry = NARRATION_VOICES.find((v) => v.id === voiceId);
+  return entry ? { voice: entry.voice, pitchShiftCents: entry.pitchShiftCents } : { voice: voiceId, pitchShiftCents: 0 };
 }
 
 /**
@@ -54,11 +69,11 @@ export function createHttpVoiceClient(): VoiceClient {
       const trimmed = text.trim();
       if (!trimmed) return null;
       try {
-        const resolvedVoiceId = voiceId ?? DEFAULT_VOICE_ID;
+        const resolved = resolveVoice(voiceId ?? DEFAULT_VOICE_ID);
         const form = new FormData();
         form.append("text", trimmed);
-        form.append("voice", resolvedVoiceId);
-        form.append("pitch_shift_cents", String(pitchShiftFor(resolvedVoiceId)));
+        form.append("voice", resolved.voice);
+        form.append("pitch_shift_cents", String(resolved.pitchShiftCents));
         const res = await fetch(`${KOKORO_URL}/tts`, { method: "POST", body: form });
         if (!res.ok) return null;
         return await res.blob();

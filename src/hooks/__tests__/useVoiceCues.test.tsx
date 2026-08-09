@@ -56,6 +56,34 @@ describe("useVoiceCues", () => {
     expect(instances[0].paused).toBe(true);
   });
 
+  it("plays the file matching whichever narration voice is currently selected", async () => {
+    const { result } = renderHook(
+      () => ({ cues: useVoiceCues(), settings: useSettingsStore((s) => s) }),
+      { wrapper },
+    );
+    await act(async () => {
+      await result.current.settings.setNarrationVoiceId("am_adam");
+    });
+    act(() => {
+      result.current.cues.play("please_wait");
+    });
+    expect(instances[0].src).toContain("am_adam");
+  });
+
+  it("falls back to the default voice's file for an unrecognized narration voice id", async () => {
+    const { result } = renderHook(
+      () => ({ cues: useVoiceCues(), settings: useSettingsStore((s) => s) }),
+      { wrapper },
+    );
+    await act(async () => {
+      await result.current.settings.setNarrationVoiceId("some-removed-voice");
+    });
+    act(() => {
+      result.current.cues.play("please_wait");
+    });
+    expect(instances[0].src).toContain("af_heart_200");
+  });
+
   it("does nothing when self-voicing is disabled", async () => {
     const { result } = renderHook(
       () => ({ cues: useVoiceCues(), settings: useSettingsStore((s) => s) }),

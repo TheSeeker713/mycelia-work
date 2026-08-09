@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { DEFAULT_VOICE_ID, createHttpVoiceClient } from "../voiceClient";
+import { createHttpVoiceClient } from "../voiceClient";
 
 async function formDataFromLastCall(fetchMock: ReturnType<typeof vi.fn>): Promise<FormData> {
   const [, init] = fetchMock.mock.calls[fetchMock.mock.calls.length - 1];
@@ -48,7 +48,7 @@ describe("createHttpVoiceClient", () => {
       expect(global.fetch).not.toHaveBeenCalled();
     });
 
-    it("defaults to the default voice id when none is given", async () => {
+    it("defaults to the default voice's underlying Kokoro voice when none is given", async () => {
       const blob = new Blob(["wav"], { type: "audio/wav" });
       const fetchMock = vi.fn().mockResolvedValue({ ok: true, blob: () => Promise.resolve(blob) });
       global.fetch = fetchMock;
@@ -57,19 +57,20 @@ describe("createHttpVoiceClient", () => {
       await client.speak("Clocked in.");
 
       const form = await formDataFromLastCall(fetchMock);
-      expect(form.get("voice")).toBe(DEFAULT_VOICE_ID);
+      expect(form.get("voice")).toBe("af_heart");
+      expect(form.get("pitch_shift_cents")).toBe("200");
     });
 
-    it("passes a specific voice id through to the server", async () => {
+    it("resolves a picker id to its underlying Kokoro voice string", async () => {
       const blob = new Blob(["wav"], { type: "audio/wav" });
       const fetchMock = vi.fn().mockResolvedValue({ ok: true, blob: () => Promise.resolve(blob) });
       global.fetch = fetchMock;
 
       const client = createHttpVoiceClient();
-      await client.speak("Clocked in.", "af_heart");
+      await client.speak("Clocked in.", "am_adam");
 
       const form = await formDataFromLastCall(fetchMock);
-      expect(form.get("voice")).toBe("af_heart");
+      expect(form.get("voice")).toBe("am_adam");
     });
 
     it("sends the locked-in pitch shift for the default voice — Kokoro has no native pitch control", async () => {
@@ -78,10 +79,27 @@ describe("createHttpVoiceClient", () => {
       global.fetch = fetchMock;
 
       const client = createHttpVoiceClient();
-      await client.speak("Clocked in.", "af_heart");
+      await client.speak("Clocked in.", "af_heart_200");
 
       const form = await formDataFromLastCall(fetchMock);
       expect(form.get("pitch_shift_cents")).toBe("200");
+    });
+
+    it("the three Heart entries share one underlying voice at three different pitch shifts", async () => {
+      const blob = new Blob(["wav"], { type: "audio/wav" });
+      const fetchMock = vi.fn().mockResolvedValue({ ok: true, blob: () => Promise.resolve(blob) });
+      global.fetch = fetchMock;
+      const client = createHttpVoiceClient();
+
+      await client.speak("Clocked in.", "af_heart_150");
+      let form = await formDataFromLastCall(fetchMock);
+      expect(form.get("voice")).toBe("af_heart");
+      expect(form.get("pitch_shift_cents")).toBe("150");
+
+      await client.speak("Clocked in.", "af_heart_100");
+      form = await formDataFromLastCall(fetchMock);
+      expect(form.get("voice")).toBe("af_heart");
+      expect(form.get("pitch_shift_cents")).toBe("100");
     });
 
     it("sends no pitch shift for an unrecognized voice id rather than guessing", async () => {

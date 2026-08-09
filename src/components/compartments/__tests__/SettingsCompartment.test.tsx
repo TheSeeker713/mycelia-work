@@ -5,7 +5,7 @@ import { SettingsCompartment } from "../SettingsCompartment";
 import { StoreProvider } from "../../../store/StoreProvider";
 import { initDatabase, type Repositories } from "../../../data";
 import { createTestExecutor } from "../../../data/__tests__/testExecutor";
-import { DEFAULT_VOICE_ID, type VoiceClient } from "../../../services/voiceClient";
+import { DEFAULT_VOICE_ID, NARRATION_VOICES, type VoiceClient } from "../../../services/voiceClient";
 
 let repos: Repositories;
 let voiceClient: VoiceClient;
@@ -93,11 +93,13 @@ describe("SettingsCompartment", () => {
     expect(screen.getByLabelText("Narration voice")).toHaveValue(DEFAULT_VOICE_ID);
   });
 
-  it("the voice picker offers only the locked-in Heart voice", () => {
+  it("the voice picker offers the full approved 12-voice roster", () => {
     renderSettings();
     const picker = screen.getByLabelText("Narration voice") as HTMLSelectElement;
-    expect(Array.from(picker.options).map((o) => o.value)).toEqual(["af_heart"]);
-    expect(Array.from(picker.options).map((o) => o.textContent)).toEqual(["Heart"]);
+    expect(Array.from(picker.options).map((o) => o.value)).toEqual(
+      NARRATION_VOICES.map((v) => v.id),
+    );
+    expect(picker.options.length).toBe(12);
   });
 
   it("Preview speaks a sample line using the currently selected voice", async () => {
