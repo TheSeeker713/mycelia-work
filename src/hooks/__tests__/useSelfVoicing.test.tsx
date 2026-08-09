@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { initDatabase, type Repositories } from "../../data";
 import { createTestExecutor } from "../../data/__tests__/testExecutor";
 import { StoreProvider, useSettingsStore } from "../../store/StoreProvider";
-import { DEFAULT_PIPER_VOICE_ID, type VoiceClient } from "../../services/voiceClient";
+import { DEFAULT_VOICE_ID, type VoiceClient } from "../../services/voiceClient";
 import { useSelfVoicing } from "../useSelfVoicing";
 
 class FakeAudio {
@@ -63,7 +63,7 @@ describe("useSelfVoicing", () => {
     });
 
     await waitFor(() =>
-      expect(fakeClient.speak).toHaveBeenCalledWith("Clocked in.", DEFAULT_PIPER_VOICE_ID),
+      expect(fakeClient.speak).toHaveBeenCalledWith("Clocked in.", DEFAULT_VOICE_ID),
     );
     await waitFor(() => expect(result.current.speaking).toBe(true));
 
@@ -90,7 +90,7 @@ describe("useSelfVoicing", () => {
     });
 
     await waitFor(() => expect(instances.length).toBe(2));
-    expect(fakeClient.speak).toHaveBeenNthCalledWith(2, "Second.", DEFAULT_PIPER_VOICE_ID);
+    expect(fakeClient.speak).toHaveBeenNthCalledWith(2, "Second.", DEFAULT_VOICE_ID);
   });
 
   it("does nothing when self-voicing is disabled", async () => {
@@ -147,7 +147,7 @@ describe("useSelfVoicing", () => {
     });
 
     await waitFor(() => expect(instances.length).toBe(1));
-    expect(fakeClient.speak).toHaveBeenNthCalledWith(2, "Succeeds.", DEFAULT_PIPER_VOICE_ID);
+    expect(fakeClient.speak).toHaveBeenNthCalledWith(2, "Succeeds.", DEFAULT_VOICE_ID);
   });
 
   it("speakAndWait resolves only once that utterance finishes playing", async () => {
@@ -218,7 +218,7 @@ describe("useSelfVoicing", () => {
     );
 
     await act(async () => {
-      await result.current.settings.setPiperVoiceId("en_US-lessac-medium");
+      await result.current.settings.setNarrationVoiceId("some-other-voice-id");
     });
 
     act(() => {
@@ -226,7 +226,7 @@ describe("useSelfVoicing", () => {
     });
 
     await waitFor(() =>
-      expect(fakeClient.speak).toHaveBeenCalledWith("Clocked in.", "en_US-lessac-medium"),
+      expect(fakeClient.speak).toHaveBeenCalledWith("Clocked in.", "some-other-voice-id"),
     );
   });
 });

@@ -5,7 +5,7 @@ import { SettingsCompartment } from "../SettingsCompartment";
 import { StoreProvider } from "../../../store/StoreProvider";
 import { initDatabase, type Repositories } from "../../../data";
 import { createTestExecutor } from "../../../data/__tests__/testExecutor";
-import { DEFAULT_PIPER_VOICE_ID, type VoiceClient } from "../../../services/voiceClient";
+import { DEFAULT_VOICE_ID, type VoiceClient } from "../../../services/voiceClient";
 
 let repos: Repositories;
 let voiceClient: VoiceClient;
@@ -90,30 +90,24 @@ describe("SettingsCompartment", () => {
 
   it("defaults the voice picker to the default voice", () => {
     renderSettings();
-    expect(screen.getByLabelText("Narration voice")).toHaveValue(DEFAULT_PIPER_VOICE_ID);
+    expect(screen.getByLabelText("Narration voice")).toHaveValue(DEFAULT_VOICE_ID);
   });
 
-  it("changing the voice picker persists the choice", async () => {
-    const user = userEvent.setup();
+  it("the voice picker offers only the locked-in Heart voice", () => {
     renderSettings();
-
-    await user.selectOptions(screen.getByLabelText("Narration voice"), "en_US-lessac-medium");
-
-    expect(await repos.settings.get("piper_voice_id")).toBe("en_US-lessac-medium");
+    const picker = screen.getByLabelText("Narration voice") as HTMLSelectElement;
+    expect(Array.from(picker.options).map((o) => o.value)).toEqual(["af_heart"]);
+    expect(Array.from(picker.options).map((o) => o.textContent)).toEqual(["Heart"]);
   });
 
   it("Preview speaks a sample line using the currently selected voice", async () => {
     const user = userEvent.setup();
     renderSettings();
 
-    await user.selectOptions(screen.getByLabelText("Narration voice"), "en_US-lessac-medium");
     await user.click(screen.getByText("Preview"));
 
     await waitFor(() =>
-      expect(voiceClient.speak).toHaveBeenCalledWith(
-        "This is what I sound like.",
-        "en_US-lessac-medium",
-      ),
+      expect(voiceClient.speak).toHaveBeenCalledWith("This is what I sound like.", DEFAULT_VOICE_ID),
     );
   });
 

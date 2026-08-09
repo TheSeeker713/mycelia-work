@@ -9,27 +9,19 @@ Generation script: `scripts/generate-voice-lines.mjs`. Re-run it any time
 (with Chatterbox running — `cd D:\_Dev\AI-Setup\Voice-Agent && .\start_all.ps1`)
 to regenerate with a different reference voice clip.
 
-## Generated (Phase 7 — real, wired trigger points)
+Down to one file as of 2026-08-08 — clock-in/break-start/break-resume/
+clock-out moved to live self-voicing (`useSelfVoicing`, Kokoro TTS)
+once that engine actually sounded like something worth hearing; pre-baking
+those never had a real advantage once the live engine was fast and good.
+"Welcome"/"Goodbye" (app launch/exit) also went live, not pre-baked —
+never generated as static files at all, despite an old table here once
+listing them as planned.
 
 | File | Trigger |
 |---|---|
-| `clock-in.wav` | Clocking into a task |
-| `break-start.wav` | Starting a break |
-| `break-resume.wav` | Resuming from a break |
-| `clock-out.wav` | Clocking out of a task |
-| `please-wait.wav` | An AI call is in flight (check-in conversation, journal generation) and will take a moment — plays immediately, live narration follows once the real response is ready |
+| `please-wait.wav` | An AI call is in flight (check-in conversation, journal generation) and will take a moment — plays immediately, live narration follows once the real response is ready. Stays pre-baked on purpose: it covers a real network-call wait, so zero-latency/no-network-dependency playback is the whole point. |
 
-## Not yet generated (Phase 11 polish — no wired trigger point yet)
-
-| File | Trigger |
-|---|---|
-| `welcome.mp3` | App launch / first run of the day |
-| `todo-alert.mp3` | A todo's alert time fires |
-| `idle-nudge.mp3` | Short-idle toast |
-| `checkin-return.mp3` | Returning to the forgot-to-clock-out check-in |
-| `journal-ready.mp3` | AI work journal finished generating |
-| `goodbye.mp3` | App exit |
-
-`playVoiceCue()` (`src/hooks/useVoiceCues.ts`) is the single entry point that plays
-these — add a new cue by generating the file, adding it to `CUE_FILES`
-there, and wiring the trigger.
+`useVoiceCues.ts` is the entry point that plays this — add a new
+pre-baked cue by generating the file, adding it to `CUE_FILES` there, and
+wiring the trigger. Everything else spoken by the app goes through live
+self-voicing (`useSelfVoicing.ts`) instead.

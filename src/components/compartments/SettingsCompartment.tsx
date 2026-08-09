@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useSettingsStore, useVoiceClient } from "../../store/StoreProvider";
 import { useSelfVoicing } from "../../hooks/useSelfVoicing";
 import { classifyVoicePerformance, measureTtsLatencySeconds, type VoicePerformance } from "../../services/hardwareCheck";
-import { PIPER_VOICES } from "../../services/voiceClient";
+import { NARRATION_VOICES } from "../../services/voiceClient";
 
 const PERFORMANCE_LABEL: Record<VoicePerformance | "checking", string> = {
   checking: "Checking…",
@@ -20,12 +20,12 @@ const PERFORMANCE_LABEL: Record<VoicePerformance | "checking", string> = {
 export function SettingsCompartment() {
   const selfVoicingEnabled = useSettingsStore((s) => s.selfVoicingEnabled);
   const sttEnabled = useSettingsStore((s) => s.sttEnabled);
-  const piperVoiceId = useSettingsStore((s) => s.piperVoiceId);
+  const narrationVoiceId = useSettingsStore((s) => s.narrationVoiceId);
   const aiSuggestionsEnabled = useSettingsStore((s) => s.aiSuggestionsEnabled);
   const captureLoggingEnabled = useSettingsStore((s) => s.captureLoggingEnabled);
   const setSelfVoicingEnabled = useSettingsStore((s) => s.setSelfVoicingEnabled);
   const setSttEnabled = useSettingsStore((s) => s.setSttEnabled);
-  const setPiperVoiceId = useSettingsStore((s) => s.setPiperVoiceId);
+  const setNarrationVoiceId = useSettingsStore((s) => s.setNarrationVoiceId);
   const setAiSuggestionsEnabled = useSettingsStore((s) => s.setAiSuggestionsEnabled);
   const setCaptureLoggingEnabled = useSettingsStore((s) => s.setCaptureLoggingEnabled);
   const grok4Enabled = useSettingsStore((s) => s.grok4Enabled);
@@ -97,12 +97,12 @@ export function SettingsCompartment() {
         </div>
         <div className="flex items-center gap-2">
           <select
-            value={piperVoiceId}
-            onChange={(e) => setPiperVoiceId(e.target.value)}
+            value={narrationVoiceId}
+            onChange={(e) => setNarrationVoiceId(e.target.value)}
             aria-label="Narration voice"
             className="flex-1 rounded-lg border border-[var(--line)] bg-[var(--paper)] px-2.5 py-1.5 text-[0.8rem] text-[var(--ink)] outline-none"
           >
-            {PIPER_VOICES.map((v) => (
+            {NARRATION_VOICES.map((v) => (
               <option key={v.id} value={v.id}>
                 {v.label}
               </option>

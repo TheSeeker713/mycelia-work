@@ -12,7 +12,6 @@ import {
 import { useWindowControls } from "../hooks/useWindowControls";
 import { useMultiCardWidth } from "../hooks/useMultiCardWidth";
 import { useIdleWatcher } from "../hooks/useIdleWatcher";
-import { useVoiceCues } from "../hooks/useVoiceCues";
 import { useSelfVoicing } from "../hooks/useSelfVoicing";
 import { ZenModeEditor } from "./ZenModeEditor";
 import { CaptureDrawer } from "./CaptureDrawer";
@@ -54,7 +53,7 @@ function TasksCompartment() {
   const resumeFromBreak = useSessionsStore((s) => s.resumeFromBreak);
   const clockOut = useSessionsStore((s) => s.clockOut);
   const generateSessionJournal = useJournalsStore((s) => s.generateSessionJournal);
-  const voiceCues = useVoiceCues();
+  const selfVoicing = useSelfVoicing();
 
   useEffect(() => {
     loadTasks();
@@ -65,24 +64,24 @@ function TasksCompartment() {
 
   async function handleClockIn(task: Task) {
     const result = await clockIn(task);
-    if (result.ok) voiceCues.play("clock_in");
+    if (result.ok) selfVoicing.speak("Clocked in.");
     return result;
   }
 
   async function handleStartBreak(sessionId: string) {
     await startBreak(sessionId);
-    voiceCues.play("break_start");
+    selfVoicing.speak("Taking a break.");
   }
 
   async function handleResume(sessionId: string) {
     await resumeFromBreak(sessionId);
-    voiceCues.play("break_resume");
+    selfVoicing.speak("Back to work.");
   }
 
   async function handleClockOut(sessionId: string) {
     const active = activeSessions.find((a) => a.session.id === sessionId);
     await clockOut(sessionId);
-    voiceCues.play("clock_out");
+    selfVoicing.speak("Clocked out.");
     if (active) await generateSessionJournal(active.task, sessionId);
   }
 

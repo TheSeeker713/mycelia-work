@@ -37,20 +37,20 @@ function wrapper({ children }: { children: ReactNode }) {
 }
 
 describe("useVoiceCues", () => {
-  it("plays the requested cue", () => {
+  it("plays the please-wait cue", () => {
     const { result } = renderHook(() => useVoiceCues(), { wrapper });
     act(() => {
-      result.current.play("clock_in");
+      result.current.play("please_wait");
     });
     expect(instances.length).toBe(1);
-    expect(instances[0].src).toContain("clock-in");
+    expect(instances[0].src).toContain("please-wait");
   });
 
   it("interrupts whatever's currently playing rather than queuing", () => {
     const { result } = renderHook(() => useVoiceCues(), { wrapper });
     act(() => {
-      result.current.play("clock_in");
-      result.current.play("break_start");
+      result.current.play("please_wait");
+      result.current.play("please_wait");
     });
     expect(instances.length).toBe(2);
     expect(instances[0].paused).toBe(true);
@@ -65,7 +65,7 @@ describe("useVoiceCues", () => {
       await result.current.settings.setSelfVoicingEnabled(false);
     });
     act(() => {
-      result.current.cues.play("clock_out");
+      result.current.cues.play("please_wait");
     });
     expect(instances.length).toBe(0);
   });

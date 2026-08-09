@@ -1,13 +1,13 @@
 import { create } from "zustand";
 import type { Repositories } from "../data";
-import { DEFAULT_PIPER_VOICE_ID } from "../services/voiceClient";
+import { DEFAULT_VOICE_ID } from "../services/voiceClient";
 import { GROK4_ENABLED_KEY } from "../services/openclawClient";
 
 /** Both accessibility features default ON — CLAUDE.md: introduced during onboarding with an immediate opt-out, not opt-in. */
 const SELF_VOICING_KEY = "self_voicing_enabled";
 const STT_KEY = "stt_enabled";
 const ONBOARDING_SEEN_KEY = "accessibility_onboarding_seen";
-const PIPER_VOICE_ID_KEY = "piper_voice_id";
+const NARRATION_VOICE_ID_KEY = "narration_voice_id";
 /** Defaults ON like the other AI/accessibility features (introduced with an opt-out, not opt-in) — Phase 8 ghost-text suggestions. */
 const AI_SUGGESTIONS_KEY = "ai_suggestions_enabled";
 /** Defaults ON, disclosed in Settings — Phase 9 capture-agent logging, per the design doc's "configurable, disclosed plainly" requirement. */
@@ -21,7 +21,7 @@ export interface SettingsState {
   selfVoicingEnabled: boolean;
   sttEnabled: boolean;
   accessibilityOnboardingSeen: boolean;
-  piperVoiceId: string;
+  narrationVoiceId: string;
   aiSuggestionsEnabled: boolean;
   captureLoggingEnabled: boolean;
   grok4Enabled: boolean;
@@ -29,7 +29,7 @@ export interface SettingsState {
   setSelfVoicingEnabled: (enabled: boolean) => Promise<void>;
   setSttEnabled: (enabled: boolean) => Promise<void>;
   markAccessibilityOnboardingSeen: () => Promise<void>;
-  setPiperVoiceId: (voiceId: string) => Promise<void>;
+  setNarrationVoiceId: (voiceId: string) => Promise<void>;
   setAiSuggestionsEnabled: (enabled: boolean) => Promise<void>;
   setCaptureLoggingEnabled: (enabled: boolean) => Promise<void>;
   setGrok4Enabled: (enabled: boolean) => Promise<void>;
@@ -46,7 +46,7 @@ export function createSettingsStore(repos: Repositories) {
     selfVoicingEnabled: true,
     sttEnabled: true,
     accessibilityOnboardingSeen: false,
-    piperVoiceId: DEFAULT_PIPER_VOICE_ID,
+    narrationVoiceId: DEFAULT_VOICE_ID,
     aiSuggestionsEnabled: true,
     captureLoggingEnabled: true,
     grok4Enabled: false,
@@ -57,7 +57,7 @@ export function createSettingsStore(repos: Repositories) {
         selfVoicingEnabled: parseBool(all[SELF_VOICING_KEY] ?? null, true),
         sttEnabled: parseBool(all[STT_KEY] ?? null, true),
         accessibilityOnboardingSeen: parseBool(all[ONBOARDING_SEEN_KEY] ?? null, false),
-        piperVoiceId: all[PIPER_VOICE_ID_KEY] ?? DEFAULT_PIPER_VOICE_ID,
+        narrationVoiceId: all[NARRATION_VOICE_ID_KEY] ?? DEFAULT_VOICE_ID,
         aiSuggestionsEnabled: parseBool(all[AI_SUGGESTIONS_KEY] ?? null, true),
         captureLoggingEnabled: parseBool(all[CAPTURE_LOGGING_KEY] ?? null, true),
         grok4Enabled: parseBool(all[GROK4_ENABLED_KEY] ?? null, false),
@@ -80,9 +80,9 @@ export function createSettingsStore(repos: Repositories) {
       set({ accessibilityOnboardingSeen: true });
     },
 
-    async setPiperVoiceId(voiceId) {
-      await repos.settings.set(PIPER_VOICE_ID_KEY, voiceId);
-      set({ piperVoiceId: voiceId });
+    async setNarrationVoiceId(voiceId) {
+      await repos.settings.set(NARRATION_VOICE_ID_KEY, voiceId);
+      set({ narrationVoiceId: voiceId });
     },
 
     async setAiSuggestionsEnabled(enabled) {

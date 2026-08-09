@@ -268,9 +268,10 @@ describe("Dashboard", () => {
     expect(screen.getByText("Running")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Take a break" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Clock out" })).toBeInTheDocument();
+    await waitFor(() => expect(voiceClient.speak).toHaveBeenCalledWith("Clocked in.", expect.any(String)));
   });
 
-  it("Take a break / Resume toggles the session's status", async () => {
+  it("Take a break / Resume toggles the session's status, speaking each transition live", async () => {
     const user = userEvent.setup();
     renderDashboard();
 
@@ -282,12 +283,14 @@ describe("Dashboard", () => {
     await user.click(screen.getByRole("button", { name: "Take a break" }));
     expect(screen.getByText("On break")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Resume" })).toBeInTheDocument();
+    await waitFor(() => expect(voiceClient.speak).toHaveBeenCalledWith("Taking a break.", expect.any(String)));
 
     await user.click(screen.getByRole("button", { name: "Resume" }));
     expect(await screen.findByText("Running")).toBeInTheDocument();
+    await waitFor(() => expect(voiceClient.speak).toHaveBeenCalledWith("Back to work.", expect.any(String)));
   });
 
-  it("clocking out removes the session card entirely", async () => {
+  it("clocking out removes the session card entirely and speaks the cue live", async () => {
     const user = userEvent.setup();
     renderDashboard();
 
@@ -300,6 +303,7 @@ describe("Dashboard", () => {
 
     expect(screen.queryByText("Running")).not.toBeInTheDocument();
     expect(await screen.findByRole("button", { name: "Clock in" })).toBeInTheDocument();
+    await waitFor(() => expect(voiceClient.speak).toHaveBeenCalledWith("Clocked out.", expect.any(String)));
   });
 
   it("enforces the 3-concurrent-task limit — the 4th Clock in is disabled", async () => {

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { initDatabase, type Repositories } from "../../data";
 import { createTestExecutor } from "../../data/__tests__/testExecutor";
-import { DEFAULT_PIPER_VOICE_ID } from "../../services/voiceClient";
+import { DEFAULT_VOICE_ID } from "../../services/voiceClient";
 import { createSettingsStore, type SettingsStore } from "../settingsStore";
 
 let repos: Repositories;
@@ -50,19 +50,19 @@ describe("settingsStore", () => {
     expect(freshStore.getState().accessibilityOnboardingSeen).toBe(true);
   });
 
-  it("defaults piperVoiceId to the default voice before and after load", async () => {
-    expect(useSettings.getState().piperVoiceId).toBe(DEFAULT_PIPER_VOICE_ID);
+  it("defaults narrationVoiceId to the default voice before and after load", async () => {
+    expect(useSettings.getState().narrationVoiceId).toBe(DEFAULT_VOICE_ID);
     await useSettings.getState().load();
-    expect(useSettings.getState().piperVoiceId).toBe(DEFAULT_PIPER_VOICE_ID);
+    expect(useSettings.getState().narrationVoiceId).toBe(DEFAULT_VOICE_ID);
   });
 
-  it("setPiperVoiceId persists the choice across reload", async () => {
-    await useSettings.getState().setPiperVoiceId("en_US-lessac-medium");
-    expect(useSettings.getState().piperVoiceId).toBe("en_US-lessac-medium");
+  it("setNarrationVoiceId persists the choice across reload", async () => {
+    await useSettings.getState().setNarrationVoiceId("some-other-voice-id");
+    expect(useSettings.getState().narrationVoiceId).toBe("some-other-voice-id");
 
     const freshStore = createSettingsStore(repos);
     await freshStore.getState().load();
-    expect(freshStore.getState().piperVoiceId).toBe("en_US-lessac-medium");
+    expect(freshStore.getState().narrationVoiceId).toBe("some-other-voice-id");
   });
 
   it("defaults aiSuggestionsEnabled to on before and after load", async () => {

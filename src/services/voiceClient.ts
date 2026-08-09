@@ -1,28 +1,32 @@
-const PIPER_URL = "http://127.0.0.1:8004";
+const KOKORO_URL = "http://127.0.0.1:8006";
 const FASTER_WHISPER_URL = "http://127.0.0.1:8005";
 const HEALTH_TIMEOUT_MS = 1500;
 
 /**
- * The two Piper voices loaded by the server (tts/piper/server.py) —
- * added 2026-08-04 after Jeremy found the original single voice
- * (lessac) reading as more British than the "en_US" label suggested,
- * and asked for an actual choice. Amy is first (and default) as of
- * 2026-08-06 per Jeremy's request for a female, Western American
- * accent. Kept as a small static list here rather than fetched from
- * the server's own /voices endpoint — there are exactly two, and
- * adding a third is rare enough to just edit this array when it
- * happens.
+ * The live-narration engine, replacing Piper — Piper's own voice quality
+ * was rejected outright during a real audition 2026-08-08 ("piper sounds
+ * like shit"). Kokoro-82M (D:\_Dev\AI-Setup\Voice-Agent\tts\kokoro) is
+ * still small/fast enough for live use, unlike the other engine tested
+ * (Qwen3-TTS, a voice-cloning model taking 20-40s per line on this
+ * machine — fine for something pre-baked once, not for "needs to feel
+ * instant"). `af_heart` at +200 cents is the actual locked-in pick after
+ * comparing three voices and a 5-500 cent pitch range — the server
+ * defaults to this exact combination too, so `pitchShiftCents` here just
+ * keeps the two in sync rather than being a second source of truth.
  */
-export const PIPER_VOICES = [
-  { id: "en_US-amy-medium", label: "Amy" },
-  { id: "en_US-lessac-medium", label: "Lessac" },
+export const NARRATION_VOICES = [
+  { id: "af_heart", label: "Heart", pitchShiftCents: 200 },
 ] as const;
 
-export const DEFAULT_PIPER_VOICE_ID = PIPER_VOICES[0].id;
+export const DEFAULT_VOICE_ID = NARRATION_VOICES[0].id;
+
+function pitchShiftFor(voiceId: string): number {
+  return NARRATION_VOICES.find((v) => v.id === voiceId)?.pitchShiftCents ?? 0;
+}
 
 /**
  * Local HTTP client for the fast, live-narration voice services
- * (Piper TTS, faster-whisper STT) — see D:\_Dev\AI-Setup\Voice-Agent.
+ * (Kokoro TTS, faster-whisper STT) — see D:\_Dev\AI-Setup\Voice-Agent.
  * Neither service is a background daemon like OpenClaw's scheduled
  * task, so every call is written to fail soft: unreachable/errored
  * calls resolve to `null` rather than throwing, and callers decide what
@@ -50,10 +54,12 @@ export function createHttpVoiceClient(): VoiceClient {
       const trimmed = text.trim();
       if (!trimmed) return null;
       try {
+        const resolvedVoiceId = voiceId ?? DEFAULT_VOICE_ID;
         const form = new FormData();
         form.append("text", trimmed);
-        form.append("voice", voiceId ?? DEFAULT_PIPER_VOICE_ID);
-        const res = await fetch(`${PIPER_URL}/tts`, { method: "POST", body: form });
+        form.append("voice", resolvedVoiceId);
+        form.append("pitch_shift_cents", String(pitchShiftFor(resolvedVoiceId)));
+        const res = await fetch(`${KOKORO_URL}/tts`, { method: "POST", body: form });
         if (!res.ok) return null;
         return await res.blob();
       } catch {
@@ -74,7 +80,7 @@ export function createHttpVoiceClient(): VoiceClient {
       }
     },
 
-    isTtsAvailable: () => checkHealth(PIPER_URL),
+    isTtsAvailable: () => checkHealth(KOKORO_URL),
     isSttAvailable: () => checkHealth(FASTER_WHISPER_URL),
   };
 }

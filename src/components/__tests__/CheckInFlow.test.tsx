@@ -6,7 +6,7 @@ import { StoreProvider } from "../../store/StoreProvider";
 import { initDatabase, type Repositories } from "../../data";
 import { createTestExecutor } from "../../data/__tests__/testExecutor";
 import type { OpenClawClient } from "../../services/openclawClient";
-import { DEFAULT_PIPER_VOICE_ID, type VoiceClient } from "../../services/voiceClient";
+import { DEFAULT_VOICE_ID, type VoiceClient } from "../../services/voiceClient";
 import type { ResourceWatchdogClient } from "../../services/resourceWatchdog";
 import type { ActiveSession } from "../../store/sessionsStore";
 import type { Task, TaskSession } from "../../data";
@@ -193,7 +193,7 @@ describe("CheckInFlow", () => {
     // live turn narration, which does go through the voice client.
     expect(voiceClient.speak).toHaveBeenCalledWith(
       "Did you keep working after clocking in?",
-      DEFAULT_PIPER_VOICE_ID,
+      DEFAULT_VOICE_ID,
     );
   });
 
@@ -217,7 +217,7 @@ describe("CheckInFlow", () => {
     expect(await screen.findByText(/Couldn't reach the AI conversation/)).toBeInTheDocument();
     expect(voiceClient.speak).toHaveBeenCalledWith(
       expect.stringContaining("Couldn't reach the AI conversation"),
-      DEFAULT_PIPER_VOICE_ID,
+      DEFAULT_VOICE_ID,
     );
   });
 

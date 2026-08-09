@@ -1,18 +1,10 @@
 import { useCallback, useRef } from "react";
 import { useSettingsStore } from "../store/StoreProvider";
-import clockInUrl from "../assets/audio/clock-in.wav?url";
-import breakStartUrl from "../assets/audio/break-start.wav?url";
-import breakResumeUrl from "../assets/audio/break-resume.wav?url";
-import clockOutUrl from "../assets/audio/clock-out.wav?url";
 import pleaseWaitUrl from "../assets/audio/please-wait.wav?url";
 
-export type VoiceCueId = "clock_in" | "break_start" | "break_resume" | "clock_out" | "please_wait";
+export type VoiceCueId = "please_wait";
 
 const CUE_FILES: Record<VoiceCueId, string> = {
-  clock_in: clockInUrl,
-  break_start: breakStartUrl,
-  break_resume: breakResumeUrl,
-  clock_out: clockOutUrl,
   please_wait: pleaseWaitUrl,
 };
 
@@ -21,11 +13,14 @@ export interface VoiceCues {
 }
 
 /**
- * Instant playback of the fixed, pre-recorded cues (scripts/generate-voice-lines.mjs)
- * — no network call, no live TTS synthesis, genuinely zero-latency.
- * Separate from `useSelfVoicing`'s queue on purpose: these fire on quick
- * user actions (clock in/out) where queuing behind a stale cue would be
- * wrong — a new cue interrupts whatever's still playing instead.
+ * Instant playback of the fixed, pre-recorded "please wait" cue
+ * (scripts/generate-voice-lines.mjs) — no network call, no live TTS
+ * synthesis, genuinely zero-latency. It covers a real network-call wait
+ * (check-in conversation turns); routing it through live self-voicing
+ * would add a second network round-trip in front of the one it's meant
+ * to cover. Every other cue (clock in/out, breaks) moved to live
+ * self-voicing (`useSelfVoicing`) once the narration engine (Kokoro)
+ * became something worth actually hearing.
  */
 export function useVoiceCues(): VoiceCues {
   const enabled = useSettingsStore((s) => s.selfVoicingEnabled);

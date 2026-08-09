@@ -18,13 +18,13 @@ interface QueueItem {
 
 /**
  * Self-voicing per CLAUDE.md's firm accessibility rule: the app narrates
- * its own UI with natural-voice TTS (Piper, via `voiceClient`), not
+ * its own UI with natural-voice TTS (Kokoro, via `voiceClient`), not
  * Windows Narrator, not layered on top of it. One utterance plays at a
  * time, queued in call order — predictable, not overlapping chaos.
  */
 export function useSelfVoicing(): SelfVoicing {
   const enabled = useSettingsStore((s) => s.selfVoicingEnabled);
-  const voiceId = useSettingsStore((s) => s.piperVoiceId);
+  const voiceId = useSettingsStore((s) => s.narrationVoiceId);
   const client = useVoiceClient();
   const [speaking, setSpeaking] = useState(false);
 

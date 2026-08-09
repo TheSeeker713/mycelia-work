@@ -5,7 +5,7 @@ import { LibraryCompartment } from "../LibraryCompartment";
 import { StoreProvider } from "../../../store/StoreProvider";
 import { initDatabase, type Repositories } from "../../../data";
 import { createTestExecutor } from "../../../data/__tests__/testExecutor";
-import { DEFAULT_PIPER_VOICE_ID, type VoiceClient } from "../../../services/voiceClient";
+import { DEFAULT_VOICE_ID, type VoiceClient } from "../../../services/voiceClient";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn().mockResolvedValue("D:\\_Dev\\Projects\\mycelia-work\\docs\\workjournal\\2026-08-07_2100_session-journal.md"),
@@ -85,7 +85,7 @@ describe("LibraryCompartment — Read aloud", () => {
 
     expect(voiceClient.speak).toHaveBeenCalledWith(
       "Spent the afternoon on the devlog entry.",
-      DEFAULT_PIPER_VOICE_ID,
+      DEFAULT_VOICE_ID,
     );
     await waitFor(() => expect(screen.getByText("Stop reading")).toBeInTheDocument());
   });

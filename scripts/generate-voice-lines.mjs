@@ -4,11 +4,11 @@
 // writes them into src/assets/audio/. Offline, one-time (or re-run any
 // time you want a different reference voice clip) — the app never
 // depends on Chatterbox being up at runtime, these ship as static
-// assets. See src/assets/audio/README.md for the full cue list; this
-// script currently covers the cues with a real, wired trigger point
-// (Phase 5/6's clock in/break/clock out, and the check-in/journal AI
-// wait). The rest (welcome, todo-alert, idle-nudge, journal-ready,
-// goodbye) are Phase 11 polish, added here once they have one too.
+// assets. Down to just "please wait" as of 2026-08-08 — clock-in/break/
+// clock-out moved to live self-voicing (Kokoro) once that engine became
+// something worth actually hearing; please-wait stays pre-baked since it
+// covers a real network-call wait, where zero-latency/no-network-
+// dependency playback is the point.
 
 import { writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
@@ -26,10 +26,6 @@ const OUT_DIR = path.join(
 // Short, direct, no exclamation-point cheerfulness — same voice
 // discipline as the rest of the app (docs/reference/authentic-voice-notes.md).
 const LINES = {
-  "clock-in": "Clocked in.",
-  "break-start": "Taking a break.",
-  "break-resume": "Back to work.",
-  "clock-out": "Clocked out.",
   "please-wait": "Give me a moment, I'm working on that.",
 };
 

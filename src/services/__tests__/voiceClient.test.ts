@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { DEFAULT_PIPER_VOICE_ID, createHttpVoiceClient } from "../voiceClient";
+import { DEFAULT_VOICE_ID, createHttpVoiceClient } from "../voiceClient";
 
 async function formDataFromLastCall(fetchMock: ReturnType<typeof vi.fn>): Promise<FormData> {
   const [, init] = fetchMock.mock.calls[fetchMock.mock.calls.length - 1];
@@ -24,7 +24,7 @@ describe("createHttpVoiceClient", () => {
 
       expect(result).toBe(blob);
       expect(global.fetch).toHaveBeenCalledWith(
-        "http://127.0.0.1:8004/tts",
+        "http://127.0.0.1:8006/tts",
         expect.objectContaining({ method: "POST" }),
       );
     });
@@ -57,7 +57,7 @@ describe("createHttpVoiceClient", () => {
       await client.speak("Clocked in.");
 
       const form = await formDataFromLastCall(fetchMock);
-      expect(form.get("voice")).toBe(DEFAULT_PIPER_VOICE_ID);
+      expect(form.get("voice")).toBe(DEFAULT_VOICE_ID);
     });
 
     it("passes a specific voice id through to the server", async () => {
@@ -66,10 +66,34 @@ describe("createHttpVoiceClient", () => {
       global.fetch = fetchMock;
 
       const client = createHttpVoiceClient();
-      await client.speak("Clocked in.", "en_US-amy-medium");
+      await client.speak("Clocked in.", "af_heart");
 
       const form = await formDataFromLastCall(fetchMock);
-      expect(form.get("voice")).toBe("en_US-amy-medium");
+      expect(form.get("voice")).toBe("af_heart");
+    });
+
+    it("sends the locked-in pitch shift for the default voice — Kokoro has no native pitch control", async () => {
+      const blob = new Blob(["wav"], { type: "audio/wav" });
+      const fetchMock = vi.fn().mockResolvedValue({ ok: true, blob: () => Promise.resolve(blob) });
+      global.fetch = fetchMock;
+
+      const client = createHttpVoiceClient();
+      await client.speak("Clocked in.", "af_heart");
+
+      const form = await formDataFromLastCall(fetchMock);
+      expect(form.get("pitch_shift_cents")).toBe("200");
+    });
+
+    it("sends no pitch shift for an unrecognized voice id rather than guessing", async () => {
+      const blob = new Blob(["wav"], { type: "audio/wav" });
+      const fetchMock = vi.fn().mockResolvedValue({ ok: true, blob: () => Promise.resolve(blob) });
+      global.fetch = fetchMock;
+
+      const client = createHttpVoiceClient();
+      await client.speak("Clocked in.", "some-future-voice");
+
+      const form = await formDataFromLastCall(fetchMock);
+      expect(form.get("pitch_shift_cents")).toBe("0");
     });
   });
 
