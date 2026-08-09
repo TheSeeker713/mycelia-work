@@ -140,6 +140,11 @@ export function useTodosStore<T>(selector: (state: TodosState) => T): T {
   return useStore(selector);
 }
 
+/** The raw bound store — same rationale as useCaptureStoreApi: useTodoReminders needs a fresh snapshot right after its own loadTodos() call, not whatever was current at the start of the render that mounted the polling effect. */
+export function useTodosStoreApi(): TodosStore {
+  return useStoresContext().useTodosStore;
+}
+
 export function useSessionsStore<T>(selector: (state: SessionsState) => T): T {
   const { useSessionsStore: useStore } = useStoresContext();
   return useStore(selector);

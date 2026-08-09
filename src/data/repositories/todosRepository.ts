@@ -10,6 +10,7 @@ interface TodoRow {
   snooze_count: number;
   created_at: string;
   completed_at: string | null;
+  alerted_at: string | null;
 }
 
 function mapRow(row: TodoRow): Todo {
@@ -27,6 +28,7 @@ export function createTodosRepository(executor: SqlExecutor) {
         snooze_count: 0,
         created_at: nowIso(),
         completed_at: null,
+        alerted_at: null,
       };
       await executor.execute(
         `INSERT INTO todos (id, text, done, alert_at, snooze_count, created_at, completed_at)
@@ -64,6 +66,14 @@ export function createTodosRepository(executor: SqlExecutor) {
       await executor.execute(
         "UPDATE todos SET snooze_count = snooze_count + 1 WHERE id = ?",
         [id],
+      );
+    },
+
+    /** Marks a due reminder as having actually fired — persisted so a real alert never refires from a clean slate after an app restart. */
+    async markAlerted(id: string): Promise<void> {
+      await executor.execute(
+        "UPDATE todos SET alerted_at = ? WHERE id = ?",
+        [nowIso(), id],
       );
     },
 

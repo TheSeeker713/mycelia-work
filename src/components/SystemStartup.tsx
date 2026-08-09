@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { isPermissionGranted, requestPermission } from "@tauri-apps/plugin-notification";
 import { Shell } from "./Shell";
 import { useOllamaClient, useOpenClawClient, useSettingsStore, useVoiceClient } from "../store/StoreProvider";
 
@@ -108,9 +109,20 @@ export function SystemStartup({ onDone }: { onDone: () => void }) {
       }
     }
 
+    async function requestNotificationPermission() {
+      try {
+        const granted = await isPermissionGranted();
+        if (!granted) await requestPermission();
+      } catch {
+        // Best-effort — real todo alerts still speak the cue either way,
+        // the Windows toast just won't show without permission.
+      }
+    }
+
     void checkOpenClaw();
     void checkOllama();
     void checkVoice();
+    void requestNotificationPermission();
 
     return () => {
       cancelled = true;

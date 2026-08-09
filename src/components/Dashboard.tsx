@@ -12,6 +12,7 @@ import {
 import { useWindowControls } from "../hooks/useWindowControls";
 import { useMultiCardWidth } from "../hooks/useMultiCardWidth";
 import { useIdleWatcher } from "../hooks/useIdleWatcher";
+import { useTodoReminders } from "../hooks/useTodoReminders";
 import { useSelfVoicing } from "../hooks/useSelfVoicing";
 import { ZenModeEditor } from "./ZenModeEditor";
 import { CaptureDrawer } from "./CaptureDrawer";
@@ -172,6 +173,7 @@ export function Dashboard() {
 
   const runningSessions = activeSessions.filter((a) => a.session.status === "running");
   const idle = useIdleWatcher(runningSessions.length > 0);
+  useTodoReminders();
 
   function logIdleAsBreak() {
     for (const a of runningSessions) startBreak(a.session.id);

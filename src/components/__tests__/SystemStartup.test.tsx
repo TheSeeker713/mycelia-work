@@ -13,7 +13,13 @@ vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn().mockResolvedValue(undefined),
 }));
 
+vi.mock("@tauri-apps/plugin-notification", () => ({
+  isPermissionGranted: vi.fn().mockResolvedValue(true),
+  requestPermission: vi.fn().mockResolvedValue("granted"),
+}));
+
 import { invoke } from "@tauri-apps/api/core";
+import { isPermissionGranted, requestPermission } from "@tauri-apps/plugin-notification";
 
 let repos: Repositories;
 let openClawClient: OpenClawClient;
@@ -24,6 +30,8 @@ beforeEach(async () => {
   repos = await initDatabase(createTestExecutor());
   vi.mocked(invoke).mockReset();
   vi.mocked(invoke).mockResolvedValue(undefined);
+  vi.mocked(isPermissionGranted).mockReset().mockResolvedValue(true);
+  vi.mocked(requestPermission).mockReset().mockResolvedValue("granted");
   openClawClient = {
     runOnce: vi.fn(),
     ensureDaemon: vi.fn().mockResolvedValue(true),
@@ -73,6 +81,22 @@ describe("SystemStartup", () => {
     expect(invoke).toHaveBeenCalledWith("ensure_voice_agent_running");
 
     await waitFor(() => expect(onDone).toHaveBeenCalledTimes(1));
+  });
+
+  it("requests notification permission once, only when not already granted", async () => {
+    vi.mocked(isPermissionGranted).mockResolvedValue(false);
+    renderStartup();
+
+    await waitFor(() => expect(isPermissionGranted).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(requestPermission).toHaveBeenCalledTimes(1));
+  });
+
+  it("doesn't re-request notification permission when it's already granted", async () => {
+    vi.mocked(isPermissionGranted).mockResolvedValue(true);
+    const { onDone } = renderStartup();
+
+    await waitFor(() => expect(onDone).toHaveBeenCalledTimes(1));
+    expect(requestPermission).not.toHaveBeenCalled();
   });
 
   it("warms the settings-selected local model once Ollama is confirmed reachable", async () => {

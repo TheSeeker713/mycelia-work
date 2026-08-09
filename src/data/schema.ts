@@ -156,6 +156,10 @@ export const MIGRATIONS: string[] = [
     content TEXT NOT NULL,
     created_at TEXT NOT NULL
   )`,
+  // NULL = not yet alerted. Persisted (not an in-memory guard) so a due
+  // reminder that already fired doesn't refire from a clean slate after
+  // an app restart.
+  `ALTER TABLE todos ADD COLUMN alerted_at TEXT`,
 ];
 
 /**

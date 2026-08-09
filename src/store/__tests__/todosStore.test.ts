@@ -58,4 +58,21 @@ describe("todosStore", () => {
     expect(useTodosStore.getState().todos[0].snooze_count).toBe(1);
     expect(useTodosStore.getState().todos[0].done).toBe(false);
   });
+
+  it("a new todo starts with alerted_at unset — the reminder hook hasn't fired for it yet", async () => {
+    await useTodosStore.getState().addTodo("Alert todo", new Date().toISOString());
+    expect(useTodosStore.getState().todos[0].alerted_at).toBeNull();
+  });
+
+  it("markAlerted persists a real timestamp, surviving reload", async () => {
+    await useTodosStore.getState().addTodo("Alert todo", new Date().toISOString());
+    const id = useTodosStore.getState().todos[0].id;
+
+    await useTodosStore.getState().markAlerted(id);
+    expect(useTodosStore.getState().todos[0].alerted_at).not.toBeNull();
+
+    const freshStore = createTodosStore(repos, gamification);
+    await freshStore.getState().loadTodos();
+    expect(freshStore.getState().todos[0].alerted_at).not.toBeNull();
+  });
 });

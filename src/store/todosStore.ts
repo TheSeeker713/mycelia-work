@@ -9,6 +9,8 @@ export interface TodosState {
   addTodo: (text: string, alertAt?: string | null) => Promise<void>;
   completeTodo: (id: string) => Promise<void>;
   snoozeTodo: (id: string) => Promise<void>;
+  /** Marks a due reminder as having actually fired — used by useTodoReminders right after it notifies, so the same todo never alerts twice. */
+  markAlerted: (id: string) => Promise<void>;
 }
 
 export function createTodosStore(repos: Repositories, gamification: GamificationStore) {
@@ -35,6 +37,11 @@ export function createTodosStore(repos: Repositories, gamification: Gamification
 
     async snoozeTodo(id) {
       await repos.todos.snooze(id);
+      await get().loadTodos();
+    },
+
+    async markAlerted(id) {
+      await repos.todos.markAlerted(id);
       await get().loadTodos();
     },
   }));

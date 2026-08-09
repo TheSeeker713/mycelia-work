@@ -65,6 +65,8 @@ export interface Todo {
   snooze_count: number;
   created_at: string;
   completed_at: string | null;
+  /** When the due-time reminder actually fired (notification + spoken cue) — null means not yet alerted. */
+  alerted_at: string | null;
 }
 
 export type JournalStatus = "pending" | "ok" | "failed";

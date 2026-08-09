@@ -55,6 +55,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_sql::Builder::default().build())
         .plugin(global_shortcut_plugin)
+        .plugin(tauri_plugin_notification::init())
         .manage(resource_watchdog::WatchdogState(std::sync::Mutex::new(
             sysinfo::System::new(),
         )))
