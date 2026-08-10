@@ -31,3 +31,8 @@ sysinfo = "0.32"
 # assets are webview URLs with no filesystem path to hand to a subprocess.
 base64 = "0.22"
 
+# Desktop-only by nature: there's no second-process problem to solve on
+# mobile, and the crate doesn't build for those targets.
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-single-instance = "2"
+

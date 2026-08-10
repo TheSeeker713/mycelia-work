@@ -29,9 +29,16 @@ fn system_idle_seconds() -> Result<u64, String> {
         .map_err(|e| e.to_string())
 }
 
+/// Bring the pocket book back to the front from wherever it went.
+///
+/// `unminimize` matters as much as `show` here: hiding to the tray and
+/// being minimized to the taskbar are different states, and a window
+/// that's merely minimized will accept `show()` and `set_focus()`
+/// without ever coming back up.
 fn show_main_window(app: &tauri::AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.show();
+        let _ = window.unminimize();
         let _ = window.set_focus();
     }
 }
@@ -52,7 +59,24 @@ pub fn run() {
         .expect("ctrl+shift+q is a valid shortcut string")
         .build();
 
-    tauri::Builder::default()
+    #[allow(unused_mut)]
+    let mut builder = tauri::Builder::default();
+
+    // Registered before anything else, which the plugin requires: it
+    // has to win the race for the lock before the rest of the app
+    // starts doing setup work a second process shouldn't be doing.
+    //
+    // Without this, launching again while the app is already running
+    // just opened another window, which for a tray-resident app is easy
+    // to do by accident — the window is hidden, so it looks closed.
+    #[cfg(desktop)]
+    {
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+            show_main_window(app);
+        }));
+    }
+
+    builder
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_sql::Builder::default().build())
         .plugin(global_shortcut_plugin)
