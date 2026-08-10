@@ -88,6 +88,15 @@ pub fn run() {
                 })
                 .build(app)?;
 
+            // Windows doesn't reliably give a newly-created window real
+            // OS focus on its own, especially launched from a terminal
+            // (`npm run tauri dev`) — the window can end up sitting in
+            // the taskbar without ever actually coming to the front,
+            // which is exactly wrong for the startup checklist screen
+            // ("needs to be visible... displayed over apps"). Forcing
+            // show+focus here, once setup has actually run, is the fix.
+            show_main_window(app.handle());
+
             Ok(())
         })
         // The pocket book lives in the tray, not the taskbar - any close
