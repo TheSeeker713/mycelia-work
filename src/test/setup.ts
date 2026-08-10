@@ -1,4 +1,14 @@
 import "@testing-library/jest-dom/vitest";
+import { afterEach } from "vitest";
+import { __resetAiQueueForTests } from "../services/aiQueue";
+
+// The AI queue is a module-level singleton (deliberately — it's an
+// app-wide lock), so without this a test that leaves a call in flight
+// blocks every later test's AI work behind it, in this file and every
+// other one.
+afterEach(() => {
+  __resetAiQueueForTests();
+});
 
 // jsdom has no layout engine, so it doesn't implement elementFromPoint —
 // ProseMirror's view (the Journal's rich-text editor, Phase 16.5) calls

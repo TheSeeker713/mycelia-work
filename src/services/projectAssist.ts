@@ -10,6 +10,7 @@ import {
   type OpenClawClient,
 } from "./openclawClient";
 import type { OllamaClient } from "./ollamaClient";
+import { runAiJob } from "./aiQueue";
 
 /** Same 90s local-inference-only budget as journalGeneration.ts's report path — no OpenClaw CLI tax to account for. */
 const LOCAL_REPORT_TIMEOUT_SECS = 90;
@@ -73,12 +74,16 @@ export async function runProjectAssist(
   localModelId: string = DEFAULT_LOCAL_MODEL_ID,
 ): Promise<string | null> {
   try {
-    const result = await client.runOnce({
-      sessionKey: `project-assist-${project.id}`,
-      message: buildAssistPrompt(action, project, freeformQuestion),
-      timeoutSecs: 45,
-      model: resolveModelOverride(grok4Enabled, localModelId),
-    });
+    const result = await runAiJob(
+      { kind: "project_assist", label: `${ASSIST_ACTION_LABEL[action]} for ${project.title}` },
+      () =>
+        client.runOnce({
+          sessionKey: `project-assist-${project.id}`,
+          message: buildAssistPrompt(action, project, freeformQuestion),
+          timeoutSecs: 45,
+          model: resolveModelOverride(grok4Enabled, localModelId),
+        }),
+    );
     return result.text.trim() || null;
   } catch {
     return null;
@@ -120,14 +125,18 @@ export async function runProjectReportGeneration(params: {
   try {
     const grok4Enabled = (await repos.settings.get(GROK4_ENABLED_KEY)) === "true";
     const localModelId = (await repos.settings.get(LOCAL_MODEL_ID_KEY)) ?? DEFAULT_LOCAL_MODEL_ID;
-    const result = grok4Enabled
-      ? await runOnceWithRetry(client, {
-          sessionKey: `project-report-${project.id}`,
-          message: buildStatusReportPrompt(project),
-          timeoutSecs: 180,
-          model: resolveModelOverride(grok4Enabled, localModelId),
-        })
-      : await runLocalReportWithRetry(ollama, buildStatusReportPrompt(project), localModelId);
+    const result = await runAiJob(
+      { kind: "report", label: `Writing a status report for ${project.title}` },
+      () =>
+        grok4Enabled
+          ? runOnceWithRetry(client, {
+              sessionKey: `project-report-${project.id}`,
+              message: buildStatusReportPrompt(project),
+              timeoutSecs: 180,
+              model: resolveModelOverride(grok4Enabled, localModelId),
+            })
+          : runLocalReportWithRetry(ollama, buildStatusReportPrompt(project), localModelId),
+    );
     await repos.projectReports.markResult(reportId, { status: "ok", content: result.text, modelUsed: result.model });
   } catch (err) {
     const failureReason = err instanceof Error ? err.message : String(err);

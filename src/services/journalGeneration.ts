@@ -18,6 +18,7 @@ import {
   type OpenClawClient,
 } from "./openclawClient";
 import type { OllamaClient } from "./ollamaClient";
+import { runAiJob } from "./aiQueue";
 
 export interface RawSessionLog {
   task: Task;
@@ -228,14 +229,19 @@ export async function runJournalGeneration(params: {
   try {
     const grok4Enabled = (await repos.settings.get(GROK4_ENABLED_KEY)) === "true";
     const localModelId = (await repos.settings.get(LOCAL_MODEL_ID_KEY)) ?? DEFAULT_LOCAL_MODEL_ID;
-    const result = grok4Enabled
-      ? await runOnceWithRetry(client, {
-          sessionKey,
-          message: prompt,
-          timeoutSecs: 180,
-          model: resolveModelOverride(grok4Enabled, localModelId),
-        })
-      : await runLocalReportWithRetry(ollama, prompt, localModelId);
+    // Under the app-wide AI lock: one model call at a time across the
+    // whole app, so this can't fight a ghost-text suggestion or a
+    // capture classification for the same CPU.
+    const result = await runAiJob({ kind: "journal", label: "Writing your report" }, () =>
+      grok4Enabled
+        ? runOnceWithRetry(client, {
+            sessionKey,
+            message: prompt,
+            timeoutSecs: 180,
+            model: resolveModelOverride(grok4Enabled, localModelId),
+          })
+        : runLocalReportWithRetry(ollama, prompt, localModelId),
+    );
     const exportedPath = await exportWorkJournalFile(filename, result.text);
     await repos.journals.markResult(journalId, "ok", {
       modelUsed: result.model,

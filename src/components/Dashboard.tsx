@@ -36,6 +36,7 @@ import { SettingsCompartment } from "./compartments/SettingsCompartment";
 import { OnboardingCoachMark } from "./OnboardingCoachMark";
 import { AccessibilityOnboarding } from "./AccessibilityOnboarding";
 import { AchievementToastStack } from "./AchievementToast";
+import { AiQueueTicker } from "./AiQueueTicker";
 import { ProgressCompartment } from "./compartments/ProgressCompartment";
 import { ExitConfirmDialog } from "./ExitConfirmDialog";
 import { ClockOutReportDialog } from "./ClockOutReportDialog";
@@ -375,6 +376,7 @@ export function Dashboard() {
         </div>
         <CompartmentTabs active={active} onSelect={setActive} />
         <AchievementToastStack />
+        <AiQueueTicker />
         {showExitConfirm ? (
           <ExitConfirmDialog controls={controls} onCancel={() => setShowExitConfirm(false)} />
         ) : clockOutPrompt ? (

@@ -5,6 +5,7 @@ import {
   useResourceWatchdogClient,
   useSettingsStore,
 } from "../store/StoreProvider";
+import { runAiJob } from "../services/aiQueue";
 
 export const SUGGESTION_DEBOUNCE_MS = 600;
 
@@ -84,7 +85,21 @@ export function useGhostText() {
           return;
         }
 
-        const result = await ollamaClient.suggestContinuation(text);
+        // Through the app-wide AI lock like everything else, but with a
+        // relevance check: if a journal generation is hogging the slot
+        // and the person has typed on since, this drops rather than
+        // arriving late with a completion for text they've moved past.
+        // `requestIdRef` is the same staleness signal used everywhere
+        // else in this hook, reused rather than invented twice.
+        const result = await runAiJob(
+          {
+            kind: "ghost_text",
+            label: "Suggesting a continuation",
+            isStillRelevant: () => requestIdRef.current === myId,
+          },
+          () => ollamaClient.suggestContinuation(text),
+        ).catch(() => null); // cancelled or dropped is a normal outcome here
+
         if (requestIdRef.current !== myId || !result) return;
         setSuggestion(result);
       }, SUGGESTION_DEBOUNCE_MS);

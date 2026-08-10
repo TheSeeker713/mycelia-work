@@ -1,5 +1,6 @@
 import type { Task } from "../data";
 import { DEFAULT_LOCAL_MODEL_ID, resolveModelOverride, type OpenClawClient } from "./openclawClient";
+import { runAiJob } from "./aiQueue";
 
 /** Hard cap on turns — if the model hasn't resolved by then, abandon to the Tier-0 static fallback rather than let a conversation run forever. */
 export const MAX_CHECKIN_TURNS = 6;
@@ -124,12 +125,14 @@ export async function startCheckinConversation(
 ): Promise<CheckinTurn | null> {
   try {
     const prompt = buildCheckinSystemPrompt(task, clockedInAtIso, new Date().toISOString());
-    const result = await client.call({
-      sessionKey,
-      message: prompt,
-      timeoutSecs: 60,
-      model: resolveModelOverride(grok4Enabled, localModelId),
-    });
+    const result = await runAiJob({ kind: "checkin", label: "Starting the check-in" }, () =>
+      client.call({
+        sessionKey,
+        message: prompt,
+        timeoutSecs: 60,
+        model: resolveModelOverride(grok4Enabled, localModelId),
+      }),
+    );
     return parseCheckinTurn(result.text);
   } catch {
     return null;
@@ -144,12 +147,14 @@ export async function continueCheckinConversation(
   localModelId: string = DEFAULT_LOCAL_MODEL_ID,
 ): Promise<CheckinTurn | null> {
   try {
-    const result = await client.call({
-      sessionKey,
-      message: userReply,
-      timeoutSecs: 60,
-      model: resolveModelOverride(grok4Enabled, localModelId),
-    });
+    const result = await runAiJob({ kind: "checkin", label: "Thinking about your reply" }, () =>
+      client.call({
+        sessionKey,
+        message: userReply,
+        timeoutSecs: 60,
+        model: resolveModelOverride(grok4Enabled, localModelId),
+      }),
+    );
     return parseCheckinTurn(result.text);
   } catch {
     return null;

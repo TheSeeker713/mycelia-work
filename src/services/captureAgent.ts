@@ -1,6 +1,7 @@
 import type { Project } from "../data";
 import type { OllamaClient } from "./ollamaClient";
 import { DEFAULT_LOCAL_MODEL_ID, resolveModelOverride, type OpenClawClient } from "./openclawClient";
+import { runAiJob } from "./aiQueue";
 
 export type CaptureAction =
   | "create_note"
@@ -172,18 +173,23 @@ export async function routeCapture(
   grok4Enabled = false,
   localModelId: string = DEFAULT_LOCAL_MODEL_ID,
 ): Promise<CaptureLayer1Result> {
-  const onTopic = await deps.ollamaClient.classifyOnTopic(text);
-  if (!onTopic) return { action: "decline" };
+  // Both layers share one queue slot rather than taking two, so a
+  // capture can't be interrupted between its own safety check and the
+  // routing call it gates.
+  return runAiJob({ kind: "capture", label: "Filing what you just typed" }, async () => {
+    const onTopic = await deps.ollamaClient.classifyOnTopic(text);
+    if (!onTopic) return { action: "decline" } as CaptureLayer1Result;
 
-  try {
-    const result = await deps.openClawClient.runOnce({
-      sessionKey: "capture-agent",
-      message: buildLayer1Message(text, prior),
-      timeoutSecs: 30,
-      model: resolveModelOverride(grok4Enabled, localModelId),
-    });
-    return parseLayer1Response(result.text);
-  } catch {
-    return { action: "decline" };
-  }
+    try {
+      const result = await deps.openClawClient.runOnce({
+        sessionKey: "capture-agent",
+        message: buildLayer1Message(text, prior),
+        timeoutSecs: 30,
+        model: resolveModelOverride(grok4Enabled, localModelId),
+      });
+      return parseLayer1Response(result.text);
+    } catch {
+      return { action: "decline" } as CaptureLayer1Result;
+    }
+  }).catch(() => ({ action: "decline" }) as CaptureLayer1Result);
 }
