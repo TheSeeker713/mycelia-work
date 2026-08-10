@@ -12,6 +12,8 @@ declare module "@tiptap/core" {
       setMuseSuggestion: (text: string) => ReturnType;
       clearMuseSuggestion: () => ReturnType;
       acceptMuseSuggestion: () => ReturnType;
+      /** Clears the accepted-suggestion record, once its words have been counted for XP. */
+      resetMuseAcceptedRecord: () => ReturnType;
     };
   }
 }
@@ -26,16 +28,23 @@ declare module "@tiptap/core" {
  * this is what makes "continuing to type or any other key dismisses"
  * work for free, without a separate keydown handler.
  */
-export interface MuseSuggestionOptions {
-  /** Called with the exact text inserted whenever a suggestion is accepted with Tab. */
-  onAccepted?: (text: string) => void;
+export interface MuseSuggestionStorage {
+  /**
+   * Every suggestion accepted with Tab, in order. Journal XP counts
+   * manually-typed words only, and once accepted text is merged into
+   * the document there's no way to tell it apart, so it's recorded as
+   * it happens. Lives in extension storage rather than a React ref
+   * because it belongs to the editor's lifetime, not the component's
+   * render cycle.
+   */
+  accepted: string[];
 }
 
-export const MuseSuggestion = Extension.create<MuseSuggestionOptions>({
+export const MuseSuggestion = Extension.create<Record<string, never>, MuseSuggestionStorage>({
   name: "museSuggestion",
 
-  addOptions() {
-    return { onAccepted: undefined };
+  addStorage() {
+    return { accepted: [] };
   },
 
   addProseMirrorPlugins() {
@@ -105,8 +114,14 @@ export const MuseSuggestion = Extension.create<MuseSuggestionOptions>({
             // once accepted text is merged into the document there's no
             // reliable way to tell it apart from typing, and journal XP
             // depends on exactly that distinction.
-            this.options.onAccepted?.(pluginState.suggestion);
+            this.storage.accepted.push(pluginState.suggestion);
           }
+          return true;
+        },
+      resetMuseAcceptedRecord:
+        () =>
+        ({ editor }) => {
+          (editor.extensionStorage.museSuggestion as MuseSuggestionStorage).accepted = [];
           return true;
         },
     };

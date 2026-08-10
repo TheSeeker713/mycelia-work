@@ -15,7 +15,7 @@ import { routeAiCall, type RoutedResult } from "./aiBackendRouter";
 /** Same 90s local-inference-only budget as journalGeneration.ts's report path — no OpenClaw CLI tax to account for. */
 const LOCAL_REPORT_TIMEOUT_SECS = 90;
 
-/** Same one-retry contract as `runOnceWithRetry`, for the direct-Ollama path. */
+/** One automatic retry, for the direct-Ollama path. Same reasoning as journalGeneration.ts's copy. */
 async function runLocalReportWithRetry(
   ollama: OllamaClient,
   prompt: string,

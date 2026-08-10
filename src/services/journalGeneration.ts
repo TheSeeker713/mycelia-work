@@ -191,11 +191,11 @@ export function sweepStalePendingJournals(repos: Repositories, now: Date = new D
  * Grok-off reports skip OpenClaw's CLI/gateway entirely (see
  * `OllamaClient.generateReport`'s doc comment) — no ~60s fixed tax to
  * budget for, only real local-model inference time, so this stays well
- * under `runOnceWithRetry`'s 180s OpenClaw-path timeout.
+ * under the OpenClaw path's own 180s timeout.
  */
 const LOCAL_REPORT_TIMEOUT_SECS = 90;
 
-/** Same one-retry contract as `runOnceWithRetry`, for the direct-Ollama path. */
+/** One automatic retry, for the direct-Ollama path. A cold model load can genuinely fail once and succeed immediately after. */
 async function runLocalReportWithRetry(
   ollama: OllamaClient,
   prompt: string,

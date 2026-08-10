@@ -234,7 +234,7 @@ export function LibraryCompartment({
   /** Opens the standalone free-write Journal — zen-mode-only, no compact view here. */
   onEnterJournalZenMode?: () => void;
 } = {}) {
-  const [expandedSection, setExpandedSection] = useState<LibrarySection>("workJournal");
+  const [chosenSection, setExpandedSection] = useState<LibrarySection>("workJournal");
 
   const archivedTasks = useTasksStore((s) => s.archivedTasks);
   const loadArchivedTasks = useTasksStore((s) => s.loadArchivedTasks);
@@ -252,11 +252,12 @@ export function LibraryCompartment({
   }, [loadArchivedTasks, loadRecentJournals]);
 
   // A report waiting to be focused (just created from the clock-out
-  // popup) always lives in the Reports section — expand it so the
-  // entry is actually visible for the autofocus in JournalEntry to land on.
-  useEffect(() => {
-    if (focusJournalId) setExpandedSection("workJournal");
-  }, [focusJournalId]);
+  // popup) always lives in the Reports section, so it has to be the
+  // open one for the autofocus in JournalEntry to land on anything.
+  // Derived rather than pushed through setState in an effect, which
+  // would mean an extra render pass and a frame showing the wrong
+  // section.
+  const expandedSection: LibrarySection = focusJournalId ? "workJournal" : chosenSection;
 
   return (
     <div className="flex h-full flex-col gap-2 overflow-y-auto">

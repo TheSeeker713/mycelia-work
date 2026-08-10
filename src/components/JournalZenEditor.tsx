@@ -7,7 +7,7 @@ import FontFamily from "@tiptap/extension-font-family";
 import { useJournalEntriesStore, useSettingsStore } from "../store/StoreProvider";
 import { TimestampedParagraph } from "./journal/timestampedParagraph";
 import { FontSize } from "./journal/fontSize";
-import { MuseSuggestion } from "./journal/museSuggestion";
+import { MuseSuggestion, type MuseSuggestionStorage } from "./journal/museSuggestion";
 import { useMuseSuggestions } from "./journal/useMuseSuggestions";
 import { JournalContextMenu } from "./journal/JournalContextMenu";
 import { JournalShortcutsOverlay } from "./journal/JournalShortcutsOverlay";
@@ -32,10 +32,6 @@ function JournalEditorInner({ draft, onExit }: { draft: DiaryEntry; onExit: () =
   const [overlay, setOverlay] = useState<Overlay>(null);
   const [menuPos, setMenuPos] = useState({ x: 0, y: 0 });
   const autosaveDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Everything Muse wrote for me, accumulated as it's accepted. Journal
-  // XP counts manually-typed words only, and once accepted text is in
-  // the document there's no way to tell it apart after the fact.
-  const aiAcceptedRef = useRef<string[]>([]);
 
   const editor = useEditor({
     extensions: [
@@ -45,9 +41,7 @@ function JournalEditorInner({ draft, onExit }: { draft: DiaryEntry; onExit: () =
       TextStyle,
       FontFamily,
       FontSize,
-      MuseSuggestion.configure({
-        onAccepted: (text) => aiAcceptedRef.current.push(text),
-      }),
+      MuseSuggestion,
     ],
     content: JSON.parse(draft.content_json),
     autofocus: "end",
@@ -90,8 +84,12 @@ function JournalEditorInner({ draft, onExit }: { draft: DiaryEntry; onExit: () =
   async function handleSave() {
     if (autosaveDebounceRef.current) clearTimeout(autosaveDebounceRef.current);
     if (editor) await autosave(JSON.stringify(editor.getJSON()));
-    await commit(editor?.getText() ?? "", aiAcceptedRef.current.join(" "));
-    aiAcceptedRef.current = [];
+    // Muse's own record of what it wrote, kept in extension storage —
+    // see museSuggestion.ts for why it can't be reconstructed later.
+    const museStorage = editor?.extensionStorage.museSuggestion as MuseSuggestionStorage | undefined;
+    const accepted = [...(museStorage?.accepted ?? [])];
+    await commit(editor?.getText() ?? "", accepted.join(" "));
+    editor?.commands.resetMuseAcceptedRecord();
   }
 
   return (

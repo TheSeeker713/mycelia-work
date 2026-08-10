@@ -3,11 +3,13 @@
 //! plainly instead of degrading invisibly" rule the plan calls for.
 //!
 //! The `System` handle is kept as Tauri managed state (not recreated
-//! per call) for two reasons: `System::new_all()` enumerates every
-//! process on the machine, which isn't free to redo on every check,
-//! and `sysinfo` itself documents that CPU-usage accuracy needs two
-//! refreshes with real time between them — a fresh `System` on every
-//! call would report 0% every time.
+//! per call) because `sysinfo` documents that CPU-usage accuracy needs
+//! two refreshes with real time between them — a fresh `System` on
+//! every call would report 0% every time. It's built with
+//! `System::new()` rather than `new_all()` (see lib.rs) precisely so it
+//! doesn't enumerate every process on the machine: this only ever reads
+//! global CPU and memory, so paying for a full process list would be
+//! waste on every single check.
 
 use serde::Serialize;
 use std::sync::Mutex;

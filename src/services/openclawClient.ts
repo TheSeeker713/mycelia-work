@@ -89,27 +89,6 @@ export interface OpenClawClient {
   cancelActiveCall(): Promise<void>;
 }
 
-/**
- * One automatic retry for calls that persist a result row (journal/report
- * generation) — a transient blip (or the real, measured ~60s of OpenClaw
- * CLI/gateway overhead this machine has on every call, independent of
- * model or prompt) shouldn't turn into a stuck "failed" on the very first
- * try. Deliberately not used for single-shot fail-soft paths (capture
- * classification, freeform project assist) — those already degrade to a
- * user-facing message/decline instantly, and a silent retry there would
- * just add latency without a matching robustness win.
- */
-export async function runOnceWithRetry(
-  client: OpenClawClient,
-  input: OpenClawCallInput,
-): Promise<OpenClawCallResult> {
-  try {
-    return await client.runOnce(input);
-  } catch {
-    return await client.runOnce(input);
-  }
-}
-
 export function createTauriOpenClawClient(): OpenClawClient {
   return {
     runOnce(input) {
