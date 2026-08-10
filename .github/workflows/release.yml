@@ -1,0 +1,63 @@
+name: Release
+
+# Tag-driven, not push-driven: a release should be a deliberate act, and
+# building an installer on every commit to main would just burn minutes
+# producing artifacts nobody asked for.
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      # Rust is the slow part of this build by a wide margin, so the
+      # cache matters more here than the npm one.
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install dependencies
+        run: npm ci
+
+      # The same gates that run locally before every commit. A release
+      # that skips them is a release that can ship a known-broken build.
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Rust tests
+        run: cargo test --manifest-path src-tauri/Cargo.toml
+
+      - name: Build and publish
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Both are required for the updater to produce signed
+          # artifacts. Until they exist as repository secrets the build
+          # still succeeds and simply publishes an unsigned installer,
+          # which is the right failure mode: no releases blocked on a
+          # key that hasn't been generated yet.
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: "Mycelia Time ${{ github.ref_name }}"
+          releaseDraft: true
+          prerelease: false
