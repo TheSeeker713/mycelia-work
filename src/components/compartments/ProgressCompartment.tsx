@@ -12,7 +12,12 @@ import { BADGE_IMAGE_POOL_BY_LEVEL, STICKER_IMAGE_POOL_BY_KEY } from "../../serv
  * view, so it shows each achievement's first pool image consistently
  * rather than re-rolling on every render.
  */
-export function ProgressCompartment() {
+export function ProgressCompartment({
+  onOpenGallery,
+}: {
+  /** Only provided in zen mode — the Gallery button hides entirely in the pocket card, where a grid of artwork would be unreadable. */
+  onOpenGallery?: () => void;
+} = {}) {
   const stats = useGamificationStore((s) => s.stats);
   const unlockedAchievements = useGamificationStore((s) => s.unlockedAchievements);
   const recentXpEvents = useGamificationStore((s) => s.recentXpEvents);
@@ -26,7 +31,18 @@ export function ProgressCompartment() {
   if (!stats) {
     return (
       <div className="flex h-full flex-col">
-        <div className="mb-3 text-[0.78rem] font-semibold text-[var(--ink)]">Progress</div>
+        <div className="mb-3 flex items-center justify-between">
+        <span className="text-[0.78rem] font-semibold text-[var(--ink)]">Progress</span>
+        {onOpenGallery && (
+          <button
+            type="button"
+            onClick={onOpenGallery}
+            className="rounded-full border border-[var(--line)] px-2.5 py-1 text-[0.7rem] text-[var(--ink-soft)]"
+          >
+            Gallery
+          </button>
+        )}
+      </div>
         <p className="text-[0.82rem] text-[var(--ink-faint)]">Loading…</p>
       </div>
     );
@@ -52,7 +68,18 @@ export function ProgressCompartment() {
 
   return (
     <div className="flex h-full flex-col overflow-y-auto">
-      <div className="mb-3 text-[0.78rem] font-semibold text-[var(--ink)]">Progress</div>
+      <div className="mb-3 flex items-center justify-between">
+        <span className="text-[0.78rem] font-semibold text-[var(--ink)]">Progress</span>
+        {onOpenGallery && (
+          <button
+            type="button"
+            onClick={onOpenGallery}
+            className="rounded-full border border-[var(--line)] px-2.5 py-1 text-[0.7rem] text-[var(--ink-soft)]"
+          >
+            Gallery
+          </button>
+        )}
+      </div>
 
       <div className="mb-3 rounded-[10px] border p-3" style={{ borderColor: "var(--line)" }}>
         <div className="mb-1 flex items-baseline justify-between">

@@ -10,6 +10,7 @@ mod journal_export;
 mod openclaw;
 mod resource_watchdog;
 mod system_init;
+mod upscale;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
@@ -121,6 +122,8 @@ pub fn run() {
             capture_log::append_capture_log,
             resource_watchdog::check_resource_pressure,
             system_init::ensure_voice_agent_running,
+            upscale::upscaler_status,
+            upscale::upscale_image,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

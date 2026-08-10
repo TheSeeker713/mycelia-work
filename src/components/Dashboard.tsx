@@ -16,6 +16,7 @@ import { useTodoReminders } from "../hooks/useTodoReminders";
 import { useSelfVoicing } from "../hooks/useSelfVoicing";
 import { ZenModeEditor } from "./ZenModeEditor";
 import { JournalZenEditor } from "./JournalZenEditor";
+import { RewardGallery } from "./RewardGallery";
 import { CaptureDrawer } from "./CaptureDrawer";
 import { Shell } from "./Shell";
 import { DeviceBar } from "./DeviceBar";
@@ -112,6 +113,7 @@ function CompartmentContent({
   active,
   onEnterZenMode,
   onEnterJournalZenMode,
+  onOpenGallery,
   onClockedOut,
   focusJournalId,
   onJournalFocused,
@@ -119,6 +121,7 @@ function CompartmentContent({
   active: CompartmentName;
   onEnterZenMode: (sessionId: string, taskTitle: string) => void;
   onEnterJournalZenMode: () => void;
+  onOpenGallery: (() => void) | undefined;
   onClockedOut: (task: Task, sessionId: string) => void;
   focusJournalId: string | null;
   onJournalFocused: () => void;
@@ -129,7 +132,7 @@ function CompartmentContent({
       {active === "notes" && <NotesCompartment onEnterZenMode={onEnterZenMode} />}
       {active === "todos" && <TodosCompartment />}
       {active === "projects" && <ProjectsCompartment />}
-      {active === "progress" && <ProgressCompartment />}
+      {active === "progress" && <ProgressCompartment onOpenGallery={onOpenGallery} />}
       {active === "library" && (
         <LibraryCompartment
           focusJournalId={focusJournalId}
@@ -150,6 +153,7 @@ export function Dashboard() {
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [zenMode, setZenMode] = useState<{ sessionId: string; taskTitle: string } | null>(null);
   const [journalZenOpen, setJournalZenOpen] = useState(false);
+  const [galleryOpen, setGalleryOpen] = useState(false);
   const [clockOutPrompt, setClockOutPrompt] = useState<{ task: Task; sessionId: string } | null>(null);
   const [focusJournalId, setFocusJournalId] = useState<string | null>(null);
   const wasFullscreenBeforeZenRef = useRef(false);
@@ -283,14 +287,14 @@ export function Dashboard() {
     // handling, which respects its own wasFullscreenBefore*Ref — this
     // generic handler would otherwise also fire on the same keypress and
     // exit fullscreen unconditionally, fighting that logic.
-    if (!controls.fullscreen || zenMode || journalZenOpen) return;
+    if (!controls.fullscreen || zenMode || journalZenOpen || galleryOpen) return;
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") controls.exitFullscreen();
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [controls.fullscreen, zenMode, journalZenOpen]);
+  }, [controls.fullscreen, zenMode, journalZenOpen, galleryOpen]);
 
   if (!systemReady) {
     return <SystemStartup onDone={() => setSystemReady(true)} />;
@@ -312,6 +316,14 @@ export function Dashboard() {
     return (
       <Shell mode="fullscreen">
         <JournalZenEditor onExit={exitJournalZenMode} />
+      </Shell>
+    );
+  }
+
+  if (galleryOpen) {
+    return (
+      <Shell mode="fullscreen">
+        <RewardGallery onClose={() => setGalleryOpen(false)} />
       </Shell>
     );
   }
@@ -369,6 +381,7 @@ export function Dashboard() {
             active={active}
             onEnterZenMode={enterZenMode}
             onEnterJournalZenMode={() => void enterJournalZenMode()}
+            onOpenGallery={controls.fullscreen ? () => setGalleryOpen(true) : undefined}
             onClockedOut={(task, sessionId) => setClockOutPrompt({ task, sessionId })}
             focusJournalId={focusJournalId}
             onJournalFocused={() => setFocusJournalId(null)}
