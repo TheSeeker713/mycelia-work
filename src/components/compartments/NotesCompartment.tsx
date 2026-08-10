@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNotesStore, useSessionsStore } from "../../store/StoreProvider";
 import { MicButton } from "../MicButton";
+import { GhostTextField } from "../GhostTextField";
 
 /** Notes attach to a running task_session — needs at least one active session to write into. */
 export function NotesCompartment({
@@ -96,13 +97,16 @@ export function NotesCompartment({
       )}
 
       <div className="mt-3 flex flex-col gap-2">
-        <textarea
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          placeholder={`Write a note for ${selected.task.title}...`}
-          rows={3}
-          className="resize-none rounded-lg border border-[var(--line)] bg-[var(--paper)] px-2.5 py-2 text-[0.82rem] text-[var(--ink)] outline-none placeholder:text-[var(--ink-faint)]"
-        />
+        <div className="rounded-lg border border-[var(--line)] bg-[var(--paper)]">
+          <GhostTextField
+            value={draft}
+            onValueChange={setDraft}
+            multiline
+            rows={3}
+            placeholder={`Write a note for ${selected.task.title}...`}
+            className="resize-none px-2.5 py-2 text-[0.82rem] text-[var(--ink)] outline-none placeholder:text-[var(--ink-faint)]"
+          />
+        </div>
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-1.5">
             <MicButton onTranscribed={handleDictated} />

@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useTodosStore } from "../../store/StoreProvider";
 import { MicButton } from "../MicButton";
+import { GhostTextField } from "../GhostTextField";
 
 export function TodosCompartment() {
   const todos = useTodosStore((s) => s.todos);
@@ -78,13 +79,15 @@ export function TodosCompartment() {
       )}
       <form onSubmit={handleSubmit} className="mt-3 flex flex-col gap-1.5">
         <div className="flex gap-2">
-          <input
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="Add a todo"
-            aria-label="New todo"
-            className="flex-1 rounded-lg border border-[var(--line)] bg-[var(--paper)] px-2.5 py-1.5 text-[0.82rem] text-[var(--ink)] outline-none placeholder:text-[var(--ink-faint)]"
-          />
+          <div className="flex-1 rounded-lg border border-[var(--line)] bg-[var(--paper)]">
+            <GhostTextField
+              value={text}
+              onValueChange={setText}
+              placeholder="Add a todo"
+              aria-label="New todo"
+              className="px-2.5 py-1.5 text-[0.82rem] text-[var(--ink)] outline-none placeholder:text-[var(--ink-faint)]"
+            />
+          </div>
           <MicButton onTranscribed={handleDictated} />
           <button
             type="button"

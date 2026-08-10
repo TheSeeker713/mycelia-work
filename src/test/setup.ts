@@ -21,14 +21,20 @@ const emptyRects = () => Object.assign([], { item: () => null }) as unknown as D
 // necessity, not laziness — ProseMirror calls them on Text nodes anyway.
 type Measurable = { getClientRects?: () => DOMRectList; getBoundingClientRect?: () => DOMRect };
 
-const textProto = Text.prototype as unknown as Measurable;
-if (!textProto.getClientRects) {
-  textProto.getClientRects = emptyRects;
-  textProto.getBoundingClientRect = () => new DOMRect();
+// Guarded: plenty of suites here run under `@vitest-environment node`,
+// where none of these DOM globals exist at all.
+if (typeof Text !== "undefined") {
+  const textProto = Text.prototype as unknown as Measurable;
+  if (!textProto.getClientRects) {
+    textProto.getClientRects = emptyRects;
+    textProto.getBoundingClientRect = () => new DOMRect();
+  }
 }
 
-const rangeProto = Range.prototype as unknown as Measurable;
-if (!rangeProto.getClientRects) {
-  rangeProto.getClientRects = emptyRects;
-  rangeProto.getBoundingClientRect = () => new DOMRect();
+if (typeof Range !== "undefined") {
+  const rangeProto = Range.prototype as unknown as Measurable;
+  if (!rangeProto.getClientRects) {
+    rangeProto.getClientRects = emptyRects;
+    rangeProto.getBoundingClientRect = () => new DOMRect();
+  }
 }

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { GhostTextField } from "./GhostTextField";
 
 const DIALOG_CLASSES = "absolute inset-3 flex flex-col justify-center rounded-[14px] border p-4";
 const DIALOG_STYLE = { background: "var(--paper-card)", borderColor: "var(--line)" };
@@ -36,14 +37,19 @@ export function ClockOutReportDialog({
       <label className="mb-1 block text-[0.72rem] text-[var(--ink-faint)]" htmlFor="clock-out-brief">
         In a few words, what did you do? (optional — AI takes care of the rest)
       </label>
-      <textarea
-        id="clock-out-brief"
-        value={brief}
-        onChange={(e) => setBrief(e.target.value)}
-        rows={2}
-        className="mb-3 w-full resize-none rounded-lg border px-2 py-1.5 text-[0.8rem] text-[var(--ink)]"
+      <div
+        className="mb-3 rounded-lg border"
         style={{ borderColor: "var(--line)", background: "var(--paper)" }}
-      />
+      >
+        <GhostTextField
+          id="clock-out-brief"
+          value={brief}
+          onValueChange={setBrief}
+          multiline
+          rows={2}
+          className="resize-none px-2 py-1.5 text-[0.8rem] text-[var(--ink)] outline-none"
+        />
+      </div>
 
       {!grok4Enabled && (
         <p className="mb-3 text-[0.7rem] text-[var(--ink-faint)]">

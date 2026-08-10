@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useJournalsStore, useTasksStore } from "../../store/StoreProvider";
 import { useSelfVoicing } from "../../hooks/useSelfVoicing";
+import { GhostTextField } from "../GhostTextField";
 import type { Journal } from "../../data";
 import { exportWorkJournalFile, libraryExportFilename } from "../../services/journalGeneration";
 
@@ -92,18 +93,23 @@ function JournalEntry({
 
       {manual && (
         <div className="mt-1.5">
-          <textarea
-            ref={textareaRef}
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
+          <div
+            className="rounded-lg border"
+            style={{ borderColor: "var(--line)", background: "var(--paper)" }}
             onBlur={() => {
               if (draft !== journal.content) onSaveManual(journal.id, draft);
             }}
-            rows={4}
-            placeholder="Write what happened…"
-            className="w-full resize-none rounded-lg border px-2 py-1.5 text-[0.78rem] text-[var(--ink)]"
-            style={{ borderColor: "var(--line)", background: "var(--paper)" }}
-          />
+          >
+            <GhostTextField
+              ref={textareaRef}
+              value={draft}
+              onValueChange={setDraft}
+              multiline
+              rows={4}
+              placeholder="Write what happened…"
+              className="resize-none px-2 py-1.5 text-[0.78rem] text-[var(--ink)] outline-none"
+            />
+          </div>
           <button
             type="button"
             onClick={() => onSaveManual(journal.id, draft)}

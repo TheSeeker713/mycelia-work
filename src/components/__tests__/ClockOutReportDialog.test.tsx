@@ -1,11 +1,27 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ClockOutReportDialog } from "../ClockOutReportDialog";
+import { StoreProvider } from "../../store/StoreProvider";
+import { initDatabase, type Repositories } from "../../data";
+import { createTestExecutor } from "../../data/__tests__/testExecutor";
+
+// The brief field is a GhostTextField now, so this dialog needs real app
+// context (settings for the AI-suggestions toggle, the Ollama client,
+// the resource watchdog) where a bare textarea needed none.
+let repos: Repositories;
+
+beforeEach(async () => {
+  repos = await initDatabase(createTestExecutor());
+});
+
+function renderDialog(ui: React.ReactElement) {
+  return render(<StoreProvider repositories={repos}>{ui}</StoreProvider>);
+}
 
 describe("ClockOutReportDialog", () => {
   it("names the task and shows the local-AI warning only when Grok is off", () => {
-    const { rerender } = render(
+    const { rerender } = renderDialog(
       <ClockOutReportDialog
         taskTitle="Write the devlog entry"
         grok4Enabled={false}
@@ -19,13 +35,15 @@ describe("ClockOutReportDialog", () => {
     expect(screen.getByText(/Local AI may take a few seconds/)).toBeInTheDocument();
 
     rerender(
-      <ClockOutReportDialog
-        taskTitle="Write the devlog entry"
-        grok4Enabled={true}
-        onAiWrite={vi.fn()}
-        onManualWrite={vi.fn()}
-        onSkip={vi.fn()}
-      />,
+      <StoreProvider repositories={repos}>
+        <ClockOutReportDialog
+          taskTitle="Write the devlog entry"
+          grok4Enabled={true}
+          onAiWrite={vi.fn()}
+          onManualWrite={vi.fn()}
+          onSkip={vi.fn()}
+        />
+      </StoreProvider>,
     );
     expect(screen.queryByText(/Local AI may take a few seconds/)).not.toBeInTheDocument();
   });
@@ -33,7 +51,7 @@ describe("ClockOutReportDialog", () => {
   it("AI writes it passes along whatever brief text was typed", async () => {
     const user = userEvent.setup();
     const onAiWrite = vi.fn();
-    render(
+    renderDialog(
       <ClockOutReportDialog
         taskTitle="Write the devlog entry"
         grok4Enabled={false}
@@ -52,7 +70,7 @@ describe("ClockOutReportDialog", () => {
   it("AI writes it works with no brief typed at all", async () => {
     const user = userEvent.setup();
     const onAiWrite = vi.fn();
-    render(
+    renderDialog(
       <ClockOutReportDialog
         taskTitle="Write the devlog entry"
         grok4Enabled={true}
@@ -71,7 +89,7 @@ describe("ClockOutReportDialog", () => {
     const user = userEvent.setup();
     const onManualWrite = vi.fn();
     const onSkip = vi.fn();
-    render(
+    renderDialog(
       <ClockOutReportDialog
         taskTitle="Write the devlog entry"
         grok4Enabled={true}

@@ -1,14 +1,7 @@
-import { useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent } from "react";
-import {
-  useNotesStore,
-  useOllamaClient,
-  useResourceStore,
-  useResourceWatchdogClient,
-  useSettingsStore,
-} from "../store/StoreProvider";
+import { useEffect, useRef, type ChangeEvent, type KeyboardEvent } from "react";
+import { useNotesStore } from "../store/StoreProvider";
+import { useGhostText } from "../hooks/useGhostText";
 import { MicButton } from "./MicButton";
-
-const SUGGESTION_DEBOUNCE_MS = 600;
 
 /** Shared so the ghost-text mirror div lines up pixel-for-pixel with the real textarea underneath it. */
 const EDITOR_TEXT_STYLE =
@@ -40,77 +33,30 @@ export function ZenModeEditor({
   const draft = useNotesStore((s) => s.draft);
   const setDraft = useNotesStore((s) => s.setDraft);
   const addNote = useNotesStore((s) => s.addNote);
-  const aiSuggestionsEnabled = useSettingsStore((s) => s.aiSuggestionsEnabled);
-  const ollamaClient = useOllamaClient();
-  const resourceWatchdogClient = useResourceWatchdogClient();
-  const logResourceEvent = useResourceStore((s) => s.logEvent);
 
-  const [suggestion, setSuggestion] = useState<string | null>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const requestIdRef = useRef(0);
+  // Same ghost-text lifecycle every other field in the app uses — this
+  // editor keeps its own markup (it's a full-bleed writing surface, not
+  // a form field) but no longer its own copy of the debounce/pressure/
+  // staleness logic.
+  const { suggestion, scheduleFor, clear: clearSuggestion, warmUp } = useGhostText();
   const mirrorRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  useEffect(
-    () => () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-      requestIdRef.current += 1; // invalidate any in-flight request
-    },
-    [],
-  );
-
-  // Loads the ghost-text model into Ollama's memory as soon as zen mode
-  // opens, so it's warm well before the user's first typing pause —
-  // Ollama unloads idle models, so a cold load is the common case, not
-  // an edge case, and a cold load is slow enough to blow past the
-  // suggestion timeout on its own.
   useEffect(() => {
-    if (aiSuggestionsEnabled) ollamaClient.warmUpGhostText();
+    warmUp();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function scheduleSuggestion(text: string) {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    const myId = ++requestIdRef.current;
-    debounceRef.current = setTimeout(async () => {
-      // A stale/late suggestion for text the user already moved past isn't
-      // useful, so under pressure this round is just skipped rather than
-      // deferred to run later — unlike a user-initiated action, there's no
-      // sensible "queue it and run when things calm down" for ghost text.
-      const pressure = await resourceWatchdogClient.checkPressure();
-      if (requestIdRef.current !== myId) return;
-      if (pressure.underPressure) {
-        logResourceEvent(
-          "throttled",
-          `ghost-text suggestion skipped (cpu ${pressure.cpuPercent.toFixed(0)}%, mem ${pressure.memPercent.toFixed(0)}%)`,
-        );
-        return;
-      }
-
-      const result = await ollamaClient.suggestContinuation(text);
-      if (requestIdRef.current !== myId || !result) return;
-      setSuggestion(result);
-    }, SUGGESTION_DEBOUNCE_MS);
-  }
-
   function handleChange(e: ChangeEvent<HTMLTextAreaElement>) {
     const nextText = e.target.value;
-    const cursorAtEnd = e.target.selectionStart === nextText.length;
     setDraft(nextText);
-    setSuggestion(null);
-    requestIdRef.current += 1; // any stale in-flight suggestion no longer applies
-
-    if (aiSuggestionsEnabled && cursorAtEnd && nextText.trim()) {
-      scheduleSuggestion(nextText);
-    } else if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
-    }
+    scheduleFor(nextText, e.target.selectionStart === nextText.length);
   }
 
   function acceptSuggestion() {
     if (!suggestion) return;
     setDraft(draft + suggestion);
-    setSuggestion(null);
+    clearSuggestion();
   }
 
   function handleKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
@@ -125,7 +71,7 @@ export function ZenModeEditor({
     }
     // Per Phase 8's design: continuing to type or any other key dismisses
     // whatever's showing — Tab is the one and only accept path.
-    if (suggestion) setSuggestion(null);
+    if (suggestion) clearSuggestion();
   }
 
   function handleDictated(text: string) {
@@ -143,7 +89,7 @@ export function ZenModeEditor({
     if (!trimmed) return;
     await addNote(sessionId, trimmed);
     setDraft("");
-    setSuggestion(null);
+    clearSuggestion();
   }
 
   return (

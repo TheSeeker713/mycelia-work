@@ -9,6 +9,7 @@ import type {
   ProjectStatus,
 } from "../../data";
 import { DateTimePicker } from "../DateTimePicker";
+import { GhostTextField } from "../GhostTextField";
 import { ASSIST_ACTION_LABEL, runProjectAssist, type AssistAction } from "../../services/projectAssist";
 
 const PRIORITY_LABEL: Record<ProjectPriority, string> = { high: "high", medium: "medium", low: "low" };
@@ -336,20 +337,25 @@ function ProjectDetail({
       </button>
 
       <div className="flex flex-col gap-2">
-        <input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          aria-label="Project title"
-          className="rounded-lg border border-[var(--line)] bg-[var(--paper)] px-2.5 py-1.5 text-[0.88rem] font-semibold text-[var(--ink)] outline-none"
-        />
-        <textarea
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="What's this project about..."
-          rows={2}
-          aria-label="Project description"
-          className="resize-none rounded-lg border border-[var(--line)] bg-[var(--paper)] px-2.5 py-1.5 text-[0.8rem] text-[var(--ink)] outline-none placeholder:text-[var(--ink-faint)]"
-        />
+        <div className="rounded-lg border border-[var(--line)] bg-[var(--paper)]">
+          <GhostTextField
+            value={title}
+            onValueChange={setTitle}
+            aria-label="Project title"
+            className="px-2.5 py-1.5 text-[0.88rem] font-semibold text-[var(--ink)] outline-none"
+          />
+        </div>
+        <div className="rounded-lg border border-[var(--line)] bg-[var(--paper)]">
+          <GhostTextField
+            value={description}
+            onValueChange={setDescription}
+            multiline
+            rows={2}
+            placeholder="What's this project about..."
+            aria-label="Project description"
+            className="resize-none px-2.5 py-1.5 text-[0.8rem] text-[var(--ink)] outline-none placeholder:text-[var(--ink-faint)]"
+          />
+        </div>
         <div className="flex gap-2">
           <label className="flex flex-1 flex-col gap-1">
             <span className="text-[0.66rem] tracking-wide text-[var(--ink-faint)] uppercase">Status</span>
@@ -570,13 +576,15 @@ export function ProjectsCompartment() {
       )}
       {showForm && (
         <form onSubmit={handleSubmit} className="mt-3 flex flex-col gap-2">
-          <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="Project title"
-            aria-label="New project title"
-            className="rounded-lg border border-[var(--line)] bg-[var(--paper)] px-2.5 py-1.5 text-[0.82rem] text-[var(--ink)] outline-none placeholder:text-[var(--ink-faint)]"
-          />
+          <div className="rounded-lg border border-[var(--line)] bg-[var(--paper)]">
+            <GhostTextField
+              value={title}
+              onValueChange={setTitle}
+              placeholder="Project title"
+              aria-label="New project title"
+              className="px-2.5 py-1.5 text-[0.82rem] text-[var(--ink)] outline-none placeholder:text-[var(--ink-faint)]"
+            />
+          </div>
           <div className="flex gap-2">
             <label className="flex flex-1 flex-col gap-1">
               <span className="text-[0.68rem] tracking-wide text-[var(--ink-faint)] uppercase">
