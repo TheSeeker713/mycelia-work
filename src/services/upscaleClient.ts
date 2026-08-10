@@ -9,15 +9,25 @@ export interface UpscalerStatus {
 export type UpscaleFactor = 2 | 4;
 
 /**
- * Local image upscaling via Real-ESRGAN's portable ncnn-vulkan build,
- * run CPU-only (see `src-tauri/src/upscale.rs` for why). Same shape as
- * the other local-tool clients: injectable, and fails soft on the
- * status check so a missing binary reads as "not installed yet" rather
- * than an error.
+ * Local image upscaling via Real-ESRGAN's portable ncnn-vulkan build.
+ * Same shape as the other local-tool clients: injectable, and fails
+ * soft on the status check so a missing binary reads as "not installed
+ * yet" rather than an error.
+ *
+ * Images go across as bytes rather than a path. The reward art is
+ * bundled by Vite, so at runtime it's a webview URL with nothing on
+ * disk behind it, and the first version of this passed that URL
+ * straight to a subprocess that could only ever have rejected it.
  */
 export interface UpscaleClient {
   status(): Promise<UpscalerStatus>;
-  upscale(inputPath: string, outputPath: string, scale: UpscaleFactor): Promise<string>;
+  /** Resolves to the path the upscaled file was written to. */
+  upscale(args: {
+    imageBase64: string;
+    fileStem: string;
+    sourceExt: string;
+    scale: UpscaleFactor;
+  }): Promise<string>;
 }
 
 export function createTauriUpscaleClient(): UpscaleClient {
@@ -30,8 +40,8 @@ export function createTauriUpscaleClient(): UpscaleClient {
         return { installed: false, expectedPath: "" };
       }
     },
-    upscale(inputPath, outputPath, scale) {
-      return invoke<string>("upscale_image", { inputPath, outputPath, scale });
+    upscale({ imageBase64, fileStem, sourceExt, scale }) {
+      return invoke<string>("upscale_image", { imageBase64, fileStem, sourceExt, scale });
     },
   };
 }

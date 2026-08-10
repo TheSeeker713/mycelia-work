@@ -27,4 +27,7 @@ tauri-plugin-global-shortcut = "2.3.2"
 tauri-plugin-notification = "2"
 user-idle = "0.6.0"
 sysinfo = "0.32"
+# Reward art reaches the upscaler as bytes over IPC, since the bundled
+# assets are webview URLs with no filesystem path to hand to a subprocess.
+base64 = "0.22"
 

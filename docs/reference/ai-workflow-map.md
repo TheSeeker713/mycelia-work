@@ -24,7 +24,7 @@ runs at a time app-wide.
 | Project assist actions (`runProjectAssist`) | OpenClaw, 45s | Returns null, panel shows a "couldn't get an answer" message | Waits |
 | Capture agent (`captureAgent`) | Layer 0 Ollama classify, then Layer 1 OpenClaw | Declines, which is the fail-closed answer | Waits, **both layers in one slot** |
 | Check-in conversation (`checkinConversation`) | OpenClaw, 60s per turn | Returns null, falls back to the static Tier-0 dialogue | Waits |
-| Gallery upscale | Real-ESRGAN subprocess, CPU-only, 10min cap | Error surfaced in the art view | Waits |
+| Gallery upscale | Real-ESRGAN subprocess, auto GPU, 10min cap | Error surfaced in the art view | Waits |
 | Gallery animate | Cloud connector chain | Error names every provider that failed | Waits |
 
 ### Why ghost text drops instead of waiting

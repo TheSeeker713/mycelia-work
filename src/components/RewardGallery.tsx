@@ -109,11 +109,24 @@ function ArtView({ item, onClose }: { item: GalleryItem; onClose: () => void }) 
     try {
       // Through the app-wide AI lock like every other model call, so a
       // slow CPU upscale can't run alongside a journal generation.
-      await runAiJob({ kind: "upscale", label: `Upscaling ${item.label}` }, async () => {
-        const client = createTauriUpscaleClient();
-        return client.upscale(item.url, `${item.label}-${scale}x.png`, scale);
-      });
-      setMessage(`Upscaled ${scale}x.`);
+      const written = await runAiJob(
+        { kind: "upscale", label: `Upscaling ${item.label}` },
+        async () => {
+          // The bundled art is a webview URL, so its bytes have to be
+          // read here and handed over. There's no path to pass.
+          const res = await fetch(item.url);
+          const blob = await res.blob();
+          const base64 = bytesToBase64(new Uint8Array(await blob.arrayBuffer()));
+          const sourceExt = item.url.split(".").pop()?.split("?")[0] ?? "webp";
+          return createTauriUpscaleClient().upscale({
+            imageBase64: base64,
+            fileStem: item.label,
+            sourceExt,
+            scale,
+          });
+        },
+      );
+      setMessage(`Saved ${scale}x to ${written}`);
     } catch (err) {
       setMessage(err instanceof Error ? err.message : "Upscale failed.");
     } finally {
