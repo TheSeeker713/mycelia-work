@@ -36,14 +36,18 @@ force-pushed away — new work is new commits on top of it.
   retest as independent confirmation → commit → push to `main` → add a
   timestamped entry to that day's single devlog file → move to the next
   step automatically.
-- **At the end of the last step of a phase**: same close-out, then full
-  stop. Report what was built and verified, wait for Jeremy's go-ahead
-  before the next phase starts. Phases never auto-chain.
-- **Any phase that changes anything visible or interactive** isn't done
-  until Jeremy has manually tried it (`npm run tauri dev` opens a real
-  window on his machine). The phase report includes a concrete, numbered
-  checklist of specific things to test — not an open-ended "try it out."
-  Automated tests are necessary, not sufficient, for UI phases.
+- **At the end of the last step of a phase**: same close-out, then move
+  straight to the next phase. **Phases auto-chain — no stopping for
+  approval, no per-phase manual test pass.** (Changed 2026-08-09; the
+  old rule was a full stop plus Jeremy's manual pass after every phase.)
+- **Manual testing happens once, at the very end**, across everything
+  built — a single `npm run tauri dev` pass on Jeremy's machine, not one
+  per phase. Automated tests plus a real diff audit carry each phase on
+  their own until then.
+- Judgment calls that are ordinary implementation detail (naming, file
+  layout, exact UI copy, which of several viable approaches) get made,
+  not asked about. Anything genuinely worth Jeremy knowing goes in that
+  step's devlog entry instead of interrupting the run.
 
 ## Design rules (non-negotiable)
 
