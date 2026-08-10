@@ -6,6 +6,7 @@ import { createTestExecutor } from "../../data/__tests__/testExecutor";
 import { StoreProvider, useJournalsStore, useProjectsStore } from "../../store/StoreProvider";
 import type { OpenClawClient } from "../../services/openclawClient";
 import { useAiInFlight } from "../useAiInFlight";
+import { runAiJob } from "../../services/aiQueue";
 
 let repos: Repositories;
 let openClawClient: OpenClawClient;
@@ -51,6 +52,32 @@ describe("useAiInFlight", () => {
 
     expect(result.current.inFlight.active).toBe(true);
     expect(result.current.inFlight.description).toBe("Writing your report");
+  });
+
+  it("counts queued-only work with no persisted row, like a check-in or an upscale", async () => {
+    const gate = new Promise<void>(() => {}); // never resolves; the job just stays running
+    void runAiJob({ kind: "upscale", label: "Upscaling that artwork" }, () => gate);
+
+    const { result } = renderHook(
+      () => ({ inFlight: useAiInFlight(), journals: useJournalsStore((s) => s) }),
+      { wrapper },
+    );
+
+    await waitFor(() => expect(result.current.inFlight.active).toBe(true));
+    expect(result.current.inFlight.description).toBe("Upscaling that artwork");
+  });
+
+  it("never holds the exit for ghost text — it drops itself and is not worth waiting on", async () => {
+    const gate = new Promise<void>(() => {});
+    void runAiJob({ kind: "ghost_text", label: "Suggesting a continuation" }, () => gate);
+
+    const { result } = renderHook(
+      () => ({ inFlight: useAiInFlight(), journals: useJournalsStore((s) => s) }),
+      { wrapper },
+    );
+
+    await new Promise((r) => setTimeout(r, 50));
+    expect(result.current.inFlight.active).toBe(false);
   });
 
   it("reports a pending weekly rollup distinctly from a session journal", async () => {

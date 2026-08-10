@@ -1,4 +1,6 @@
+import { useStore } from "zustand";
 import { useCaptureStore, useJournalsStore, useOpenClawClient, useProjectsStore } from "../store/StoreProvider";
+import { aiQueueStore } from "../services/aiQueue";
 
 export interface AiInFlight {
   active: boolean;
@@ -9,11 +11,18 @@ export interface AiInFlight {
 }
 
 /**
- * Aggregates every AI call the app can have in flight at once, per the
- * exit-flow design: a pending journal, a pending project report, or an
- * active capture-agent classification. The forgot-to-clock-out check-in
- * conversation isn't included — it owns its own local dialog state
- * rather than a store, and already blocks the rest of the UI while open.
+ * Aggregates every AI call the app can have in flight, for the exit
+ * flow. Three of these are read from the stores that own a persisted
+ * row (a pending journal, a pending project report, an active capture
+ * classification), because those are the ones with something real to
+ * clean up if you quit mid-write.
+ *
+ * The AI queue is consulted on top of that, so work with no row behind
+ * it — the check-in conversation, an image upscale, a video generation
+ * — still counts as "something is running" rather than letting the exit
+ * dialog claim the app is idle while a model is clearly busy. Ghost
+ * text is deliberately excluded: it's never worth holding an exit for,
+ * and it drops itself anyway.
  */
 export function useAiInFlight(): AiInFlight {
   const journals = useJournalsStore((s) => s.journals);
@@ -23,6 +32,7 @@ export function useAiInFlight(): AiInFlight {
   const capturePhase = useCaptureStore((s) => s.phase);
   const captureDismiss = useCaptureStore((s) => s.dismiss);
   const openClawClient = useOpenClawClient();
+  const runningJob = useStore(aiQueueStore, (s) => s.running);
 
   const pendingJournal = journals.find((j) => j.status === "pending") ?? null;
   const pendingReport = Object.values(reportsByProject)
@@ -37,6 +47,8 @@ export function useAiInFlight(): AiInFlight {
     description = "Writing a project status report";
   } else if (capturing) {
     description = "Filing what you just typed";
+  } else if (runningJob && runningJob.kind !== "ghost_text") {
+    description = runningJob.label;
   }
 
   async function discard() {
