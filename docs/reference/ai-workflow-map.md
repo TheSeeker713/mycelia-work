@@ -81,3 +81,42 @@ class of bug looks exactly like "the feature is broken."
 - **Video generation** has no local option at all. Nothing open runs
   usefully on this hardware, which is why it's the only cloud-dependent
   feature in the app and why it has three providers instead of one.
+
+## What needs an account, and what doesn't
+
+Audited 2026-08-10, after removing the last avoidable key requirement.
+The rule this follows: if a capability has a genuinely free, anonymous,
+or already-local path, the app takes that path by default and a key is
+only ever an upgrade. A key is never the thing standing between someone
+and a working feature.
+
+| Capability | Needs an account? | How |
+|---|---|---|
+| Reports and journal generation | No | OpenClaw, then local Ollama |
+| Ghost text and Muse | No | Local Ollama |
+| Capture agent, check-in | No | Local Ollama |
+| Narration and speech | No | Local Kokoro in the Voice-Agent stack |
+| Reward upscale | No | Local Real-ESRGAN binary |
+| Reward animation | **No** | Public Hugging Face Space, called anonymously |
+| Update check | **No** | Public R2 bucket, no credentials |
+| Grok 4.5 replies | Yes, optional | Off by default, and OpenClaw holds the credential |
+| fal.ai / Replicate animation | Yes, optional | Only tried if a key exists in Settings |
+
+The two bolded rows changed on 2026-08-10. Animation used to read three
+API-key settings that were never wired to anything, so it failed for
+everyone. Updates used to be impossible without embedding a GitHub
+token, so they didn't exist.
+
+### The one unavoidable paid dependency
+
+Grok 4.5 is the only capability with no free equivalent, and it stays as
+the single exception rather than being worked around:
+
+- It's **off by default**, and every AI feature works fully without it.
+- The app **never holds the credential**. Turning the toggle on lets
+  OpenClaw reach for Grok using OpenClaw's own configured subscription.
+  There is no API-key field for it anywhere in the app, by design, and
+  per CLAUDE.md there never should be.
+
+Everything else on that list either runs on this machine or is reachable
+by anyone with a network connection and no signup.

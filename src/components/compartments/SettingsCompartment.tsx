@@ -3,6 +3,7 @@ import { useSettingsStore, useVoiceClient } from "../../store/StoreProvider";
 import { useSelfVoicing } from "../../hooks/useSelfVoicing";
 import { classifyVoicePerformance, measureTtsLatencySeconds, type VoicePerformance } from "../../services/hardwareCheck";
 import { NARRATION_VOICES } from "../../services/voiceClient";
+import { UpdateCheck } from "../UpdateCheck";
 import { LOCAL_MODELS } from "../../services/openclawClient";
 
 const PERFORMANCE_LABEL: Record<VoicePerformance | "checking", string> = {
@@ -207,6 +208,13 @@ export function SettingsCompartment() {
             </span>
           </div>
         )}
+      </div>
+
+      <div className="mt-2 border-t border-dashed border-[var(--line)] pt-3">
+        <div className="mb-1.5 text-[0.7rem] tracking-wide text-[var(--ink-faint)] uppercase">
+          Updates
+        </div>
+        <UpdateCheck />
       </div>
 
       <div className="mt-2 border-t border-dashed border-[var(--line)] pt-3">

@@ -81,6 +81,11 @@ pub fn run() {
         .plugin(tauri_plugin_sql::Builder::default().build())
         .plugin(global_shortcut_plugin)
         .plugin(tauri_plugin_notification::init())
+        // The update feed is a public bucket that has nothing to do with
+        // the source repo, so the app carries no credentials for it. See
+        // docs/reference/packaging-and-updates.md.
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .manage(resource_watchdog::WatchdogState(std::sync::Mutex::new(
             sysinfo::System::new(),
         )))
