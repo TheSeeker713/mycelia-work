@@ -27,6 +27,15 @@ const CAPTURE_LOGGING_KEY = "capture_logging_enabled";
  * off — after that, the two are fully decoupled.
  */
 const JOURNAL_MUSE_KEY = "journal_muse_enabled";
+/**
+ * Optional paid fallbacks for animating reward art. Both default to
+ * empty and are meant to stay that way: the free public Hugging Face
+ * Space path needs no key at all, and these exist only for the day it's
+ * down or out of quota. Empty here means "skip that provider", never
+ * "the feature is broken".
+ */
+const VIDEOGEN_FAL_KEY = "videogen_fal_key";
+const VIDEOGEN_REPLICATE_KEY = "videogen_replicate_token";
 // GROK4_ENABLED_KEY (defaults OFF, per Jeremy's explicit instruction) and
 // LOCAL_MODEL_ID_KEY are imported above, not declared here —
 // openclawClient.ts owns them since it's the module that actually reads
@@ -45,6 +54,9 @@ export interface SettingsState {
   /** Cloud model a Grok-on request should ideally land on. Empty means no preference. */
   preferredModel: string;
   museEnabled: boolean;
+  /** Optional. Empty means the free keyless path handles animation on its own. */
+  falKey: string;
+  replicateKey: string;
   load: () => Promise<void>;
   setSelfVoicingEnabled: (enabled: boolean) => Promise<void>;
   setSttEnabled: (enabled: boolean) => Promise<void>;
@@ -56,6 +68,8 @@ export interface SettingsState {
   setLocalModelId: (modelId: string) => Promise<void>;
   setPreferredModel: (modelId: string) => Promise<void>;
   setMuseEnabled: (enabled: boolean) => Promise<void>;
+  setFalKey: (key: string) => Promise<void>;
+  setReplicateKey: (key: string) => Promise<void>;
 }
 
 function parseBool(value: string | null, defaultValue: boolean): boolean {
@@ -76,6 +90,8 @@ export function createSettingsStore(repos: Repositories) {
     localModelId: DEFAULT_LOCAL_MODEL_ID,
     preferredModel: "",
     museEnabled: true,
+    falKey: "",
+    replicateKey: "",
 
     async load() {
       const all = await repos.settings.getAll();
@@ -92,6 +108,8 @@ export function createSettingsStore(repos: Repositories) {
         preferredModel: all[PREFERRED_MODEL_KEY] ?? "",
         // No stored key yet -> default from aiSuggestionsEnabled; once set, fully independent.
         museEnabled: parseBool(all[JOURNAL_MUSE_KEY] ?? null, aiSuggestionsEnabled),
+        falKey: all[VIDEOGEN_FAL_KEY] ?? "",
+        replicateKey: all[VIDEOGEN_REPLICATE_KEY] ?? "",
         loaded: true,
       });
     },
@@ -144,6 +162,16 @@ export function createSettingsStore(repos: Repositories) {
     async setMuseEnabled(enabled) {
       await repos.settings.set(JOURNAL_MUSE_KEY, String(enabled));
       set({ museEnabled: enabled });
+    },
+
+    async setFalKey(key) {
+      await repos.settings.set(VIDEOGEN_FAL_KEY, key);
+      set({ falKey: key });
+    },
+
+    async setReplicateKey(key) {
+      await repos.settings.set(VIDEOGEN_REPLICATE_KEY, key);
+      set({ replicateKey: key });
     },
   }));
 }

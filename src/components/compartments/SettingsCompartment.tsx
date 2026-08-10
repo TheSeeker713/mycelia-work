@@ -34,6 +34,10 @@ export function SettingsCompartment() {
   const localModelId = useSettingsStore((s) => s.localModelId);
   const preferredModel = useSettingsStore((s) => s.preferredModel);
   const setPreferredModel = useSettingsStore((s) => s.setPreferredModel);
+  const falKey = useSettingsStore((s) => s.falKey);
+  const setFalKey = useSettingsStore((s) => s.setFalKey);
+  const replicateKey = useSettingsStore((s) => s.replicateKey);
+  const setReplicateKey = useSettingsStore((s) => s.setReplicateKey);
   const setLocalModelId = useSettingsStore((s) => s.setLocalModelId);
   const voiceClient = useVoiceClient();
   const selfVoicing = useSelfVoicing();
@@ -203,6 +207,33 @@ export function SettingsCompartment() {
             </span>
           </div>
         )}
+      </div>
+
+      <div className="mt-2 border-t border-dashed border-[var(--line)] pt-3">
+        <div className="mb-1.5 text-[0.7rem] tracking-wide text-[var(--ink-faint)] uppercase">
+          Animation
+        </div>
+        <p className="mb-2 text-[0.75rem] text-[var(--ink-soft)]">
+          Animating reward art already works with no setup, using a free public
+          model with a small shared daily limit. These are only worth filling in
+          if that limit gets in the way.
+        </p>
+        <input
+          type="password"
+          value={falKey}
+          onChange={(e) => setFalKey(e.target.value)}
+          placeholder="fal.ai key (optional)"
+          aria-label="fal.ai key"
+          className="w-full rounded-lg border border-[var(--line)] bg-[var(--paper)] px-2.5 py-1.5 text-[0.8rem] text-[var(--ink)] outline-none placeholder:text-[var(--ink-faint)]"
+        />
+        <input
+          type="password"
+          value={replicateKey}
+          onChange={(e) => setReplicateKey(e.target.value)}
+          placeholder="Replicate token (optional)"
+          aria-label="Replicate token"
+          className="mt-1.5 w-full rounded-lg border border-[var(--line)] bg-[var(--paper)] px-2.5 py-1.5 text-[0.8rem] text-[var(--ink)] outline-none placeholder:text-[var(--ink-faint)]"
+        />
       </div>
 
       <div className="mt-2 border-t border-dashed border-[var(--line)] pt-3">

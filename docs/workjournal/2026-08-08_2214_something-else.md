@@ -1,0 +1,5 @@
+Today was one of those days where I really needed to get something else done, but ended up doing nothing at all. I clocked in at 10:13 PM and immediately knew that my mind wasn't on the task at hand. I spent a few minutes trying to focus, but ultimately decided it was futile and clocked out again at 10:14 PM.
+
+It's frustrating when this happens because there always feels like so much to do, but nothing gets accomplished. I think what I need is a better way to clear my head before diving into work. Maybe some light stretching or a quick walk around the block would help me feel more refreshed and ready to tackle whatever needs to be done.
+
+Overall though, it's important not to get too down on yourself when days like this happen. They're part of being human and I'm sure everyone has had days where they just couldn't focus no matter what they tried. The main thing is to recognize that these moments exist and then find ways to move past them. Tomorrow is another day and hopefully I'll be able to get more done then.

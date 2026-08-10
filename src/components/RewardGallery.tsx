@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useGamificationStore, useSettingsStore } from "../store/StoreProvider";
 import { BADGE_IMAGE_POOL_BY_LEVEL, STICKER_IMAGE_POOL_BY_KEY } from "../services/gamificationAssets";
 import { createTauriUpscaleClient, type UpscaleFactor, type UpscalerStatus } from "../services/upscaleClient";
-import { generateVideo, VIDEO_GEN_CONNECTORS } from "../services/videoGen";
+import { bytesToBase64, generateVideo, VIDEO_GEN_CONNECTORS } from "../services/videoGen";
 import { runAiJob } from "../services/aiQueue";
 
 interface GalleryItem {
@@ -63,7 +63,10 @@ function ArtView({ item, onClose }: { item: GalleryItem; onClose: () => void }) 
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
-  const settings = useSettingsStore((s) => s);
+  // Only the optional paid keys are read here. The free Space path
+  // needs nothing, so there's no setting to consult for it.
+  const falKey = useSettingsStore((s) => s.falKey);
+  const replicateKey = useSettingsStore((s) => s.replicateKey);
 
   useEffect(() => {
     void createTauriUpscaleClient().status().then(setUpscaler);
@@ -123,24 +126,22 @@ function ArtView({ item, onClose }: { item: GalleryItem; onClose: () => void }) 
     setMessage(null);
     try {
       const res = await fetch(item.url);
-      const buffer = await res.arrayBuffer();
-      const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+      const base64 = bytesToBase64(new Uint8Array(await res.arrayBuffer()));
 
       const result = await runAiJob(
         { kind: "animate", label: `Animating ${item.label}` },
         () =>
           generateVideo(
             { imageBase64: base64, prompt: `Gently animate this ${item.kind}, subtle motion` },
-            Object.fromEntries(
-              VIDEO_GEN_CONNECTORS.map((c) => [
-                c.apiKeySetting,
-                (settings as unknown as Record<string, string | null>)[c.apiKeySetting] ?? null,
-              ]),
-            ),
+            {
+              videogen_fal_key: falKey || null,
+              videogen_replicate_token: replicateKey || null,
+            },
           ),
       );
       setVideoUrl(result.videoUrl);
-      setMessage(`Animated via ${result.provider}.`);
+      const via = VIDEO_GEN_CONNECTORS.find((c) => c.id === result.provider)?.label ?? result.provider;
+      setMessage(`Animated via ${via}.`);
     } catch (err) {
       setMessage(err instanceof Error ? err.message : "Animate failed.");
     } finally {
