@@ -179,7 +179,8 @@ export type XpSource =
   | "welcome_back"
   | "first_time"
   | "four_hour_day_first"
-  | "count_milestone";
+  | "count_milestone"
+  | "journal_entry";
 
 export interface XpEvent {
   id: string;

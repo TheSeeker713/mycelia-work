@@ -7,12 +7,14 @@ import {
   FOUR_HOUR_DAY_FIRST_KEY,
   STICKERS,
   STREAK_MILESTONES,
+  FIRST_JOURNAL_ENTRY_KEY,
   WELCOME_BACK_GAP_DAYS,
   WELCOME_BACK_STICKER_KEY,
   WELCOME_BACK_VOICE_LINES,
   XP,
   badgeKeyForLevel,
   daysBetweenDateStrings,
+  journalEntryXp,
   levelForXp,
   pickRandom,
   streakAchievementKey,
@@ -39,6 +41,8 @@ export interface GamificationState {
   recordClockIn: () => Promise<void>;
   recordClockOut: (elapsedSeconds: number) => Promise<void>;
   recordNote: () => Promise<void>;
+  /** A committed entry in the standalone Journal. `manualWords` excludes anything accepted from Muse. */
+  recordJournalEntry: (manualWords: number) => Promise<void>;
   recordProjectCreated: () => Promise<void>;
   recordProjectFinished: () => Promise<void>;
   recordTodoCompleted: () => Promise<void>;
@@ -259,6 +263,12 @@ export function createGamificationStore(repos: Repositories) {
         await awardXp("note", XP.NOTE);
         await unlockStickerOnce(FIRST_TIME_KEYS.note, "first_time", XP.FIRST_TIME);
         await checkCountMilestones("note");
+      },
+
+      async recordJournalEntry(manualWords: number) {
+        await recordDailyActivity();
+        await awardXp("journal_entry", journalEntryXp(manualWords));
+        await unlockStickerOnce(FIRST_JOURNAL_ENTRY_KEY, "first_time", XP.FIRST_TIME);
       },
 
       async recordProjectCreated() {

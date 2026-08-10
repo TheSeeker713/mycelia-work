@@ -34,13 +34,19 @@ taking.
 | 10th / 50th note ever written | 15 / 30 + a sticker | Counted cumulatively off the XP log itself, no separate tally needed |
 | 10th / 50th / 100th todo completed ever | 15 / 30 / 60 + a sticker | Same |
 | 10th / 50th / 100th session (clock-in) ever | 15 / 30 / 60 + a sticker | Same |
+| Saving a Journal entry | 5, plus 3 per 50 manually-typed words | The standalone free-write Journal, separate from the AI-generated Reports. See below |
+| First-ever Journal entry | 10 + a sticker | One-time |
 
-The personal journal feature (a separate, not-yet-built thing from the
-existing auto-generated work journal) will earn word-count-based XP
-once it ships — see the plan doc's Section 2.2. Only manually-typed
-words will count; anything accepted from an AI ghost-text suggestion
-won't. Real curated art already exists for a "first journal entry"
-sticker (`sticker_first_journal_entry`) — reserved, not yet reachable.
+**Journal XP counts only what you typed.** Anything accepted from a
+Muse suggestion is excluded. The editor records accepted text as it
+happens rather than trying to work it out from the finished entry,
+because once suggested words are merged into the document there's no
+way to tell them apart afterward. Writing an entire entry by pressing
+Tab earns the flat "you started an entry" bonus and nothing more.
+
+Words are paid per block of 50 rather than per word, so a long entry is
+genuinely worth more without a single evening of writing dwarfing
+finishing a whole project.
 
 ## Levels
 

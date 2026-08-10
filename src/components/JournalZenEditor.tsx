@@ -32,6 +32,10 @@ function JournalEditorInner({ draft, onExit }: { draft: DiaryEntry; onExit: () =
   const [overlay, setOverlay] = useState<Overlay>(null);
   const [menuPos, setMenuPos] = useState({ x: 0, y: 0 });
   const autosaveDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Everything Muse wrote for me, accumulated as it's accepted. Journal
+  // XP counts manually-typed words only, and once accepted text is in
+  // the document there's no way to tell it apart after the fact.
+  const aiAcceptedRef = useRef<string[]>([]);
 
   const editor = useEditor({
     extensions: [
@@ -41,7 +45,9 @@ function JournalEditorInner({ draft, onExit }: { draft: DiaryEntry; onExit: () =
       TextStyle,
       FontFamily,
       FontSize,
-      MuseSuggestion,
+      MuseSuggestion.configure({
+        onAccepted: (text) => aiAcceptedRef.current.push(text),
+      }),
     ],
     content: JSON.parse(draft.content_json),
     autofocus: "end",
@@ -84,7 +90,8 @@ function JournalEditorInner({ draft, onExit }: { draft: DiaryEntry; onExit: () =
   async function handleSave() {
     if (autosaveDebounceRef.current) clearTimeout(autosaveDebounceRef.current);
     if (editor) await autosave(JSON.stringify(editor.getJSON()));
-    await commit();
+    await commit(editor?.getText() ?? "", aiAcceptedRef.current.join(" "));
+    aiAcceptedRef.current = [];
   }
 
   return (

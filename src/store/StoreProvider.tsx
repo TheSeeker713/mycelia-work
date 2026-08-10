@@ -99,7 +99,7 @@ export function StoreProvider({
       useSessionsStore: createSessionsStore(repositories, gamification),
       useNotesStore: createNotesStore(repositories, gamification),
       useJournalsStore: createJournalsStore(repositories, client, ollama),
-      useJournalEntriesStore: createJournalEntriesStore(repositories),
+      useJournalEntriesStore: createJournalEntriesStore(repositories, gamification),
       useSettingsStore: createSettingsStore(repositories),
       useCaptureStore: createCaptureStore(repositories, {
         ollamaClient: ollama,

@@ -27,7 +27,39 @@ export const XP = {
   COUNT_MILESTONE_SMALL: 15,
   COUNT_MILESTONE_MEDIUM: 30,
   COUNT_MILESTONE_LARGE: 60,
+  /** Awarded once for starting a journal entry at all, before any word count. */
+  JOURNAL_ENTRY_STARTED: 5,
+  /** Per whole block of JOURNAL_WORDS_PER_AWARD manually-typed words. */
+  JOURNAL_PER_WORD_BLOCK: 3,
 } as const;
+
+/**
+ * Words per XP block for the personal journal. Paying per individual
+ * word would make a long entry worth an absurd amount next to
+ * everything else on the XP table; a block keeps writing more genuinely
+ * worth more without it dwarfing finishing a project.
+ */
+export const JOURNAL_WORDS_PER_AWARD = 50;
+
+/**
+ * Counts only what was actually typed. Anything accepted from a Muse
+ * suggestion is excluded, per the design rule that AI-written words
+ * don't earn XP — the editor tracks accepted text separately and passes
+ * it here to be subtracted rather than trying to diff the finished
+ * document after the fact.
+ */
+export function countManualWords(fullText: string, aiAcceptedText: string): number {
+  const words = (t: string) => t.trim().split(/\s+/).filter(Boolean).length;
+  return Math.max(0, words(fullText) - words(aiAcceptedText));
+}
+
+/** How much a committed journal entry is worth, given its manually-typed word count. */
+export function journalEntryXp(manualWords: number): number {
+  return (
+    XP.JOURNAL_ENTRY_STARTED +
+    Math.floor(manualWords / JOURNAL_WORDS_PER_AWARD) * XP.JOURNAL_PER_WORD_BLOCK
+  );
+}
 
 export const LEVEL_CAP = 111;
 
@@ -146,7 +178,7 @@ export const FIRST_TIME_KEYS = {
 
 export const FOUR_HOUR_DAY_FIRST_KEY = "sticker_four_hour_day_first";
 
-/** Reserved for the not-yet-built personal journal feature (Section 2.2 of the plan doc) — cataloged now so the curated art has a home, but nothing in this app awards it yet. */
+/** Awarded on the first committed entry in the standalone Journal (built in Phase 16.5, wired up here in Phase 21). */
 export const FIRST_JOURNAL_ENTRY_KEY = "sticker_first_journal_entry";
 
 /**

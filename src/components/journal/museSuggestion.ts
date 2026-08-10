@@ -26,8 +26,17 @@ declare module "@tiptap/core" {
  * this is what makes "continuing to type or any other key dismisses"
  * work for free, without a separate keydown handler.
  */
-export const MuseSuggestion = Extension.create({
+export interface MuseSuggestionOptions {
+  /** Called with the exact text inserted whenever a suggestion is accepted with Tab. */
+  onAccepted?: (text: string) => void;
+}
+
+export const MuseSuggestion = Extension.create<MuseSuggestionOptions>({
   name: "museSuggestion",
+
+  addOptions() {
+    return { onAccepted: undefined };
+  },
 
   addProseMirrorPlugins() {
     return [
@@ -92,6 +101,11 @@ export const MuseSuggestion = Extension.create({
           if (dispatch) {
             tr.insertText(pluginState.suggestion, tr.selection.from);
             tr.setMeta(museSuggestionPluginKey, null);
+            // Reported as it happens rather than reconstructed later:
+            // once accepted text is merged into the document there's no
+            // reliable way to tell it apart from typing, and journal XP
+            // depends on exactly that distinction.
+            this.options.onAccepted?.(pluginState.suggestion);
           }
           return true;
         },
