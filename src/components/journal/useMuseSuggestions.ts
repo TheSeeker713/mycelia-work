@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { Editor } from "@tiptap/react";
+import { Selection } from "@tiptap/pm/state";
 import { useOllamaClient, useResourceWatchdogClient } from "../../store/StoreProvider";
 
 const SUGGESTION_DEBOUNCE_MS = 600;
@@ -32,7 +33,14 @@ export function useMuseSuggestions(editor: Editor | null, enabled: boolean) {
       if (!enabled || !editor) return;
 
       const { state } = editor;
-      const atEnd = state.selection.empty && state.selection.from === state.doc.content.size;
+      // `doc.content.size` is NOT a valid cursor position — a paragraph's
+      // closing token occupies the last slot, so the furthest the caret
+      // can actually sit is one less than that. Comparing against it
+      // directly meant this guard never passed and Muse never fired at
+      // all. `Selection.atEnd` resolves the real end-of-document caret
+      // position instead of hand-computing the offset.
+      const endOfDoc = Selection.atEnd(state.doc).from;
+      const atEnd = state.selection.empty && state.selection.from === endOfDoc;
       const text = editor.getText().trim();
       if (!atEnd || !text) return;
 

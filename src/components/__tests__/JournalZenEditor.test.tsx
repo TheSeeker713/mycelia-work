@@ -74,6 +74,25 @@ describe("JournalZenEditor", () => {
     expect(onExit).toHaveBeenCalledTimes(1);
   });
 
+  it("Muse actually fires once the caret is at the end of the document", async () => {
+    // The original end-of-document check compared the caret against
+    // `doc.content.size`, which is never a reachable caret position (the
+    // paragraph's closing token sits there), so Muse never requested
+    // anything at all. Typing normally leaves the caret at the true end,
+    // so a real suggestion call has to happen here.
+    const user = userEvent.setup();
+    ollamaClient.suggestContinuation = vi.fn().mockResolvedValue(" and kept going.");
+    renderJournal();
+
+    await screen.findByText("Free write");
+    await user.click(screen.getByRole("textbox"));
+    await user.keyboard("Sketched the layout");
+
+    await waitFor(() => expect(ollamaClient.suggestContinuation).toHaveBeenCalled(), {
+      timeout: 3000,
+    });
+  });
+
   it("right-clicking the writing surface opens the formatting menu, closes on outside click", async () => {
     const user = userEvent.setup();
     renderJournal();

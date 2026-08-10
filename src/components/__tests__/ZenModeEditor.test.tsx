@@ -184,6 +184,20 @@ describe("ZenModeEditor", () => {
       expect(screen.queryByText("and kept going.")).not.toBeInTheDocument();
     });
 
+    // jsdom has no layout engine, so every other test here passes even when
+    // the ghost text is painted underneath an opaque textarea and is
+    // completely invisible in a real window — which is exactly the bug that
+    // shipped. This asserts the paint-order invariant directly instead.
+    it("keeps the textarea transparent so the mirror's ghost text is actually visible behind it", async () => {
+      await renderZenMode();
+      const textarea = screen.getByPlaceholderText("Write for Write the devlog entry...");
+
+      expect(textarea.className).toContain("bg-transparent");
+      expect(textarea.className).not.toContain("bg-[var(--paper)]");
+      // The background has to live somewhere, or the window shows through.
+      expect(textarea.parentElement?.className).toContain("bg-[var(--paper)]");
+    });
+
     it("any other key dismisses the suggestion instead of accepting it", async () => {
       ollamaClient.suggestContinuation = vi.fn().mockResolvedValue(" more text");
       const { user } = await renderZenMode();

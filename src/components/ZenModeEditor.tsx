@@ -164,7 +164,15 @@ export function ZenModeEditor({
         </button>
       </div>
 
-      <div className="relative flex-1">
+      {/*
+        The background lives on this container, NOT on the textarea. Both
+        the mirror and the textarea are positioned in the same stacking
+        context with no z-index, so the textarea (later in DOM order)
+        always paints on top — an opaque background on it hid the mirror's
+        ghost text completely, which is exactly why suggestions were
+        invisible even with a healthy backend returning real text.
+      */}
+      <div className="relative flex-1 rounded-2xl bg-[var(--paper)]">
         <div
           ref={mirrorRef}
           aria-hidden="true"
@@ -181,7 +189,7 @@ export function ZenModeEditor({
           onScroll={handleScroll}
           autoFocus
           placeholder={`Write for ${taskTitle}...`}
-          className={`relative h-full w-full resize-none rounded-2xl bg-[var(--paper)] text-[var(--ink)] outline-none placeholder:text-[var(--ink-faint)] ${EDITOR_TEXT_STYLE}`}
+          className={`relative h-full w-full resize-none rounded-2xl bg-transparent text-[var(--ink)] outline-none placeholder:text-[var(--ink-faint)] ${EDITOR_TEXT_STYLE}`}
           style={{ borderColor: "var(--line)", caretColor: "var(--ink)" }}
         />
       </div>
