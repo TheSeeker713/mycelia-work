@@ -128,21 +128,28 @@ describe("journalsStore", () => {
   });
 
   it("retryJournal re-fetches fresh events/notes and re-runs generation for a session journal", async () => {
+    // Landing on "failed" now takes more than it used to: the router
+    // tries OpenClaw CONNECT_ATTEMPTS times and then falls back to
+    // Ollama, so every one of those has to give up before the row is
+    // genuinely failed and there's something for the manual retry
+    // below to recover from.
     const failing: OpenClawClient = {
       ...fakeClient,
-      // generateSessionJournal now retries once automatically on failure
-      // (runOnceWithRetry) — two rejections are needed to genuinely land
-      // on "failed" before the explicit manual retryJournal below.
       runOnce: vi
         .fn()
         .mockRejectedValueOnce(new Error("down"))
+        .mockRejectedValueOnce(new Error("still down"))
         .mockRejectedValueOnce(new Error("still down"))
         .mockResolvedValueOnce({
           text: "Recovered on retry.",
           model: "xai/grok-4.5",
         }),
     };
-    const store = createJournalsStore(repos, failing, fakeOllama);
+    const localAlsoDown = {
+      ...fakeOllama,
+      generateReport: vi.fn().mockRejectedValue(new Error("Ollama down too")),
+    };
+    const store = createJournalsStore(repos, failing, localAlsoDown);
     const task = await repos.tasks.getById(taskId);
     if (!task) throw new Error("test setup: task missing");
 

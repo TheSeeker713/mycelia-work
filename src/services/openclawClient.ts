@@ -27,6 +27,14 @@ export const GROK4_ENABLED_KEY = "grok4_enabled";
 export const LOCAL_MODEL_ID_KEY = "local_model_id";
 
 /**
+ * The cloud model a request should ideally land on when Grok is
+ * enabled. Distinct from LOCAL_MODEL_ID_KEY, which picks the local
+ * model for the Grok-off path. Empty means no preference, so the
+ * router does no model retry and nothing is ever marked a fallback.
+ */
+export const PREFERRED_MODEL_KEY = "preferred_model";
+
+/**
  * Every installed local chat model this machine has pulled (confirmed
  * live via `ollama list`, 2026-08-08) — excludes `qwen3-embedding`,
  * which isn't a chat/instruct model. `hermes3:8b` stays the default: it

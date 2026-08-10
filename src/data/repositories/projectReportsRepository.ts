@@ -1,5 +1,5 @@
 import type { SqlExecutor } from "../sqlExecutor";
-import type { ProjectReport } from "../types";
+import type { AiBackendId, ProjectReport } from "../types";
 import { newId, nowIso } from "../sqliteUtil";
 
 /** Same shape/lifecycle as journalsRepository — status reports are real kept content, not a transient export, per the design doc. */
@@ -14,6 +14,7 @@ export function createProjectReportsRepository(executor: SqlExecutor) {
         status: "pending",
         content: null,
         failure_reason: null,
+        backend_used: null,
       };
       await executor.execute(
         `INSERT INTO project_reports (id, project_id, generated_at, model_used, status, content, failure_reason)
@@ -33,11 +34,24 @@ export function createProjectReportsRepository(executor: SqlExecutor) {
 
     async markResult(
       id: string,
-      patch: { status: "ok" | "failed"; content?: string | null; modelUsed?: string | null; failureReason?: string },
+      patch: {
+        status: "ok" | "failed";
+        content?: string | null;
+        modelUsed?: string | null;
+        failureReason?: string;
+        backendUsed?: AiBackendId | null;
+      },
     ): Promise<void> {
       await executor.execute(
-        "UPDATE project_reports SET status = ?, content = ?, model_used = ?, failure_reason = ? WHERE id = ?",
-        [patch.status, patch.content ?? null, patch.modelUsed ?? null, patch.failureReason ?? null, id],
+        "UPDATE project_reports SET status = ?, content = ?, model_used = ?, failure_reason = ?, backend_used = ? WHERE id = ?",
+        [
+          patch.status,
+          patch.content ?? null,
+          patch.modelUsed ?? null,
+          patch.failureReason ?? null,
+          patch.backendUsed ?? null,
+          id,
+        ],
       );
     },
 

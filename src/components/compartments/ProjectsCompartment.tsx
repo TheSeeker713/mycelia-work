@@ -10,6 +10,7 @@ import type {
 } from "../../data";
 import { DateTimePicker } from "../DateTimePicker";
 import { GhostTextField } from "../GhostTextField";
+import { ModelBadge } from "../ModelBadge";
 import { ASSIST_ACTION_LABEL, runProjectAssist, type AssistAction } from "../../services/projectAssist";
 
 const PRIORITY_LABEL: Record<ProjectPriority, string> = { high: "high", medium: "medium", low: "low" };
@@ -236,13 +237,16 @@ function ReportsSection({ project, reports }: { project: Project; reports: Proje
         <ul className="flex flex-col gap-2">
           {list.map((r) => (
             <li key={r.id} className="rounded-lg border border-[var(--line)] p-2 text-[0.8rem]">
-              <div className="mb-1 text-[0.66rem] text-[var(--ink-faint)] tabular-nums">
-                {new Date(r.generated_at).toLocaleString([], {
-                  month: "short",
-                  day: "numeric",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
+              <div className="mb-1 flex items-center gap-1.5">
+                <span className="text-[0.66rem] text-[var(--ink-faint)] tabular-nums">
+                  {new Date(r.generated_at).toLocaleString([], {
+                    month: "short",
+                    day: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </span>
+                <ModelBadge modelUsed={r.model_used} backendUsed={r.backend_used} />
               </div>
               {r.status === "pending" && <span className="text-[var(--ink-faint)]">Writing…</span>}
               {r.status === "failed" && (

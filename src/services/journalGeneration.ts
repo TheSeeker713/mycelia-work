@@ -12,13 +12,13 @@ import {
   DEFAULT_LOCAL_MODEL_ID,
   GROK4_ENABLED_KEY,
   LOCAL_MODEL_ID_KEY,
+  PREFERRED_MODEL_KEY,
   resolveModelOverride,
-  runOnceWithRetry,
-  type OpenClawCallResult,
   type OpenClawClient,
 } from "./openclawClient";
 import type { OllamaClient } from "./ollamaClient";
 import { runAiJob } from "./aiQueue";
+import { routeAiCall, type RoutedResult } from "./aiBackendRouter";
 
 export interface RawSessionLog {
   task: Task;
@@ -200,13 +200,18 @@ async function runLocalReportWithRetry(
   ollama: OllamaClient,
   prompt: string,
   model: string,
-): Promise<OpenClawCallResult> {
+): Promise<RoutedResult> {
+  const call = async (): Promise<RoutedResult> => ({
+    text: await ollama.generateReport(prompt, model, LOCAL_REPORT_TIMEOUT_SECS),
+    model: `ollama/${model}`,
+    backend: "ollama",
+    // Local is the deliberate choice when Grok is off, not a fallback.
+    usedFallback: false,
+  });
   try {
-    const text = await ollama.generateReport(prompt, model, LOCAL_REPORT_TIMEOUT_SECS);
-    return { text, model };
+    return await call();
   } catch {
-    const text = await ollama.generateReport(prompt, model, LOCAL_REPORT_TIMEOUT_SECS);
-    return { text, model };
+    return await call();
   }
 }
 
@@ -229,16 +234,30 @@ export async function runJournalGeneration(params: {
   try {
     const grok4Enabled = (await repos.settings.get(GROK4_ENABLED_KEY)) === "true";
     const localModelId = (await repos.settings.get(LOCAL_MODEL_ID_KEY)) ?? DEFAULT_LOCAL_MODEL_ID;
+    const preferredModel = (await repos.settings.get(PREFERRED_MODEL_KEY)) ?? "";
     // Under the app-wide AI lock: one model call at a time across the
     // whole app, so this can't fight a ghost-text suggestion or a
     // capture classification for the same CPU.
+    //
+    // Grok on goes through the router (connect retries, preferred-model
+    // retry, then a direct-Ollama fallback if OpenClaw never answers).
+    // Grok off skips OpenClaw entirely, which is the point of 16.1 —
+    // there's no gateway overhead to route around when the whole call
+    // is already local.
     const result = await runAiJob({ kind: "journal", label: "Writing your report" }, () =>
       grok4Enabled
-        ? runOnceWithRetry(client, {
-            sessionKey,
-            message: prompt,
-            timeoutSecs: 180,
-            model: resolveModelOverride(grok4Enabled, localModelId),
+        ? routeAiCall({
+            openClaw: client,
+            ollama,
+            input: {
+              sessionKey,
+              message: prompt,
+              timeoutSecs: 180,
+              model: resolveModelOverride(grok4Enabled, localModelId),
+            },
+            preferredModel,
+            localModelId,
+            localTimeoutSecs: LOCAL_REPORT_TIMEOUT_SECS,
           })
         : runLocalReportWithRetry(ollama, prompt, localModelId),
     );
@@ -247,6 +266,7 @@ export async function runJournalGeneration(params: {
       modelUsed: result.model,
       content: result.text,
       exportedPath,
+      backendUsed: result.backend,
     });
   } catch (err) {
     // Raw log is untouched either way — the journal row is the only

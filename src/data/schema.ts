@@ -178,6 +178,12 @@ export const MIGRATIONS: string[] = [
   // than trusting application logic alone.
   `CREATE UNIQUE INDEX IF NOT EXISTS idx_journal_entries_single_draft
    ON journal_entries(status) WHERE status = 'draft'`,
+  // Which backend actually answered, distinct from `model_used` (which
+  // model). Knowing a request landed on "ollama" rather than "openclaw"
+  // is what makes a silent fallback visible instead of just looking
+  // slow. NULL means it predates this column.
+  `ALTER TABLE journals ADD COLUMN backend_used TEXT`,
+  `ALTER TABLE project_reports ADD COLUMN backend_used TEXT`,
 ];
 
 /**

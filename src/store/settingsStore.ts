@@ -1,7 +1,12 @@
 import { create } from "zustand";
 import type { Repositories } from "../data";
 import { DEFAULT_VOICE_ID } from "../services/voiceClient";
-import { DEFAULT_LOCAL_MODEL_ID, GROK4_ENABLED_KEY, LOCAL_MODEL_ID_KEY } from "../services/openclawClient";
+import {
+  DEFAULT_LOCAL_MODEL_ID,
+  GROK4_ENABLED_KEY,
+  LOCAL_MODEL_ID_KEY,
+  PREFERRED_MODEL_KEY,
+} from "../services/openclawClient";
 
 /** Both accessibility features default ON — CLAUDE.md: introduced during onboarding with an immediate opt-out, not opt-in. */
 const SELF_VOICING_KEY = "self_voicing_enabled";
@@ -37,6 +42,8 @@ export interface SettingsState {
   captureLoggingEnabled: boolean;
   grok4Enabled: boolean;
   localModelId: string;
+  /** Cloud model a Grok-on request should ideally land on. Empty means no preference. */
+  preferredModel: string;
   museEnabled: boolean;
   load: () => Promise<void>;
   setSelfVoicingEnabled: (enabled: boolean) => Promise<void>;
@@ -47,6 +54,7 @@ export interface SettingsState {
   setCaptureLoggingEnabled: (enabled: boolean) => Promise<void>;
   setGrok4Enabled: (enabled: boolean) => Promise<void>;
   setLocalModelId: (modelId: string) => Promise<void>;
+  setPreferredModel: (modelId: string) => Promise<void>;
   setMuseEnabled: (enabled: boolean) => Promise<void>;
 }
 
@@ -66,6 +74,7 @@ export function createSettingsStore(repos: Repositories) {
     captureLoggingEnabled: true,
     grok4Enabled: false,
     localModelId: DEFAULT_LOCAL_MODEL_ID,
+    preferredModel: "",
     museEnabled: true,
 
     async load() {
@@ -80,6 +89,7 @@ export function createSettingsStore(repos: Repositories) {
         captureLoggingEnabled: parseBool(all[CAPTURE_LOGGING_KEY] ?? null, true),
         grok4Enabled: parseBool(all[GROK4_ENABLED_KEY] ?? null, false),
         localModelId: all[LOCAL_MODEL_ID_KEY] ?? DEFAULT_LOCAL_MODEL_ID,
+        preferredModel: all[PREFERRED_MODEL_KEY] ?? "",
         // No stored key yet -> default from aiSuggestionsEnabled; once set, fully independent.
         museEnabled: parseBool(all[JOURNAL_MUSE_KEY] ?? null, aiSuggestionsEnabled),
         loaded: true,
@@ -124,6 +134,11 @@ export function createSettingsStore(repos: Repositories) {
     async setLocalModelId(modelId) {
       await repos.settings.set(LOCAL_MODEL_ID_KEY, modelId);
       set({ localModelId: modelId });
+    },
+
+    async setPreferredModel(modelId) {
+      await repos.settings.set(PREFERRED_MODEL_KEY, modelId);
+      set({ preferredModel: modelId });
     },
 
     async setMuseEnabled(enabled) {

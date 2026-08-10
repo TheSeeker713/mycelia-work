@@ -32,6 +32,8 @@ export function SettingsCompartment() {
   const grok4Enabled = useSettingsStore((s) => s.grok4Enabled);
   const setGrok4Enabled = useSettingsStore((s) => s.setGrok4Enabled);
   const localModelId = useSettingsStore((s) => s.localModelId);
+  const preferredModel = useSettingsStore((s) => s.preferredModel);
+  const setPreferredModel = useSettingsStore((s) => s.setPreferredModel);
   const setLocalModelId = useSettingsStore((s) => s.setLocalModelId);
   const voiceClient = useVoiceClient();
   const selfVoicing = useSelfVoicing();
@@ -182,6 +184,22 @@ export function SettingsCompartment() {
             </select>
             <span className="mt-1 block text-[0.72rem] text-[var(--ink-faint)]">
               Which installed Ollama model answers while Grok is off.
+            </span>
+          </div>
+        )}
+        {grok4Enabled && (
+          <div className="mt-2">
+            <input
+              value={preferredModel}
+              onChange={(e) => setPreferredModel(e.target.value)}
+              placeholder="xai/grok-4.5"
+              aria-label="Preferred model"
+              className="w-full rounded-lg border border-[var(--line)] bg-[var(--paper)] px-2.5 py-1.5 text-[0.8rem] text-[var(--ink)] outline-none placeholder:text-[var(--ink-faint)]"
+            />
+            <span className="mt-1 block text-[0.72rem] text-[var(--ink-faint)]">
+              The model a reply should land on. If something else answers,
+              it's asked again explicitly, and the badge on the report says
+              which model actually replied. Leave empty for no preference.
             </span>
           </div>
         )}

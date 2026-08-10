@@ -72,6 +72,9 @@ export interface Todo {
 export type JournalStatus = "pending" | "ok" | "failed";
 export type JournalKind = "session" | "weekly";
 
+/** Which service answered, as opposed to `model_used` (which model). */
+export type AiBackendId = "openclaw" | "ollama";
+
 export interface Journal {
   id: string;
   task_id: string | null;
@@ -83,6 +86,8 @@ export interface Journal {
   exported_path: string | null;
   kind: JournalKind;
   failure_reason: string | null;
+  /** NULL on rows written before this was recorded, and on manual entries. */
+  backend_used: AiBackendId | null;
 }
 
 export type DiaryEntryStatus = "draft" | "committed";
@@ -114,6 +119,8 @@ export interface ProjectReport {
   status: ProjectReportStatus;
   content: string | null;
   failure_reason: string | null;
+  /** NULL on rows written before this was recorded. */
+  backend_used: AiBackendId | null;
 }
 
 /**

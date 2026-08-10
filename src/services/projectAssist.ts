@@ -4,13 +4,13 @@ import {
   DEFAULT_LOCAL_MODEL_ID,
   GROK4_ENABLED_KEY,
   LOCAL_MODEL_ID_KEY,
+  PREFERRED_MODEL_KEY,
   resolveModelOverride,
-  runOnceWithRetry,
-  type OpenClawCallResult,
   type OpenClawClient,
 } from "./openclawClient";
 import type { OllamaClient } from "./ollamaClient";
 import { runAiJob } from "./aiQueue";
+import { routeAiCall, type RoutedResult } from "./aiBackendRouter";
 
 /** Same 90s local-inference-only budget as journalGeneration.ts's report path — no OpenClaw CLI tax to account for. */
 const LOCAL_REPORT_TIMEOUT_SECS = 90;
@@ -20,13 +20,17 @@ async function runLocalReportWithRetry(
   ollama: OllamaClient,
   prompt: string,
   model: string,
-): Promise<OpenClawCallResult> {
+): Promise<RoutedResult> {
+  const call = async (): Promise<RoutedResult> => ({
+    text: await ollama.generateReport(prompt, model, LOCAL_REPORT_TIMEOUT_SECS),
+    model: `ollama/${model}`,
+    backend: "ollama",
+    usedFallback: false,
+  });
   try {
-    const text = await ollama.generateReport(prompt, model, LOCAL_REPORT_TIMEOUT_SECS);
-    return { text, model };
+    return await call();
   } catch {
-    const text = await ollama.generateReport(prompt, model, LOCAL_REPORT_TIMEOUT_SECS);
-    return { text, model };
+    return await call();
   }
 }
 
@@ -125,19 +129,32 @@ export async function runProjectReportGeneration(params: {
   try {
     const grok4Enabled = (await repos.settings.get(GROK4_ENABLED_KEY)) === "true";
     const localModelId = (await repos.settings.get(LOCAL_MODEL_ID_KEY)) ?? DEFAULT_LOCAL_MODEL_ID;
+    const preferredModel = (await repos.settings.get(PREFERRED_MODEL_KEY)) ?? "";
     const result = await runAiJob(
       { kind: "report", label: `Writing a status report for ${project.title}` },
       () =>
         grok4Enabled
-          ? runOnceWithRetry(client, {
-              sessionKey: `project-report-${project.id}`,
-              message: buildStatusReportPrompt(project),
-              timeoutSecs: 180,
-              model: resolveModelOverride(grok4Enabled, localModelId),
+          ? routeAiCall({
+              openClaw: client,
+              ollama,
+              input: {
+                sessionKey: `project-report-${project.id}`,
+                message: buildStatusReportPrompt(project),
+                timeoutSecs: 180,
+                model: resolveModelOverride(grok4Enabled, localModelId),
+              },
+              preferredModel,
+              localModelId,
+              localTimeoutSecs: LOCAL_REPORT_TIMEOUT_SECS,
             })
           : runLocalReportWithRetry(ollama, buildStatusReportPrompt(project), localModelId),
     );
-    await repos.projectReports.markResult(reportId, { status: "ok", content: result.text, modelUsed: result.model });
+    await repos.projectReports.markResult(reportId, {
+      status: "ok",
+      content: result.text,
+      modelUsed: result.model,
+      backendUsed: result.backend,
+    });
   } catch (err) {
     const failureReason = err instanceof Error ? err.message : String(err);
     await repos.projectReports.markResult(reportId, { status: "failed", failureReason });

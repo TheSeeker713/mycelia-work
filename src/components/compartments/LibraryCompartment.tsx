@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useJournalsStore, useTasksStore } from "../../store/StoreProvider";
 import { useSelfVoicing } from "../../hooks/useSelfVoicing";
 import { GhostTextField } from "../GhostTextField";
+import { ModelBadge } from "../ModelBadge";
 import type { Journal } from "../../data";
 import { exportWorkJournalFile, libraryExportFilename } from "../../services/journalGeneration";
 
@@ -85,7 +86,10 @@ function JournalEntry({
           {manual ? "Your report" : STATUS_LABEL[journal.status]}
         </span>
       </div>
-      <div className="mt-0.5 text-[0.7rem] text-[var(--ink-faint)]">{when}</div>
+      <div className="mt-0.5 flex items-center gap-1.5">
+        <span className="text-[0.7rem] text-[var(--ink-faint)]">{when}</span>
+        <ModelBadge modelUsed={journal.model_used} backendUsed={journal.backend_used} />
+      </div>
 
       {journal.status === "pending" && (
         <div className="progress-indeterminate mt-1.5" aria-hidden="true" />

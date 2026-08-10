@@ -1,5 +1,5 @@
 import type { SqlExecutor } from "../sqlExecutor";
-import type { Journal, JournalKind, JournalStatus } from "../types";
+import type { AiBackendId, Journal, JournalKind, JournalStatus } from "../types";
 import { newId, nowIso } from "../sqliteUtil";
 
 export interface CreatePendingJournalInput {
@@ -23,6 +23,7 @@ export function createJournalsRepository(executor: SqlExecutor) {
         exported_path: null,
         kind: input.kind,
         failure_reason: null,
+        backend_used: null,
       };
       await executor.execute(
         `INSERT INTO journals (id, task_id, task_session_id, generated_at, model_used, status, content, exported_path, kind)
@@ -60,6 +61,7 @@ export function createJournalsRepository(executor: SqlExecutor) {
         exported_path: null,
         kind: input.kind,
         failure_reason: null,
+        backend_used: null,
       };
       await executor.execute(
         `INSERT INTO journals (id, task_id, task_session_id, generated_at, model_used, status, content, exported_path, kind)
@@ -82,16 +84,23 @@ export function createJournalsRepository(executor: SqlExecutor) {
     async markResult(
       id: string,
       status: JournalStatus,
-      patch: { modelUsed?: string; content?: string; exportedPath?: string; failureReason?: string } = {},
+      patch: {
+        modelUsed?: string;
+        content?: string;
+        exportedPath?: string;
+        failureReason?: string;
+        backendUsed?: AiBackendId;
+      } = {},
     ): Promise<void> {
       await executor.execute(
-        `UPDATE journals SET status = ?, model_used = ?, content = ?, exported_path = ?, failure_reason = ? WHERE id = ?`,
+        `UPDATE journals SET status = ?, model_used = ?, content = ?, exported_path = ?, failure_reason = ?, backend_used = ? WHERE id = ?`,
         [
           status,
           patch.modelUsed ?? null,
           patch.content ?? null,
           patch.exportedPath ?? null,
           patch.failureReason ?? null,
+          patch.backendUsed ?? null,
           id,
         ],
       );

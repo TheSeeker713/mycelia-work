@@ -14,6 +14,7 @@ import {
   sweepStalePendingJournals,
   weeklyRollupFilename,
 } from "../journalGeneration";
+import { CONNECT_ATTEMPTS } from "../aiBackendRouter";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
@@ -103,6 +104,7 @@ describe("buildWeeklyRollupPrompt", () => {
           exported_path: null,
           kind: "session",
           failure_reason: null,
+          backend_used: null,
         },
       ],
       "this week",
@@ -175,8 +177,32 @@ describe("runJournalGeneration", () => {
     expect(result.exported_path).toBe("docs/workjournal/2026-08-03_1200_test.md");
   });
 
-  it("fails closed to 'failed' rather than throwing when the model call rejects on both the try and the automatic retry", async () => {
+  it("falls back to a direct Ollama call when OpenClaw never becomes reachable", async () => {
+    vi.mocked(invoke).mockResolvedValue("docs/workjournal/2026-08-03_1200_test.md");
     fakeClient.runOnce = vi.fn().mockRejectedValue(new Error("Gateway unreachable"));
+    const pending = await repos.journals.createPending({ taskId: realTaskId, taskSessionId: realSessionId, kind: "session" });
+
+    const result = await runJournalGeneration({
+      repos,
+      client: fakeClient,
+      ollama: fakeOllama,
+      journalId: pending.id,
+      sessionKey: "agent:main:mycelia-time-journal-s1",
+      prompt: "irrelevant for this test",
+      filename: "2026-08-03_1200_test.md",
+    });
+
+    // A real answer from the local model beats no answer at all, and the
+    // recorded backend is what makes that visible rather than silent.
+    expect(result.status).toBe("ok");
+    expect(result.content).toBe("A locally-generated journal entry.");
+    expect(result.backend_used).toBe("ollama");
+    expect(fakeClient.runOnce).toHaveBeenCalledTimes(CONNECT_ATTEMPTS);
+  });
+
+  it("fails closed to 'failed' only when OpenClaw and the Ollama fallback both give up", async () => {
+    fakeClient.runOnce = vi.fn().mockRejectedValue(new Error("Gateway unreachable"));
+    fakeOllama.generateReport = vi.fn().mockRejectedValue(new Error("Ollama unreachable"));
     const pending = await repos.journals.createPending({ taskId: realTaskId, taskSessionId: realSessionId, kind: "session" });
 
     const result = await runJournalGeneration({
@@ -192,7 +218,23 @@ describe("runJournalGeneration", () => {
     expect(result.status).toBe("failed");
     expect(result.content).toBeNull();
     expect(result.failure_reason).toBe("Gateway unreachable");
-    expect(fakeClient.runOnce).toHaveBeenCalledTimes(2);
+  });
+
+  it("records which backend answered on the ordinary success path", async () => {
+    vi.mocked(invoke).mockResolvedValue("docs/workjournal/2026-08-03_1200_test.md");
+    const pending = await repos.journals.createPending({ taskId: realTaskId, taskSessionId: realSessionId, kind: "session" });
+
+    const result = await runJournalGeneration({
+      repos,
+      client: fakeClient,
+      ollama: fakeOllama,
+      journalId: pending.id,
+      sessionKey: "agent:main:mycelia-time-journal-s1",
+      prompt: "irrelevant for this test",
+      filename: "2026-08-03_1200_test.md",
+    });
+
+    expect(result.backend_used).toBe("openclaw");
   });
 
   it("recovers via the automatic retry when only the first attempt fails", async () => {
@@ -216,6 +258,7 @@ describe("runJournalGeneration", () => {
     expect(result.status).toBe("ok");
     expect(result.content).toBe("Recovered on retry.");
     expect(fakeClient.runOnce).toHaveBeenCalledTimes(2);
+    expect(result.backend_used).toBe("openclaw");
   });
 
   it("fails closed when the model call succeeds but the file export fails", async () => {
