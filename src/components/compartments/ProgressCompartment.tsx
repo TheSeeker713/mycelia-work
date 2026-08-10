@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useGamificationStore } from "../../store/StoreProvider";
 import { BADGES, LEVEL_CAP, STICKERS, xpProgressWithinLevel } from "../../services/gamification";
 import { BADGE_IMAGE_POOL_BY_LEVEL, STICKER_IMAGE_POOL_BY_KEY } from "../../services/gamificationAssets";
+import { CalendarHeatmap } from "../CalendarHeatmap";
+import { BackupButton } from "../BackupButton";
 
 /**
  * No hidden-unlock gate of any kind — ordinary, always-visible feature,
@@ -79,6 +81,10 @@ export function ProgressCompartment({
             Gallery
           </button>
         )}
+      </div>
+
+      <div className="mb-3 rounded-[10px] border p-3" style={{ borderColor: "var(--line)" }}>
+        <CalendarHeatmap />
       </div>
 
       <div className="mb-3 rounded-[10px] border p-3" style={{ borderColor: "var(--line)" }}>
@@ -188,6 +194,9 @@ export function ProgressCompartment({
       )}
 
       <div className="mt-3 border-t border-dashed pt-3" style={{ borderColor: "var(--line)" }}>
+        <div className="mb-2">
+          <BackupButton />
+        </div>
         <button
           type="button"
           onClick={() => setShowHowThisWorks((v) => !v)}

@@ -92,6 +92,18 @@ export function createTaskSessionsRepository(executor: SqlExecutor) {
     },
 
     /** Sessions still `running` or `on_break` — the forgot-to-clock-out detector's input. */
+    /**
+     * Every closed session in a date range, for the calendar heatmap.
+     * Only stopped sessions count — a still-running one has no duration
+     * to attribute to a day yet.
+     */
+    async listClosedSince(sinceIso: string): Promise<TaskSession[]> {
+      return executor.select<TaskSession>(
+        "SELECT * FROM task_sessions WHERE status = 'stopped' AND clocked_out_at IS NOT NULL AND clocked_in_at >= ? ORDER BY clocked_in_at",
+        [sinceIso],
+      );
+    },
+
     async listDangling(): Promise<TaskSession[]> {
       const rows = await executor.select<TaskSessionRow>(
         "SELECT * FROM task_sessions WHERE status IN ('running', 'on_break') ORDER BY clocked_in_at, rowid",

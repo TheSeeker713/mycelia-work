@@ -41,6 +41,7 @@ import {
 } from "./gamificationStore";
 
 interface StoresContextValue {
+  repositories: Repositories;
   useTasksStore: TasksStore;
   useProjectsStore: ProjectsStore;
   useTodosStore: TodosStore;
@@ -93,6 +94,7 @@ export function StoreProvider({
     const watchdog = resourceWatchdogClient ?? createTauriResourceWatchdogClient();
     const gamification = createGamificationStore(repositories);
     return {
+      repositories,
       useTasksStore: createTasksStore(repositories),
       useProjectsStore: createProjectsStore(repositories, client, gamification, ollama),
       useTodosStore: createTodosStore(repositories, gamification),
@@ -130,6 +132,11 @@ function useStoresContext(): StoresContextValue {
     );
   }
   return ctx;
+}
+
+/** Raw repository access, for the few reads that don't warrant a store of their own (the calendar heatmap's one query). */
+export function useRepositories(): Repositories {
+  return useStoresContext().repositories;
 }
 
 export function useTasksStore<T>(selector: (state: TasksState) => T): T {
