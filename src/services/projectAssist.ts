@@ -11,6 +11,7 @@ import {
 import type { OllamaClient } from "./ollamaClient";
 import { runAiJob } from "./aiQueue";
 import { routeAiCall, type RoutedResult } from "./aiBackendRouter";
+import { STALE_PENDING_THRESHOLD_MS } from "./journalGeneration";
 
 /** Same 90s local-inference-only budget as journalGeneration.ts's report path — no OpenClaw CLI tax to account for. */
 const LOCAL_REPORT_TIMEOUT_SECS = 90;
@@ -32,6 +33,17 @@ async function runLocalReportWithRetry(
   } catch {
     return await call();
   }
+}
+
+const STALE_PENDING_REASON =
+  "Generation didn't finish — the app was likely closed or reloaded mid-run.";
+
+export function sweepStalePendingProjectReports(
+  repos: Pick<Repositories, "projectReports">,
+  now: Date = new Date(),
+): Promise<number> {
+  const cutoff = new Date(now.getTime() - STALE_PENDING_THRESHOLD_MS).toISOString();
+  return repos.projectReports.markStalePendingAsFailed(cutoff, STALE_PENDING_REASON);
 }
 
 export type AssistAction = "sub_tasks" | "scheduling_suggestion" | "tighten_description" | "freeform_ask";
@@ -141,7 +153,7 @@ export async function runProjectReportGeneration(params: {
                 sessionKey: `project-report-${project.id}`,
                 message: buildStatusReportPrompt(project),
                 timeoutSecs: 180,
-                model: resolveModelOverride(grok4Enabled, localModelId),
+                model: resolveModelOverride(grok4Enabled, localModelId, preferredModel),
               },
               preferredModel,
               localModelId,
@@ -154,6 +166,7 @@ export async function runProjectReportGeneration(params: {
       content: result.text,
       modelUsed: result.model,
       backendUsed: result.backend,
+      usedFallback: result.usedFallback,
     });
   } catch (err) {
     const failureReason = err instanceof Error ? err.message : String(err);

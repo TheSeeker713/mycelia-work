@@ -208,11 +208,18 @@ function AssistPanel({ project, notes }: { project: Project; notes: ProjectAssis
 /** Status reports are real kept content (unlike the assist panel above) — this is their actual in-app home, per the plan. */
 function ReportsSection({ project, reports }: { project: Project; reports: ProjectReport[] | undefined }) {
   const generateReport = useProjectsStore((s) => s.generateReport);
+  const retryReport = useProjectsStore((s) => s.retryReport);
   const [generating, setGenerating] = useState(false);
 
   async function handleGenerate() {
     setGenerating(true);
     await generateReport(project);
+    setGenerating(false);
+  }
+
+  async function handleRetry(reportId: string) {
+    setGenerating(true);
+    await retryReport(project, reportId);
     setGenerating(false);
   }
 
@@ -246,11 +253,25 @@ function ReportsSection({ project, reports }: { project: Project; reports: Proje
                     minute: "2-digit",
                   })}
                 </span>
-                <ModelBadge modelUsed={r.model_used} backendUsed={r.backend_used} />
+                <ModelBadge
+                  modelUsed={r.model_used}
+                  backendUsed={r.backend_used}
+                  usedFallback={Boolean(r.used_fallback)}
+                />
               </div>
               {r.status === "pending" && <span className="text-[var(--ink-faint)]">Writing…</span>}
               {r.status === "failed" && (
-                <span className="text-[var(--rust)]">Failed{r.failure_reason ? ` — ${r.failure_reason}` : ""}</span>
+                <div>
+                  <span className="text-[var(--rust)]">Failed{r.failure_reason ? ` — ${r.failure_reason}` : ""}</span>
+                  <button
+                    type="button"
+                    onClick={() => void handleRetry(r.id)}
+                    disabled={generating}
+                    className="ml-2 rounded-full border border-[var(--line)] px-2.5 py-1 text-[0.7rem] text-[var(--ink-soft)] disabled:opacity-50"
+                  >
+                    Retry
+                  </button>
+                </div>
               )}
               {r.status === "ok" && <p className="whitespace-pre-wrap text-[var(--ink)]">{r.content}</p>}
             </li>

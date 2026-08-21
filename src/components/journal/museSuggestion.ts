@@ -10,6 +10,7 @@ declare module "@tiptap/core" {
   interface Commands<ReturnType> {
     museSuggestion: {
       setMuseSuggestion: (text: string) => ReturnType;
+      setMusePending: () => ReturnType;
       clearMuseSuggestion: () => ReturnType;
       acceptMuseSuggestion: () => ReturnType;
       /** Clears the accepted-suggestion record, once its words have been counted for XP. */
@@ -60,18 +61,25 @@ export const MuseSuggestion = Extension.create<Record<string, never>, MuseSugges
             if (meta !== undefined) {
               if (!meta) return { suggestion: null, decorations: DecorationSet.empty };
               const pos = tr.selection.from;
+              const pending = typeof meta === "object" && meta !== null && "pending" in meta;
+              const text = pending ? "…" : (meta as string);
               const widget = Decoration.widget(
                 pos,
                 () => {
                   const span = document.createElement("span");
-                  span.textContent = meta as string;
+                  span.textContent = text;
                   span.style.color = "var(--ink-faint)";
                   span.setAttribute("contenteditable", "false");
+                  if (pending) span.setAttribute("data-muse-pending", "true");
+                  span.setAttribute("aria-busy", pending ? "true" : "false");
                   return span;
                 },
                 { side: 1 },
               );
-              return { suggestion: meta as string, decorations: DecorationSet.create(tr.doc, [widget]) };
+              return {
+                suggestion: pending ? null : (meta as string),
+                decorations: DecorationSet.create(tr.doc, [widget]),
+              };
             }
             if ((tr.docChanged || tr.selectionSet) && prev.suggestion) {
               return { suggestion: null, decorations: DecorationSet.empty };
@@ -94,6 +102,12 @@ export const MuseSuggestion = Extension.create<Record<string, never>, MuseSugges
         (text: string) =>
         ({ tr, dispatch }) => {
           if (dispatch) tr.setMeta(museSuggestionPluginKey, text);
+          return true;
+        },
+      setMusePending:
+        () =>
+        ({ tr, dispatch }) => {
+          if (dispatch) tr.setMeta(museSuggestionPluginKey, { pending: true });
           return true;
         },
       clearMuseSuggestion:

@@ -227,7 +227,8 @@ export function Dashboard() {
     if (!clockOutPrompt) return;
     const { task, sessionId } = clockOutPrompt;
     setClockOutPrompt(null);
-    await generateSessionJournal(task, sessionId, brief.trim() || undefined);
+    setActive("library");
+    void generateSessionJournal(task, sessionId, brief.trim() || undefined);
   }
 
   async function handleManualWritesReport() {

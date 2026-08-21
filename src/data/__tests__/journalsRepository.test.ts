@@ -55,6 +55,16 @@ describe("journalsRepository", () => {
     expect(found?.content).toBeNull();
   });
 
+  it("markPending puts a failed row back on pending without wiping the id", async () => {
+    const journal = await journals.createPending({ taskId, kind: "session" });
+    await journals.markResult(journal.id, "failed", { failureReason: "Gateway unreachable" });
+
+    const pending = await journals.markPending(journal.id);
+    expect(pending?.status).toBe("pending");
+    expect(pending?.failure_reason).toBeNull();
+    expect(pending?.id).toBe(journal.id);
+  });
+
   it("markResult records a failure reason when given one", async () => {
     const journal = await journals.createPending({ taskId, kind: "session" });
     await journals.markResult(journal.id, "failed", { failureReason: "Gateway unreachable" });

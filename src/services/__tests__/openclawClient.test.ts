@@ -1,9 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_LOCAL_MODEL_ID, resolveModelOverride } from "../openclawClient";
+import { DEFAULT_LOCAL_MODEL_ID, GROK4_MODEL, resolveModelOverride } from "../openclawClient";
 
 describe("resolveModelOverride", () => {
-  it("returns undefined (don't override) when Grok is enabled", () => {
-    expect(resolveModelOverride(true, "hermes3:8b")).toBeUndefined();
+  it("sends Grok 4.6 when Grok is enabled and no preferred model is set", () => {
+    expect(resolveModelOverride(true, "hermes3:8b")).toBe(GROK4_MODEL);
+    expect(GROK4_MODEL).toContain("4.6");
+  });
+
+  it("uses the preferred model when Grok is on and one is set", () => {
+    expect(resolveModelOverride(true, "hermes3:8b", "xai/grok-4.6")).toBe("xai/grok-4.6");
   });
 
   it("prefixes the local model id with ollama/ when Grok is off", () => {

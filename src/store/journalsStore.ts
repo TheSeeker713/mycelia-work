@@ -42,6 +42,7 @@ function upsert(journals: Journal[], updated: Journal): Journal[] {
 }
 
 export function createJournalsStore(repos: Repositories, client: OpenClawClient, ollama: OllamaClient) {
+  const retrying = new Set<string>();
   return create<JournalsState>((set, get) => ({
     journals: [],
 
@@ -100,49 +101,58 @@ export function createJournalsStore(repos: Repositories, client: OpenClawClient,
     },
 
     async retryJournal(journalId) {
+      if (retrying.has(journalId)) return;
       const existing = get().journals.find((j) => j.id === journalId) ?? (await repos.journals.getById(journalId));
       if (!existing) return;
+      retrying.add(journalId);
 
-      if (existing.kind === "weekly") {
-        const cutoff = new Date(existing.generated_at).getTime() - WEEK_MS;
-        const recentSessionJournals = get().journals.filter(
-          (j) =>
-            j.kind === "session" &&
-            j.status === "ok" &&
-            j.id !== journalId &&
-            new Date(j.generated_at).getTime() >= cutoff,
-        );
-        const generatedAt = new Date(existing.generated_at);
+      try {
+        const pending = await repos.journals.markPending(journalId);
+        if (pending) set({ journals: upsert(get().journals, pending) });
+
+        if (existing.kind === "weekly") {
+          const cutoff = new Date(existing.generated_at).getTime() - WEEK_MS;
+          const recentSessionJournals = get().journals.filter(
+            (j) =>
+              j.kind === "session" &&
+              j.status === "ok" &&
+              j.id !== journalId &&
+              new Date(j.generated_at).getTime() >= cutoff,
+          );
+          const generatedAt = new Date(existing.generated_at);
+          const result = await runJournalGeneration({
+            repos,
+            client,
+            ollama,
+            journalId,
+            sessionKey: `agent:main:mycelia-time-weekly-${journalId}`,
+            prompt: buildWeeklyRollupPrompt(recentSessionJournals, generatedAt.toLocaleDateString()),
+            filename: weeklyRollupFilename(generatedAt),
+          });
+          set({ journals: upsert(get().journals, result) });
+          return;
+        }
+
+        if (!existing.task_id || !existing.task_session_id) return;
+        const task = await repos.tasks.getById(existing.task_id);
+        const session = await repos.taskSessions.getById(existing.task_session_id);
+        if (!task || !session) return;
+        const events = await repos.sessionEvents.listBySession(session.id);
+        const notes = await repos.notes.listBySession(session.id);
+
         const result = await runJournalGeneration({
           repos,
           client,
           ollama,
           journalId,
-          sessionKey: `agent:main:mycelia-time-weekly-${journalId}`,
-          prompt: buildWeeklyRollupPrompt(recentSessionJournals, generatedAt.toLocaleDateString()),
-          filename: weeklyRollupFilename(generatedAt),
+          sessionKey: `agent:main:mycelia-time-journal-${session.id}`,
+          prompt: buildSessionJournalPrompt({ task, session, events, notes }),
+          filename: sessionJournalFilename(task, new Date(existing.generated_at)),
         });
         set({ journals: upsert(get().journals, result) });
-        return;
+      } finally {
+        retrying.delete(journalId);
       }
-
-      if (!existing.task_id || !existing.task_session_id) return;
-      const task = await repos.tasks.getById(existing.task_id);
-      const session = await repos.taskSessions.getById(existing.task_session_id);
-      if (!task || !session) return;
-      const events = await repos.sessionEvents.listBySession(session.id);
-      const notes = await repos.notes.listBySession(session.id);
-
-      const result = await runJournalGeneration({
-        repos,
-        client,
-        ollama,
-        journalId,
-        sessionKey: `agent:main:mycelia-time-journal-${session.id}`,
-        prompt: buildSessionJournalPrompt({ task, session, events, notes }),
-        filename: sessionJournalFilename(task, new Date(existing.generated_at)),
-      });
-      set({ journals: upsert(get().journals, result) });
     },
 
     async discardPending() {

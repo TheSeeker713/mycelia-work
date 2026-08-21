@@ -83,6 +83,21 @@ describe("GhostTextField", () => {
     expect(ollamaClient.suggestContinuation).not.toHaveBeenCalled();
   });
 
+  it("shows a thinking mark while the suggestion request is still out", async () => {
+    let resolveSuggestion: (text: string | null) => void = () => {};
+    ollamaClient.suggestContinuation = vi.fn(
+      () => new Promise<string | null>((resolve) => { resolveSuggestion = resolve; }),
+    );
+    const user = renderField();
+
+    await user.type(screen.getByLabelText("Field"), "Fixed the shadow clipping");
+    await waitFor(() => expect(screen.getByText("…")).toBeInTheDocument());
+    expect(screen.getByText("…")).toHaveAttribute("aria-busy", "true");
+
+    resolveSuggestion(" and then some.");
+    await waitFor(() => expect(screen.getByText("and then some.")).toBeInTheDocument());
+  });
+
   it("never asks for a suggestion when the caret is not at the end", async () => {
     const user = renderField();
     const field = screen.getByLabelText("Field");

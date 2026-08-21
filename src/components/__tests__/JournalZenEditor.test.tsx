@@ -93,6 +93,39 @@ describe("JournalZenEditor", () => {
     });
   });
 
+  it("does not ask Muse for a continuation below 12 characters", async () => {
+    const user = userEvent.setup();
+    ollamaClient.suggestContinuation = vi.fn().mockResolvedValue(" nope.");
+    renderJournal();
+
+    await screen.findByText("Free write");
+    await user.click(screen.getByRole("textbox"));
+    await user.keyboard("short");
+
+    await new Promise((r) => setTimeout(r, 900));
+    expect(ollamaClient.suggestContinuation).not.toHaveBeenCalled();
+  });
+
+  it("shows a thinking mark while Muse is waiting on the model", async () => {
+    let resolveSuggestion: (text: string | null) => void = () => {};
+    ollamaClient.suggestContinuation = vi.fn(
+      () => new Promise<string | null>((resolve) => { resolveSuggestion = resolve; }),
+    );
+    const user = userEvent.setup();
+    renderJournal();
+
+    await screen.findByText("Free write");
+    await user.click(screen.getByRole("textbox"));
+    await user.keyboard("Sketched the layout");
+
+    await waitFor(() => expect(document.querySelector("[data-muse-pending]")).toBeTruthy(), {
+      timeout: 3000,
+    });
+
+    resolveSuggestion(" and kept going.");
+    await waitFor(() => expect(document.querySelector("[data-muse-pending]")).toBeFalsy());
+  });
+
   it("right-clicking the writing surface opens the formatting menu, closes on outside click", async () => {
     const user = userEvent.setup();
     renderJournal();

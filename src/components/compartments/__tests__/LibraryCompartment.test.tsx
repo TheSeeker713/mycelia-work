@@ -6,6 +6,7 @@ import { StoreProvider } from "../../../store/StoreProvider";
 import { initDatabase, type Repositories } from "../../../data";
 import { createTestExecutor } from "../../../data/__tests__/testExecutor";
 import { DEFAULT_VOICE_ID, type VoiceClient } from "../../../services/voiceClient";
+import type { OllamaClient } from "../../../services/ollamaClient";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn().mockResolvedValue("D:\\_Dev\\Projects\\mycelia-work\\docs\\workjournal\\2026-08-07_2100_session-journal.md"),
@@ -24,9 +25,9 @@ beforeEach(async () => {
   };
 });
 
-function renderLibrary() {
+function renderLibrary(opts?: { ollamaClient?: OllamaClient }) {
   return render(
-    <StoreProvider repositories={repos} voiceClient={voiceClient}>
+    <StoreProvider repositories={repos} voiceClient={voiceClient} ollamaClient={opts?.ollamaClient}>
       <LibraryCompartment />
     </StoreProvider>,
   );
@@ -190,11 +191,32 @@ describe("LibraryCompartment — failed journals", () => {
       failureReason: "Generation didn't finish — the app was likely closed or reloaded mid-run.",
     });
 
-    renderLibrary();
+    let resolveReport: (text: string) => void = () => {};
+    const ollamaClient = {
+      suggestContinuation: vi.fn(),
+      classifyOnTopic: vi.fn(),
+      warmUpGhostText: vi.fn(),
+      warmUpModel: vi.fn(),
+      isAvailable: vi.fn().mockResolvedValue(true),
+      generateReport: vi.fn(
+        () => new Promise<string>((resolve) => { resolveReport = resolve; }),
+      ),
+    };
+
+    const user = userEvent.setup();
+    renderLibrary({ ollamaClient });
 
     expect(
       await screen.findByText(/Generation didn't finish — the app was likely closed/),
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Retry" }));
+
+    expect(await screen.findByText("Generating…")).toBeInTheDocument();
+    expect(document.querySelector(".progress-indeterminate")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Retry" })).not.toBeInTheDocument();
+
+    resolveReport("Wrote the entry this time.");
+    expect(await screen.findByText("Wrote the entry this time.")).toBeInTheDocument();
   });
 });

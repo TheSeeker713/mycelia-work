@@ -4,7 +4,7 @@ export interface OpenClawCallInput {
   sessionKey: string;
   message: string;
   timeoutSecs?: number;
-  /** Explicit `--model` override — if omitted, OpenClaw's own configured default applies (currently Grok 4.5). Callers normally get this from `resolveModelOverride()` below rather than hardcoding it. */
+  /** Explicit `--model` override. Callers get this from `resolveModelOverride()` rather than hardcoding it. */
   model?: string;
 }
 
@@ -14,7 +14,7 @@ export interface OpenClawCallResult {
 }
 
 /**
- * Same key settingsStore.ts persists the "Use Grok 4.5 (cloud)" toggle
+ * Same key settingsStore.ts persists the "Use Grok 4.6 (cloud)" toggle
  * under — owned here since this is the module that actually needs to
  * read the raw persisted value (stores that call the AI service
  * functions don't have reactive access to settingsStore, only to
@@ -56,20 +56,25 @@ export const LOCAL_MODELS = [
 ] as const;
 
 export const DEFAULT_LOCAL_MODEL_ID = LOCAL_MODELS[0].id;
-export const GROK4_MODEL = "xai/grok-4.5";
+export const GROK4_MODEL = "xai/grok-4.6";
 
 /**
- * Grok 4.5 is Jeremy's own paid cloud subscription — off by default
- * (his explicit instruction), so every AI call needs to know whether
- * it's allowed to reach for it. `undefined` here means "don't
- * override" — OpenClaw's own default takes over, which today happens
- * to be Grok, so the toggle being on doesn't force anything, it just
- * stops this app from *avoiding* it. When it's off, `localModelId`
- * (Settings' local-model picker) decides which installed Ollama model
- * actually answers.
+ * Grok 4.6 is Jeremy's own paid cloud subscription — off by default,
+ * so every AI call needs to know whether it's allowed to reach for it.
+ * When the toggle is on, this always sends an explicit model id (the
+ * preferred one, or GROK4_MODEL if none was set) rather than trusting
+ * OpenClaw's default to stay in sync with Settings copy. When it's
+ * off, `localModelId` (Settings' local-model picker) decides which
+ * installed Ollama model actually answers.
  */
-export function resolveModelOverride(grok4Enabled: boolean, localModelId: string): string | undefined {
-  return grok4Enabled ? undefined : `ollama/${localModelId}`;
+export function resolveModelOverride(
+  grok4Enabled: boolean,
+  localModelId: string,
+  preferredModel?: string,
+): string {
+  if (!grok4Enabled) return `ollama/${localModelId}`;
+  const preferred = preferredModel?.trim();
+  return preferred || GROK4_MODEL;
 }
 
 /**

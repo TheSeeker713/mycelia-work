@@ -45,7 +45,7 @@ export function GhostTextField({
   "aria-label"?: string;
   id?: string;
 }) {
-  const { suggestion, scheduleFor, clear, warmUp } = useGhostText();
+  const { suggestion, pending, scheduleFor, clear, warmUp } = useGhostText();
   const mirrorRef = useRef<HTMLDivElement>(null);
   const ownFieldRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
   const fieldRef = (ref ?? ownFieldRef) as RefObject<HTMLInputElement | HTMLTextAreaElement | null>;
@@ -100,6 +100,11 @@ export function GhostTextField({
         className={`pointer-events-none absolute inset-0 overflow-hidden ${wrapClass} ${className}`}
       >
         <span style={{ color: "transparent" }}>{value}</span>
+        {pending && !suggestion && (
+          <span style={{ color: "var(--ink-faint)" }} aria-busy="true">
+            …
+          </span>
+        )}
         {suggestion && <span style={{ color: "var(--ink-faint)" }}>{suggestion}</span>}
       </div>
       {multiline ? (

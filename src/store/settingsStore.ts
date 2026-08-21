@@ -4,6 +4,7 @@ import { DEFAULT_VOICE_ID } from "../services/voiceClient";
 import {
   DEFAULT_LOCAL_MODEL_ID,
   GROK4_ENABLED_KEY,
+  GROK4_MODEL,
   LOCAL_MODEL_ID_KEY,
   PREFERRED_MODEL_KEY,
 } from "../services/openclawClient";
@@ -51,7 +52,7 @@ export interface SettingsState {
   captureLoggingEnabled: boolean;
   grok4Enabled: boolean;
   localModelId: string;
-  /** Cloud model a Grok-on request should ideally land on. Empty means no preference. */
+  /** Cloud model a Grok-on request should land on. Defaults to Grok 4.6. */
   preferredModel: string;
   museEnabled: boolean;
   /** Optional. Empty means the free keyless path handles animation on its own. */
@@ -78,7 +79,7 @@ function parseBool(value: string | null, defaultValue: boolean): boolean {
 }
 
 export function createSettingsStore(repos: Repositories) {
-  return create<SettingsState>((set) => ({
+  return create<SettingsState>((set, get) => ({
     loaded: false,
     selfVoicingEnabled: true,
     sttEnabled: true,
@@ -88,7 +89,7 @@ export function createSettingsStore(repos: Repositories) {
     captureLoggingEnabled: true,
     grok4Enabled: false,
     localModelId: DEFAULT_LOCAL_MODEL_ID,
-    preferredModel: "",
+    preferredModel: GROK4_MODEL,
     museEnabled: true,
     falKey: "",
     replicateKey: "",
@@ -105,7 +106,7 @@ export function createSettingsStore(repos: Repositories) {
         captureLoggingEnabled: parseBool(all[CAPTURE_LOGGING_KEY] ?? null, true),
         grok4Enabled: parseBool(all[GROK4_ENABLED_KEY] ?? null, false),
         localModelId: all[LOCAL_MODEL_ID_KEY] ?? DEFAULT_LOCAL_MODEL_ID,
-        preferredModel: all[PREFERRED_MODEL_KEY] ?? "",
+        preferredModel: all[PREFERRED_MODEL_KEY] ?? GROK4_MODEL,
         // No stored key yet -> default from aiSuggestionsEnabled; once set, fully independent.
         museEnabled: parseBool(all[JOURNAL_MUSE_KEY] ?? null, aiSuggestionsEnabled),
         falKey: all[VIDEOGEN_FAL_KEY] ?? "",
@@ -146,6 +147,12 @@ export function createSettingsStore(repos: Repositories) {
 
     async setGrok4Enabled(enabled) {
       await repos.settings.set(GROK4_ENABLED_KEY, String(enabled));
+      if (enabled) {
+        const preferred = get().preferredModel.trim() || GROK4_MODEL;
+        await repos.settings.set(PREFERRED_MODEL_KEY, preferred);
+        set({ grok4Enabled: enabled, preferredModel: preferred });
+        return;
+      }
       set({ grok4Enabled: enabled });
     },
 

@@ -95,7 +95,9 @@ export function SettingsCompartment() {
         <span>
           AI writing suggestions
           <span className="block text-[0.72rem] text-[var(--ink-faint)]">
-            Ghost-text continuations while writing in zen mode — Tab to accept.
+            Ghost-text continuations in notes, todos, projects, and zen
+            mode — Tab to accept. Journal Muse has its own toggle in the
+            editor header.
           </span>
         </span>
       </label>
@@ -164,10 +166,10 @@ export function SettingsCompartment() {
             className="mt-0.5"
           />
           <span>
-            Use Grok 4.5 (cloud)
+            Use Grok 4.6 (cloud)
             <span className="block text-[0.72rem] text-[var(--ink-faint)]">
               Off by default — AI replies use a local model only. Turning
-              this on lets OpenClaw reach for Grok 4.5 (Jeremy's own paid
+              this on lets OpenClaw reach for Grok 4.6 (Jeremy's own paid
               subscription) when it's the better fit.
             </span>
           </span>
@@ -196,7 +198,7 @@ export function SettingsCompartment() {
             <input
               value={preferredModel}
               onChange={(e) => setPreferredModel(e.target.value)}
-              placeholder="xai/grok-4.5"
+              placeholder="xai/grok-4.6"
               aria-label="Preferred model"
               className="w-full rounded-lg border border-[var(--line)] bg-[var(--paper)] px-2.5 py-1.5 text-[0.8rem] text-[var(--ink)] outline-none placeholder:text-[var(--ink-faint)]"
             />

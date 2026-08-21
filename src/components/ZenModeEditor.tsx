@@ -38,7 +38,7 @@ export function ZenModeEditor({
   // editor keeps its own markup (it's a full-bleed writing surface, not
   // a form field) but no longer its own copy of the debounce/pressure/
   // staleness logic.
-  const { suggestion, scheduleFor, clear: clearSuggestion, warmUp } = useGhostText();
+  const { suggestion, pending, scheduleFor, clear: clearSuggestion, warmUp } = useGhostText();
   const mirrorRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -125,6 +125,11 @@ export function ZenModeEditor({
           className={`absolute inset-0 overflow-hidden rounded-2xl ${EDITOR_TEXT_STYLE}`}
         >
           <span style={{ color: "transparent" }}>{draft}</span>
+          {pending && !suggestion && (
+            <span style={{ color: "var(--ink-faint)" }} aria-busy="true">
+              …
+            </span>
+          )}
           {suggestion && <span style={{ color: "var(--ink-faint)" }}>{suggestion}</span>}
         </div>
         <textarea

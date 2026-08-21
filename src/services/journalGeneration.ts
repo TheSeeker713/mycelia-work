@@ -253,7 +253,7 @@ export async function runJournalGeneration(params: {
               sessionKey,
               message: prompt,
               timeoutSecs: 180,
-              model: resolveModelOverride(grok4Enabled, localModelId),
+              model: resolveModelOverride(grok4Enabled, localModelId, preferredModel),
             },
             preferredModel,
             localModelId,
@@ -267,6 +267,7 @@ export async function runJournalGeneration(params: {
       content: result.text,
       exportedPath,
       backendUsed: result.backend,
+      usedFallback: result.usedFallback,
     });
   } catch (err) {
     // Raw log is untouched either way — the journal row is the only

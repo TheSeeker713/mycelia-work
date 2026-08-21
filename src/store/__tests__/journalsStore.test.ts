@@ -165,6 +165,34 @@ describe("journalsStore", () => {
     );
   });
 
+  it("retryJournal marks the row pending before the model call resolves", async () => {
+    const pending = await repos.journals.createPending({
+      taskId,
+      taskSessionId: sessionId,
+      kind: "session",
+    });
+    await repos.journals.markResult(pending.id, "failed", { failureReason: "Gateway unreachable" });
+
+    let resolveRunOnce: (v: { text: string; model: string }) => void = () => {};
+    const slow: OpenClawClient = {
+      ...fakeClient,
+      runOnce: vi.fn(
+        () => new Promise<{ text: string; model: string }>((resolve) => { resolveRunOnce = resolve; }),
+      ),
+    };
+    const store = createJournalsStore(repos, slow, fakeOllama);
+    await store.getState().loadRecent();
+
+    const promise = store.getState().retryJournal(pending.id);
+    await vi.waitFor(() =>
+      expect(store.getState().journals.find((j) => j.id === pending.id)?.status).toBe("pending"),
+    );
+
+    resolveRunOnce({ text: "Came back.", model: "xai/grok-4.6" });
+    await promise;
+    expect(store.getState().journals.find((j) => j.id === pending.id)?.status).toBe("ok");
+  });
+
   it("retryJournal re-runs a weekly roll-up using its own kind's path", async () => {
     const pending = await repos.journals.createPending({ kind: "weekly" });
     const store = createJournalsStore(repos, fakeClient, fakeOllama);

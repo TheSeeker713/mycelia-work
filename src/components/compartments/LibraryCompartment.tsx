@@ -88,7 +88,11 @@ function JournalEntry({
       </div>
       <div className="mt-0.5 flex items-center gap-1.5">
         <span className="text-[0.7rem] text-[var(--ink-faint)]">{when}</span>
-        <ModelBadge modelUsed={journal.model_used} backendUsed={journal.backend_used} />
+        <ModelBadge
+          modelUsed={journal.model_used}
+          backendUsed={journal.backend_used}
+          usedFallback={Boolean(journal.used_fallback)}
+        />
       </div>
 
       {journal.status === "pending" && (
@@ -174,7 +178,8 @@ function JournalEntry({
           <button
             type="button"
             onClick={() => onRetry(journal.id)}
-            className="rounded-full border border-[var(--line)] px-2.5 py-1 text-[0.7rem] text-[var(--ink-soft)]"
+            disabled={journal.status !== "failed"}
+            className="rounded-full border border-[var(--line)] px-2.5 py-1 text-[0.7rem] text-[var(--ink-soft)] disabled:opacity-50"
           >
             Retry
           </button>
@@ -241,6 +246,7 @@ export function LibraryCompartment({
   const unarchiveTask = useTasksStore((s) => s.unarchiveTask);
 
   const journals = useJournalsStore((s) => s.journals);
+  const weeklyPending = journals.some((j) => j.kind === "weekly" && j.status === "pending");
   const loadRecentJournals = useJournalsStore((s) => s.loadRecent);
   const retryJournal = useJournalsStore((s) => s.retryJournal);
   const generateWeeklyRollup = useJournalsStore((s) => s.generateWeeklyRollup);
@@ -307,9 +313,10 @@ export function LibraryCompartment({
             <button
               type="button"
               onClick={() => generateWeeklyRollup()}
-              className="rounded-full border border-[var(--line)] px-2.5 py-1 text-[0.7rem] text-[var(--ink-soft)]"
+              disabled={weeklyPending}
+              className="rounded-full border border-[var(--line)] px-2.5 py-1 text-[0.7rem] text-[var(--ink-soft)] disabled:opacity-50"
             >
-              Weekly roll-up
+              {weeklyPending ? "Writing…" : "Weekly roll-up"}
             </button>
           </div>
           {journals.length === 0 ? (

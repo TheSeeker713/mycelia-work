@@ -184,6 +184,10 @@ export const MIGRATIONS: string[] = [
   // slow. NULL means it predates this column.
   `ALTER TABLE journals ADD COLUMN backend_used TEXT`,
   `ALTER TABLE project_reports ADD COLUMN backend_used TEXT`,
+  // Whether the reply landed on the preferred model. 1 = fallback,
+  // 0 = preferred (or no preference). NULL on rows written before this.
+  `ALTER TABLE journals ADD COLUMN used_fallback INTEGER`,
+  `ALTER TABLE project_reports ADD COLUMN used_fallback INTEGER`,
 ];
 
 /**

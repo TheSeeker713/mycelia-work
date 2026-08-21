@@ -24,6 +24,7 @@ export function createJournalsRepository(executor: SqlExecutor) {
         kind: input.kind,
         failure_reason: null,
         backend_used: null,
+        used_fallback: null,
       };
       await executor.execute(
         `INSERT INTO journals (id, task_id, task_session_id, generated_at, model_used, status, content, exported_path, kind)
@@ -62,6 +63,7 @@ export function createJournalsRepository(executor: SqlExecutor) {
         kind: input.kind,
         failure_reason: null,
         backend_used: null,
+        used_fallback: null,
       };
       await executor.execute(
         `INSERT INTO journals (id, task_id, task_session_id, generated_at, model_used, status, content, exported_path, kind)
@@ -90,10 +92,11 @@ export function createJournalsRepository(executor: SqlExecutor) {
         exportedPath?: string;
         failureReason?: string;
         backendUsed?: AiBackendId;
+        usedFallback?: boolean;
       } = {},
     ): Promise<void> {
       await executor.execute(
-        `UPDATE journals SET status = ?, model_used = ?, content = ?, exported_path = ?, failure_reason = ?, backend_used = ? WHERE id = ?`,
+        `UPDATE journals SET status = ?, model_used = ?, content = ?, exported_path = ?, failure_reason = ?, backend_used = ?, used_fallback = ? WHERE id = ?`,
         [
           status,
           patch.modelUsed ?? null,
@@ -101,9 +104,23 @@ export function createJournalsRepository(executor: SqlExecutor) {
           patch.exportedPath ?? null,
           patch.failureReason ?? null,
           patch.backendUsed ?? null,
+          patch.usedFallback === undefined ? null : patch.usedFallback ? 1 : 0,
           id,
         ],
       );
+    },
+
+    /**
+     * Retry path: put a failed (or leftover) row back on `pending` so
+     * the UI shows Generating before the model call starts. Does not
+     * wipe content/model — a failed row is already empty.
+     */
+    async markPending(id: string): Promise<Journal | null> {
+      await executor.execute(
+        `UPDATE journals SET status = 'pending', failure_reason = NULL WHERE id = ?`,
+        [id],
+      );
+      return (await executor.select<Journal>("SELECT * FROM journals WHERE id = ?", [id]))[0] ?? null;
     },
 
     /** A real delete, not a status change — for the exit flow's "quit now" path, which discards an in-flight draft rather than leaving it around as a failed row. */

@@ -15,6 +15,7 @@ export function createProjectReportsRepository(executor: SqlExecutor) {
         content: null,
         failure_reason: null,
         backend_used: null,
+        used_fallback: null,
       };
       await executor.execute(
         `INSERT INTO project_reports (id, project_id, generated_at, model_used, status, content, failure_reason)
@@ -40,19 +41,36 @@ export function createProjectReportsRepository(executor: SqlExecutor) {
         modelUsed?: string | null;
         failureReason?: string;
         backendUsed?: AiBackendId | null;
+        usedFallback?: boolean;
       },
     ): Promise<void> {
       await executor.execute(
-        "UPDATE project_reports SET status = ?, content = ?, model_used = ?, failure_reason = ?, backend_used = ? WHERE id = ?",
+        "UPDATE project_reports SET status = ?, content = ?, model_used = ?, failure_reason = ?, backend_used = ?, used_fallback = ? WHERE id = ?",
         [
           patch.status,
           patch.content ?? null,
           patch.modelUsed ?? null,
           patch.failureReason ?? null,
           patch.backendUsed ?? null,
+          patch.usedFallback === undefined ? null : patch.usedFallback ? 1 : 0,
           id,
         ],
       );
+    },
+
+    async markPending(id: string): Promise<void> {
+      await executor.execute(
+        "UPDATE project_reports SET status = 'pending', failure_reason = NULL WHERE id = ?",
+        [id],
+      );
+    },
+
+    async markStalePendingAsFailed(olderThanIso: string, reason: string): Promise<number> {
+      const result = await executor.execute(
+        `UPDATE project_reports SET status = 'failed', failure_reason = ? WHERE status = 'pending' AND generated_at < ?`,
+        [reason, olderThanIso],
+      );
+      return result.rowsAffected;
     },
 
     async listByProject(projectId: string): Promise<ProjectReport[]> {

@@ -129,7 +129,7 @@ describe("SettingsCompartment", () => {
     const user = userEvent.setup();
     renderSettings();
 
-    const grokToggle = screen.getByLabelText(/Use Grok 4\.5/);
+    const grokToggle = screen.getByLabelText(/Use Grok 4\.6/);
     expect(grokToggle).not.toBeChecked();
 
     await user.click(grokToggle);
@@ -147,7 +147,7 @@ describe("SettingsCompartment", () => {
     const user = userEvent.setup();
     renderSettings();
 
-    await user.click(screen.getByLabelText(/Use Grok 4\.5/));
+    await user.click(screen.getByLabelText(/Use Grok 4\.6/));
 
     expect(screen.queryByLabelText("Local model")).not.toBeInTheDocument();
   });

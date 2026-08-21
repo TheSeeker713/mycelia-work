@@ -17,8 +17,8 @@ runs at a time app-wide.
 
 | Call site | Model path | On failure | Queue behavior |
 |---|---|---|---|
-| Ghost text (`useGhostText`, every text field) | Ollama direct, `dolphin-phi:latest`, 12s | Returns null, no suggestion shows, console warning | **Drops** if stale when its turn comes |
-| Muse (`useMuseSuggestions`, the Journal) | Same as ghost text | Same | Same |
+| Ghost text (`useGhostText`, every text field) | Ollama direct, `dolphin-phi:latest`, 12s, min 12 chars, pending "…" while in flight | Returns null, no suggestion shows, console warning | **Drops** if stale when its turn comes |
+| Muse (`useMuseSuggestions`, the Journal) | Same hook as ghost text (`useGhostText`), same queue/min-chars/pending | Same | Same |
 | Session/weekly report (`journalGeneration`) | Grok on: router. Grok off: Ollama direct, 90s, one retry | Row marked `failed` with the reason, retryable from Library | Waits |
 | Project status report (`projectAssist`) | Same as above | Row marked `failed` | Waits |
 | Project assist actions (`runProjectAssist`) | OpenClaw, 45s | Returns null, panel shows a "couldn't get an answer" message | Waits |
@@ -99,7 +99,7 @@ and a working feature.
 | Reward upscale | No | Local Real-ESRGAN binary |
 | Reward animation | **No** | Public Hugging Face Space, called anonymously |
 | App updates | n/a | No online check. Rebuild and reinstall locally. |
-| Grok 4.5 replies | Yes, optional | Off by default, and OpenClaw holds the credential |
+| Grok 4.6 replies | Yes, optional | Off by default, and OpenClaw holds the credential |
 | fal.ai / Replicate animation | Yes, optional | Only tried if a key exists in Settings |
 
 The animation row changed on 2026-08-10. Animation used to read three

@@ -351,9 +351,12 @@ describe("Dashboard", () => {
     expect(ollamaClient.generateReport).not.toHaveBeenCalled();
   });
 
-  it("clock-out popup: AI writes it kicks off generation and closes the popup", async () => {
+  it("clock-out popup: AI writes it kicks off generation and opens Library", async () => {
     const user = userEvent.setup();
-    ollamaClient.generateReport = vi.fn().mockResolvedValue("Made real progress.");
+    let resolveReport: (text: string) => void = () => {};
+    ollamaClient.generateReport = vi.fn(
+      () => new Promise<string>((resolve) => { resolveReport = resolve; }),
+    );
     renderDashboard();
 
     const input = await screen.findByPlaceholderText("What are you working on?");
@@ -365,7 +368,11 @@ describe("Dashboard", () => {
     await user.click(await screen.findByRole("button", { name: "AI writes it" }));
 
     expect(screen.queryByText(/Clocked out of Old task/)).not.toBeInTheDocument();
-    await waitFor(() => expect(ollamaClient.generateReport).toHaveBeenCalledTimes(1));
+    expect(await screen.findByText("Reports")).toBeInTheDocument();
+    expect(await screen.findByText("Generating…")).toBeInTheDocument();
+
+    resolveReport("Made real progress.");
+    expect(await screen.findByText("Made real progress.")).toBeInTheDocument();
   });
 
   it("clock-out popup: I'll write it opens an empty, editable report in Library", async () => {

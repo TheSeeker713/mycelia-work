@@ -205,6 +205,32 @@ describe("projectsStore", () => {
     });
   });
 
+  it("retryReport marks the row pending before the model call resolves", async () => {
+    await useProjectsStore.getState().addProject({
+      title: "Client portal revamp",
+      targetMonth: "2026-09",
+      priority: "low",
+    });
+    const project = useProjectsStore.getState().projects[0];
+    const failed = await repos.projectReports.createPending(project.id);
+    await repos.projectReports.markResult(failed.id, { status: "failed", failureReason: "down" });
+    await useProjectsStore.getState().loadReports(project.id);
+
+    let resolveRunOnce: (v: { text: string; model: string }) => void = () => {};
+    openClawClient.runOnce = vi.fn(
+      () => new Promise<{ text: string; model: string }>((resolve) => { resolveRunOnce = resolve; }),
+    );
+
+    const promise = useProjectsStore.getState().retryReport(project, failed.id);
+    await vi.waitFor(() =>
+      expect(useProjectsStore.getState().reportsByProject[project.id]?.[0]?.status).toBe("pending"),
+    );
+
+    resolveRunOnce({ text: "Came back.", model: "test" });
+    await promise;
+    expect(useProjectsStore.getState().reportsByProject[project.id]?.[0]?.status).toBe("ok");
+  });
+
   it("loadReports reads existing reports for a project", async () => {
     await useProjectsStore.getState().addProject({
       title: "Client portal revamp",

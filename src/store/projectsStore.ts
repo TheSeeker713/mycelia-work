@@ -3,7 +3,7 @@ import type { CreateProjectInput, UpdateProjectInput } from "../data/repositorie
 import type { Milestone, Project, ProjectAssistNote, ProjectReport, Repositories } from "../data";
 import type { OpenClawClient } from "../services/openclawClient";
 import type { OllamaClient } from "../services/ollamaClient";
-import { runProjectReportGeneration } from "../services/projectAssist";
+import { runProjectReportGeneration, sweepStalePendingProjectReports } from "../services/projectAssist";
 import type { GamificationStore } from "./gamificationStore";
 
 export interface ProjectsState {
@@ -22,6 +22,7 @@ export interface ProjectsState {
   deleteMilestone: (projectId: string, milestoneId: string) => Promise<void>;
   loadReports: (projectId: string) => Promise<void>;
   generateReport: (project: Project) => Promise<void>;
+  retryReport: (project: Project, reportId: string) => Promise<void>;
   loadAssistNotes: (projectId: string) => Promise<void>;
   saveAssistNote: (projectId: string, action: string, content: string, question?: string | null) => Promise<void>;
   /** For the exit flow's "quit now" path — deletes whichever report is still `pending`, a real discard rather than leaving it to fail. No-op if nothing's pending. */
@@ -88,6 +89,7 @@ export function createProjectsStore(
     },
 
     async loadReports(projectId) {
+      await sweepStalePendingProjectReports(repos);
       const reports = await repos.projectReports.listByProject(projectId);
       set({ reportsByProject: { ...get().reportsByProject, [projectId]: reports } });
     },
@@ -101,6 +103,16 @@ export function createProjectsStore(
         },
       });
       await runProjectReportGeneration({ repos, client, ollama, reportId: pending.id, project });
+      await get().loadReports(project.id);
+    },
+
+    async retryReport(project, reportId) {
+      const list = get().reportsByProject[project.id] ?? [];
+      const existing = list.find((r) => r.id === reportId);
+      if (!existing) return;
+      await repos.projectReports.markPending(reportId);
+      await get().loadReports(project.id);
+      await runProjectReportGeneration({ repos, client, ollama, reportId, project });
       await get().loadReports(project.id);
     },
 

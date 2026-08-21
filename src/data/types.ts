@@ -88,6 +88,8 @@ export interface Journal {
   failure_reason: string | null;
   /** NULL on rows written before this was recorded, and on manual entries. */
   backend_used: AiBackendId | null;
+  /** SQLite INTEGER 0/1, or null on older rows. */
+  used_fallback?: number | boolean | null;
 }
 
 export type DiaryEntryStatus = "draft" | "committed";
@@ -121,6 +123,8 @@ export interface ProjectReport {
   failure_reason: string | null;
   /** NULL on rows written before this was recorded. */
   backend_used: AiBackendId | null;
+  /** SQLite INTEGER 0/1, or null on older rows. */
+  used_fallback?: number | boolean | null;
 }
 
 /**
