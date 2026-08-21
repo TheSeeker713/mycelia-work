@@ -197,6 +197,19 @@ export const MIGRATIONS: string[] = [
     idle INTEGER NOT NULL DEFAULT 0
   )`,
   `CREATE INDEX IF NOT EXISTS idx_activity_events_sampled_at ON activity_events(sampled_at)`,
+  `CREATE TABLE IF NOT EXISTS activity_sessions (
+    id TEXT PRIMARY KEY,
+    started_at TEXT NOT NULL,
+    ended_at TEXT NOT NULL,
+    app TEXT NOT NULL,
+    title TEXT,
+    label TEXT,
+    status TEXT NOT NULL CHECK (status IN ('candidate', 'accepted', 'discarded')),
+    task_id TEXT,
+    project_id TEXT,
+    task_session_id TEXT,
+    idle INTEGER NOT NULL DEFAULT 0
+  )`,
 ];
 
 /**

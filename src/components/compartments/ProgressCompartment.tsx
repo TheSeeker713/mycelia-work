@@ -4,6 +4,7 @@ import { BADGES, LEVEL_CAP, STICKERS, xpProgressWithinLevel } from "../../servic
 import { BADGE_IMAGE_POOL_BY_LEVEL, STICKER_IMAGE_POOL_BY_KEY } from "../../services/gamificationAssets";
 import { CalendarHeatmap } from "../CalendarHeatmap";
 import { BackupButton } from "../BackupButton";
+import { DayTimeline } from "../DayTimeline";
 
 /**
  * No hidden-unlock gate of any kind — ordinary, always-visible feature,
@@ -85,6 +86,11 @@ export function ProgressCompartment({
 
       <div className="mb-3 rounded-[10px] border p-3" style={{ borderColor: "var(--line)" }}>
         <CalendarHeatmap />
+      </div>
+
+      <div className="mb-3 rounded-[10px] border p-3" style={{ borderColor: "var(--line)" }}>
+        <div className="mb-1.5 text-[0.7rem] tracking-wide text-[var(--ink-faint)] uppercase">Today</div>
+        <DayTimeline />
       </div>
 
       <div className="mb-3 rounded-[10px] border p-3" style={{ borderColor: "var(--line)" }}>

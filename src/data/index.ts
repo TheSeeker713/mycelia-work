@@ -15,6 +15,7 @@ import { createProjectReportsRepository } from "./repositories/projectReportsRep
 import { createGamificationRepository } from "./repositories/gamificationRepository";
 import { createProjectAssistNotesRepository } from "./repositories/projectAssistNotesRepository";
 import { createActivityEventsRepository } from "./repositories/activityEventsRepository";
+import { createActivitySessionsRepository } from "./repositories/activitySessionsRepository";
 
 export * from "./types";
 export * from "./sqlExecutor";
@@ -38,6 +39,7 @@ export function createRepositories(executor: SqlExecutor) {
     gamification: createGamificationRepository(executor),
     projectAssistNotes: createProjectAssistNotesRepository(executor),
     activityEvents: createActivityEventsRepository(executor),
+    activitySessions: createActivitySessionsRepository(executor),
   };
 }
 
