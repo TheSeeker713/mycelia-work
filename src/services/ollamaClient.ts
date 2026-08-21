@@ -57,7 +57,7 @@ export const GHOST_TEXT_MODEL = "dolphin-phi:latest";
  * just means no suggestion shows up rather than a broken editor.
  */
 export interface OllamaClient {
-  suggestContinuation(text: string): Promise<string | null>;
+  suggestContinuation(text: string, extraContext?: string): Promise<string | null>;
   /** Layer 0 of the capture agent: fast on-topic/safety check, run before Layer 1 ever sees the text. Fails closed (false) on any error — an unreachable safety check is treated the same as "not safe," never silently skipped. */
   classifyOnTopic(text: string): Promise<boolean>;
   /** Fire-and-forget: loads GHOST_TEXT_MODEL into memory ahead of the user's first typing pause, so the real suggestion call lands warm. Never throws, nothing to await for correctness — call it and move on. */
@@ -81,16 +81,19 @@ export interface OllamaClient {
 
 export function createHttpOllamaClient(): OllamaClient {
   return {
-    async suggestContinuation(text) {
+    async suggestContinuation(text, extraContext) {
       const trimmed = text.trim();
       if (!trimmed) return null;
       try {
+        const contextLine = extraContext?.trim()
+          ? `The writer currently has this open: ${extraContext.trim()}\n\n`
+          : "";
         const res = await fetch(`${OLLAMA_URL}/api/generate`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             model: GHOST_TEXT_MODEL,
-            prompt: `Continue this note naturally, from a few words up to one sentence. Do not repeat any of the existing text. Output only the continuation, nothing else.\n\n${trimmed}`,
+            prompt: `${contextLine}Continue this note naturally, from a few words up to one sentence. Do not repeat any of the existing text. Output only the continuation, nothing else.\n\n${trimmed}`,
             stream: false,
             options: { num_predict: 40, temperature: 0.7, stop: ["\n\n"] },
           }),

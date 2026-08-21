@@ -104,7 +104,7 @@ export function libraryExportFilename(journal: Journal): string {
  * a reference to it) so the generated entry doesn't read as AI-toned
  * filler, per CLAUDE.md — same document the devlogs themselves follow.
  */
-export function buildSessionJournalPrompt(log: RawSessionLog, brief?: string): string {
+export function buildSessionJournalPrompt(log: RawSessionLog, brief?: string, contextBlock?: string): string {
   const { task, session, events, notes } = log;
 
   const eventLines = events
@@ -139,7 +139,7 @@ Session event log:
 ${eventLines}
 
 Notes taken during the session:
-${noteLines}${briefSection}`;
+${noteLines}${briefSection}${contextBlock?.trim() ? `\n\n${contextBlock.trim()}` : ""}`;
 }
 
 export function buildWeeklyRollupPrompt(sessionJournals: Journal[], weekLabel: string): string {

@@ -4,6 +4,7 @@ import {
   useResourceStore,
   useResourceWatchdogClient,
   useSettingsStore,
+  useTasksStore,
 } from "../store/StoreProvider";
 import { runAiJob } from "../services/aiQueue";
 
@@ -31,6 +32,7 @@ export function useGhostText(options?: { enabled?: boolean }) {
   const ollamaClient = useOllamaClient();
   const resourceWatchdogClient = useResourceWatchdogClient();
   const logResourceEvent = useResourceStore((s) => s.logEvent);
+  const focusedTaskTitle = useTasksStore((s) => s.tasks.find((t) => t.id === s.focusedTaskId)?.title ?? null);
 
   const [suggestion, setSuggestion] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -80,7 +82,7 @@ export function useGhostText(options?: { enabled?: boolean }) {
             label: "Suggesting a continuation",
             isStillRelevant: () => requestIdRef.current === myId,
           },
-          () => ollamaClient.suggestContinuation(text),
+          () => ollamaClient.suggestContinuation(text, focusedTaskTitle ?? undefined),
         ).catch(() => null);
 
         if (requestIdRef.current !== myId) {
@@ -92,7 +94,7 @@ export function useGhostText(options?: { enabled?: boolean }) {
         setSuggestion(result);
       }, SUGGESTION_DEBOUNCE_MS);
     },
-    [enabled, ollamaClient, resourceWatchdogClient, logResourceEvent],
+    [enabled, ollamaClient, resourceWatchdogClient, logResourceEvent, focusedTaskTitle],
   );
 
   const warmUp = useCallback(() => {

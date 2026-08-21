@@ -10,6 +10,7 @@ import {
   sweepStalePendingJournals,
   weeklyRollupFilename,
 } from "../services/journalGeneration";
+import { formatContextForPrompt, loadWorkContext } from "../services/contextBus";
 
 const RECENT_JOURNALS_LIMIT = 20;
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
@@ -72,7 +73,11 @@ export function createJournalsStore(repos: Repositories, client: OpenClawClient,
         ollama,
         journalId: pending.id,
         sessionKey: `agent:main:mycelia-time-journal-${session.id}`,
-        prompt: buildSessionJournalPrompt({ task, session, events, notes }, brief),
+        prompt: buildSessionJournalPrompt(
+          { task, session, events, notes },
+          brief,
+          formatContextForPrompt(await loadWorkContext(repos)),
+        ),
         filename: sessionJournalFilename(task, new Date(pending.generated_at)),
       });
       set({ journals: upsert(get().journals, result) });
@@ -146,7 +151,11 @@ export function createJournalsStore(repos: Repositories, client: OpenClawClient,
           ollama,
           journalId,
           sessionKey: `agent:main:mycelia-time-journal-${session.id}`,
-          prompt: buildSessionJournalPrompt({ task, session, events, notes }),
+          prompt: buildSessionJournalPrompt(
+            { task, session, events, notes },
+            undefined,
+            formatContextForPrompt(await loadWorkContext(repos)),
+          ),
           filename: sessionJournalFilename(task, new Date(existing.generated_at)),
         });
         set({ journals: upsert(get().journals, result) });
