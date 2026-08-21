@@ -1,7 +1,14 @@
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { HARD_TIMEOUT_MS, SystemStartup, VOICE_MAX_WAIT_MS } from "../SystemStartup";
+import {
+  HARD_TIMEOUT_MS,
+  STARTUP_WEIGHT,
+  STARTUP_WEIGHT_TOTAL,
+  startupPercent,
+  SystemStartup,
+  VOICE_MAX_WAIT_MS,
+} from "../SystemStartup";
 import { StoreProvider } from "../../store/StoreProvider";
 import { initDatabase, type Repositories } from "../../data";
 import { createTestExecutor } from "../../data/__tests__/testExecutor";
@@ -77,10 +84,31 @@ describe("SystemStartup", () => {
   it("checks all three backends and finishes on its own once everything's online", async () => {
     const { onDone } = renderStartup();
 
-    await waitFor(() => expect(openClawClient.ensureDaemon).toHaveBeenCalledTimes(1));
-    expect(ollamaClient.isAvailable).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(onDone).toHaveBeenCalledTimes(1));
+    expect(ollamaClient.isAvailable).toHaveBeenCalled();
     expect(invoke).toHaveBeenCalledWith("ensure_voice_agent_running");
+    expect(screen.getByRole("progressbar", { name: "Starting local services" })).toBeInTheDocument();
+  });
 
+  it("skips starting OpenClaw when the probe already finds it up", async () => {
+    vi.mocked(invoke).mockImplementation(async (cmd) => {
+      if (cmd === "openclaw_probe_daemon") return true;
+      return undefined;
+    });
+    const { onDone } = renderStartup();
+
+    await waitFor(() => expect(onDone).toHaveBeenCalledTimes(1));
+    expect(openClawClient.ensureDaemon).not.toHaveBeenCalled();
+  });
+
+  it("starts OpenClaw only when the probe finds it down", async () => {
+    vi.mocked(invoke).mockImplementation(async (cmd) => {
+      if (cmd === "openclaw_probe_daemon") return false;
+      return undefined;
+    });
+    const { onDone } = renderStartup();
+
+    await waitFor(() => expect(openClawClient.ensureDaemon).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(onDone).toHaveBeenCalledTimes(1));
   });
 
@@ -122,13 +150,21 @@ describe("SystemStartup", () => {
     await waitFor(() => expect(onDone).toHaveBeenCalledTimes(1));
   });
 
-  it("reports Ollama as unavailable without attempting to start it (no known launch command)", async () => {
+  it("reports Ollama as unavailable after a fail-soft start attempt when it stays down", async () => {
     ollamaClient.isAvailable = vi.fn().mockResolvedValue(false);
     const { onDone } = renderStartup();
 
     await waitFor(() => expect(onDone).toHaveBeenCalledTimes(1));
-    // Nothing in this app knows how to start Ollama — only a report, never a launch attempt.
-    expect(invoke).not.toHaveBeenCalledWith("start_ollama");
+    expect(invoke).toHaveBeenCalledWith("ensure_ollama_running");
+    expect(ollamaClient.warmUpModel).not.toHaveBeenCalled();
+  });
+
+  it("does not spawn Ollama when it is already reachable", async () => {
+    ollamaClient.isAvailable = vi.fn().mockResolvedValue(true);
+    const { onDone } = renderStartup();
+
+    await waitFor(() => expect(onDone).toHaveBeenCalledTimes(1));
+    expect(invoke).not.toHaveBeenCalledWith("ensure_ollama_running");
   });
 
   it("launches the voice-agent stack and polls until it reports healthy", async () => {
@@ -174,6 +210,13 @@ describe("SystemStartup", () => {
     });
 
     expect(onDone).toHaveBeenCalledTimes(1);
+  });
+
+  it("startupPercent is determinate, not an infinite spinner", () => {
+    expect(startupPercent(0)).toBe(0);
+    expect(startupPercent(STARTUP_WEIGHT_TOTAL)).toBe(100);
+    expect(startupPercent(STARTUP_WEIGHT.openclawProbe)).toBeGreaterThan(0);
+    expect(startupPercent(STARTUP_WEIGHT.openclawProbe)).toBeLessThan(100);
   });
 
   it("gives up waiting on voice past its own max wait and reports unavailable, without blocking the hard timeout", async () => {

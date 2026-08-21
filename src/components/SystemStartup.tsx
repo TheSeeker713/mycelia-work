@@ -25,11 +25,26 @@ export const VOICE_MAX_WAIT_MS = 20_000;
 /** A real ceiling so this screen never blocks the user indefinitely, even if something above hangs in a way its own checks don't catch. */
 export const HARD_TIMEOUT_MS = 25_000;
 
-const STATUS_GLYPH: Record<CheckStatus, string> = {
-  checking: "…",
-  online: "✓",
-  unavailable: "—",
-};
+/**
+ * Step-weighted splash: probe / start-if-down / verify for OpenClaw
+ * and Ollama, then Voice. Start slices are skipped (instant credit)
+ * when the probe already found the service up. Weights add to 10.
+ */
+export const STARTUP_WEIGHT = {
+  openclawProbe: 1,
+  openclawStart: 2,
+  openclawVerify: 1,
+  ollamaProbe: 1,
+  ollamaStart: 2,
+  ollamaVerify: 1,
+  voice: 2,
+} as const;
+
+export const STARTUP_WEIGHT_TOTAL = Object.values(STARTUP_WEIGHT).reduce((a, b) => a + b, 0);
+
+export function startupPercent(completedWeight: number): number {
+  return Math.min(100, Math.round((completedWeight / STARTUP_WEIGHT_TOTAL) * 100));
+}
 
 const STATUS_COLOR: Record<CheckStatus, string> = {
   checking: "var(--ink-faint)",
@@ -38,19 +53,10 @@ const STATUS_COLOR: Record<CheckStatus, string> = {
 };
 
 /**
- * The initializing phase Jeremy asked for, ahead of onboarding: checks
- * whether the local AI backends this app depends on are up, and starts
- * the ones it can (OpenClaw's daemon via the existing ensureDaemon,
- * the Voice-Agent Piper/faster-whisper stack via start_all.ps1) rather
- * than just reporting them down. Ollama isn't something this app knows
- * how to start (no known launch command, unlike the other two), so
- * that check is report-only.
- *
- * Never blocks indefinitely — a hard timeout and an always-available
- * "Continue now" both move on regardless of what's still not ready.
- * Every AI call site in the app already fails soft when its backend
- * isn't reachable; this screen exists to make that the exception
- * instead of the common case, not to gate access to the app.
+ * Startup checklist with a determinate, step-weighted bar. Starts
+ * OpenClaw and Ollama only when they're down; always verifies. Voice
+ * still uses ensure_voice_agent_running. Fail-soft — Continue now and
+ * the hard timeout both move on.
  */
 export function SystemStartup({ onDone }: { onDone: () => void }) {
   const openClawClient = useOpenClawClient();
@@ -62,6 +68,7 @@ export function SystemStartup({ onDone }: { onDone: () => void }) {
     voice: "checking",
     ollama: "checking",
   });
+  const [completedWeight, setCompletedWeight] = useState(0);
   const doneRef = useRef(false);
 
   function finish() {
@@ -73,22 +80,54 @@ export function SystemStartup({ onDone }: { onDone: () => void }) {
   useEffect(() => {
     let cancelled = false;
 
-    async function checkOpenClaw() {
+    function credit(weight: number) {
+      if (!cancelled) setCompletedWeight((w) => w + weight);
+    }
+
+    async function probeOpenClaw(): Promise<boolean> {
       try {
-        await openClawClient.ensureDaemon();
-        if (!cancelled) setChecks((c) => ({ ...c, openclaw: "online" }));
+        return await invoke<boolean>("openclaw_probe_daemon");
       } catch {
-        if (!cancelled) setChecks((c) => ({ ...c, openclaw: "unavailable" }));
+        return false;
       }
     }
 
-    async function checkOllama() {
-      const available = await ollamaClient.isAvailable();
+    async function runOpenClaw() {
+      const alreadyUp = await probeOpenClaw();
+      credit(STARTUP_WEIGHT.openclawProbe);
+      if (!alreadyUp) {
+        try {
+          await openClawClient.ensureDaemon();
+        } catch {
+          // Verify below reports the real state.
+        }
+      }
+      credit(STARTUP_WEIGHT.openclawStart);
+      const up = alreadyUp || (await probeOpenClaw());
+      credit(STARTUP_WEIGHT.openclawVerify);
+      if (!cancelled) setChecks((c) => ({ ...c, openclaw: up ? "online" : "unavailable" }));
+    }
+
+    async function runOllama() {
+      let available = await ollamaClient.isAvailable();
+      credit(STARTUP_WEIGHT.ollamaProbe);
+      if (!available) {
+        try {
+          available = Boolean(await invoke<boolean>("ensure_ollama_running"));
+        } catch {
+          available = false;
+        }
+        if (!available) {
+          available = await ollamaClient.isAvailable();
+        }
+      }
+      credit(STARTUP_WEIGHT.ollamaStart);
       if (available) ollamaClient.warmUpModel(localModelId);
+      credit(STARTUP_WEIGHT.ollamaVerify);
       if (!cancelled) setChecks((c) => ({ ...c, ollama: available ? "online" : "unavailable" }));
     }
 
-    async function checkVoice() {
+    async function runVoice() {
       try {
         await invoke("ensure_voice_agent_running");
       } catch {
@@ -98,10 +137,12 @@ export function SystemStartup({ onDone }: { onDone: () => void }) {
       while (!cancelled) {
         const up = await voiceClient.isTtsAvailable();
         if (up) {
+          credit(STARTUP_WEIGHT.voice);
           if (!cancelled) setChecks((c) => ({ ...c, voice: "online" }));
           return;
         }
         if (Date.now() >= deadline) {
+          credit(STARTUP_WEIGHT.voice);
           if (!cancelled) setChecks((c) => ({ ...c, voice: "unavailable" }));
           return;
         }
@@ -119,9 +160,15 @@ export function SystemStartup({ onDone }: { onDone: () => void }) {
       }
     }
 
-    void checkOpenClaw();
-    void checkOllama();
-    void checkVoice();
+    async function runSequence() {
+      await runOpenClaw();
+      if (cancelled) return;
+      await runOllama();
+      if (cancelled) return;
+      await runVoice();
+    }
+
+    void runSequence();
     void requestNotificationPermission();
 
     return () => {
@@ -142,15 +189,32 @@ export function SystemStartup({ onDone }: { onDone: () => void }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [checks]);
 
+  const percent = startupPercent(completedWeight);
+
   return (
     <Shell mode="pocket">
       <div className="flex h-full flex-col items-center justify-center gap-4 px-6">
         <div className="text-[0.82rem] font-semibold text-[var(--ink)]">Mycelia Time</div>
+        <div
+          role="progressbar"
+          aria-label="Starting local services"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={percent}
+          className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--line)]"
+        >
+          <div
+            className="h-full rounded-full bg-[var(--moss)] transition-[width] duration-200"
+            style={{ width: `${percent}%` }}
+          />
+        </div>
         <div className="flex w-full flex-col gap-2">
           {(Object.keys(CHECK_LABELS) as (keyof Checks)[]).map((key) => (
             <div key={key} className="flex items-center justify-between text-[0.78rem]">
               <span className="text-[var(--ink-soft)]">{CHECK_LABELS[key]}</span>
-              <span style={{ color: STATUS_COLOR[checks[key]] }}>{STATUS_GLYPH[checks[key]]}</span>
+              <span style={{ color: STATUS_COLOR[checks[key]] }}>
+                {checks[key] === "checking" ? "…" : checks[key] === "online" ? "✓" : "—"}
+              </span>
             </div>
           ))}
         </div>

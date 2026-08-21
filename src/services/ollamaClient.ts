@@ -64,7 +64,7 @@ export interface OllamaClient {
   warmUpGhostText(): void;
   /** Same idea as warmUpGhostText, generalized to any model id — used by the startup screen to pre-load whichever local model Settings' picker has selected as the Grok-off fallback, so the first real OpenClaw call doesn't pay its cold-load cost too. */
   warmUpModel(modelId: string): void;
-  /** Plain reachability check for the startup system-check screen — Ollama isn't something this app can start on its own (no known launch command, unlike OpenClaw/Voice-Agent), so this only reports whether it's already up. */
+  /** Plain reachability check for the startup system-check screen. */
   isAvailable(): Promise<boolean>;
   /**
    * Direct-to-Ollama call for full-length report generation (journal/project

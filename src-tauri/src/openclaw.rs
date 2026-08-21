@@ -280,6 +280,11 @@ where
 }
 
 #[tauri::command]
+pub async fn openclaw_probe_daemon() -> Result<bool, String> {
+    run_blocking(|| daemon_running()).await
+}
+
+#[tauri::command]
 pub async fn openclaw_ensure_daemon() -> Result<bool, String> {
     run_blocking(|| {
         let was_running = daemon_running()?;

@@ -138,6 +138,7 @@ pub fn run() {
             greet,
             system_idle_seconds,
             openclaw::openclaw_ensure_daemon,
+            openclaw::openclaw_probe_daemon,
             openclaw::openclaw_release_daemon,
             openclaw::openclaw_call_agent,
             openclaw::run_openclaw_agent,
@@ -146,6 +147,7 @@ pub fn run() {
             capture_log::append_capture_log,
             resource_watchdog::check_resource_pressure,
             system_init::ensure_voice_agent_running,
+            system_init::ensure_ollama_running,
             upscale::upscaler_status,
             upscale::upscale_image,
         ])
