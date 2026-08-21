@@ -1,8 +1,11 @@
 name: Release
 
-# Tag-driven, not push-driven: a release should be a deliberate act, and
-# building an installer on every commit to main would just burn minutes
-# producing artifacts nobody asked for.
+# Internal record only. Tag-driven, not push-driven. This workflow
+# builds an NSIS installer and drafts a GitHub release on the private
+# repo. It does not publish a public update feed, upload to R2, or
+# produce updater signatures. Installed copies never check a network
+# endpoint; a new version is a local rebuild and reinstall.
+
 on:
   push:
     tags:
@@ -25,8 +28,6 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
-      # Rust is the slow part of this build by a wide margin, so the
-      # cache matters more here than the npm one.
       - uses: swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
@@ -34,8 +35,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # The same gates that run locally before every commit. A release
-      # that skips them is a release that can ship a known-broken build.
       - name: Typecheck
         run: npm run typecheck
 
@@ -49,85 +48,8 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Required for the .sig files the updater verifies against.
-          # Without them the build still succeeds and simply produces an
-          # unsigned installer, which fails the publish step below rather
-          # than shipping something the app would refuse anyway.
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: "Mycelia Time ${{ github.ref_name }}"
-          # Draft, and on a private repo, so this is an internal record
-          # of the build. It is not what the app updates from.
           releaseDraft: true
           prerelease: false
-
-      # The update feed deliberately lives nowhere near this repo. The
-      # source stays private; exactly two files go public, and neither
-      # references GitHub. See docs/reference/packaging-and-updates.md.
-      - name: Assemble the update feed
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $base = '${{ vars.UPDATE_BASE_URL }}'
-          if (-not $base) { throw 'UPDATE_BASE_URL repository variable is not set' }
-          $base = $base.TrimEnd('/')
-
-          $version = (Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).version
-          $bundle = 'src-tauri/target/release/bundle/nsis'
-
-          $exe = Get-ChildItem $bundle -Filter '*-setup.exe' | Select-Object -First 1
-          if (-not $exe) { throw "no installer found in $bundle" }
-
-          $sigPath = "$($exe.FullName).sig"
-          if (-not (Test-Path $sigPath)) {
-            throw 'no .sig alongside the installer. The signing key secrets are probably missing.'
-          }
-
-          New-Item -ItemType Directory -Force feed | Out-Null
-          Copy-Item $exe.FullName "feed/$($exe.Name)"
-
-          # The URL is percent-encoded because the product name has a
-          # space in it, and an un-encoded space is a broken download.
-          $encoded = [uri]::EscapeDataString($exe.Name)
-
-          $manifest = [ordered]@{
-            version   = $version
-            notes     = "Mycelia Time $version"
-            pub_date  = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
-            platforms = [ordered]@{
-              'windows-x86_64' = [ordered]@{
-                signature = (Get-Content $sigPath -Raw).Trim()
-                url       = "$base/mycelia-time/$encoded"
-              }
-            }
-          }
-          $manifest | ConvertTo-Json -Depth 5 | Set-Content feed/latest.json -Encoding utf8
-
-          Write-Output "version $version"
-          Write-Output "installer $($exe.Name)"
-
-      - name: Publish to R2
-        shell: pwsh
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          AWS_DEFAULT_REGION: auto
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $endpoint = "https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com"
-          $bucket = '${{ secrets.R2_BUCKET }}'
-
-          # R2 speaks the S3 API, and the aws CLI is already on the
-          # windows runner, so this needs no extra tooling.
-          $exe = Get-ChildItem feed -Filter '*-setup.exe' | Select-Object -First 1
-          aws s3 cp $exe.FullName "s3://$bucket/mycelia-time/$($exe.Name)" `
-            --endpoint-url $endpoint --content-type 'application/octet-stream'
-
-          # latest.json goes last and is never cached for long: it's the
-          # file that decides whether an update exists at all, and a
-          # stale copy is the one way this feed can lie.
-          aws s3 cp feed/latest.json "s3://$bucket/mycelia-time/latest.json" `
-            --endpoint-url $endpoint --content-type 'application/json' `
-            --cache-control 'public, max-age=60'

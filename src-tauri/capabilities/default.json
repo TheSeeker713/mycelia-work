@@ -16,8 +16,6 @@
     "sql:allow-load",
     "sql:allow-execute",
     "sql:allow-select",
-    "notification:default",
-    "updater:default",
-    "process:allow-restart"
+    "notification:default"
   ]
 }

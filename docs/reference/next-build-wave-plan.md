@@ -1,5 +1,9 @@
 # Next build wave: 11+11 revision, gamification, AI-backend transparency/pluggability, auto-update
 
+> **Update (2026-08-21):** auto-update (Section 5 / R2 feed / Settings
+> check) was **removed**, not finished. See
+> `docs/reference/packaging-and-updates.md`. Do not build any of it.
+>
 > **Handoff note (2026-08-06):** this app is **desktop only** — no
 > Android companion app. The personal Android companion app that was
 > designed below as Section 2A is cut from scope entirely; that section

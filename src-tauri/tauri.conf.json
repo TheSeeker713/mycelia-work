@@ -46,18 +46,6 @@
       }
     },
     "publisher": "Mycelia Interactive LLC",
-    "shortDescription": "Local time tracking with an AI work journal",
-    "createUpdaterArtifacts": true
-  },
-  "plugins": {
-    "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDdBQ0MzRUJDMEE3Mjk1QzIKUldUQ2xYSUt2RDdNZWoxTnVEMXMzWGgveHpjdWFaaUp6dXozdkp1ajh1eW9VRS8wN3liL3VKWUMK",
-      "endpoints": [
-        "https://updates.myceliainteractive.com/mycelia-time/latest.json"
-      ],
-      "windows": {
-        "installMode": "passive"
-      }
-    }
+    "shortDescription": "Local time tracking with an AI work journal"
   }
 }

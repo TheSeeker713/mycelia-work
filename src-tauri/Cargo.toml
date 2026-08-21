@@ -30,8 +30,6 @@ sysinfo = "0.32"
 # Reward art reaches the upscaler as bytes over IPC, since the bundled
 # assets are webview URLs with no filesystem path to hand to a subprocess.
 base64 = "0.22"
-tauri-plugin-updater = "2.10.1"
-tauri-plugin-process = "2.3.1"
 
 # Desktop-only by nature: there's no second-process problem to solve on
 # mobile, and the crate doesn't build for those targets.

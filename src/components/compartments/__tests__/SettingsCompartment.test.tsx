@@ -113,6 +113,12 @@ describe("SettingsCompartment", () => {
     );
   });
 
+  it("offers no online update check — rebuild and reinstall is the only path", () => {
+    renderSettings();
+    expect(screen.queryByRole("button", { name: /check for updates/i })).not.toBeInTheDocument();
+    expect(screen.getByText(/no online update check/i)).toBeInTheDocument();
+  });
+
   it("no Rewards/18+ hidden-unlock UI exists anymore", () => {
     renderSettings();
     expect(screen.queryByText("Rewards")).not.toBeInTheDocument();

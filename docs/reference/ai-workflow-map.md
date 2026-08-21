@@ -98,14 +98,14 @@ and a working feature.
 | Narration and speech | No | Local Kokoro in the Voice-Agent stack |
 | Reward upscale | No | Local Real-ESRGAN binary |
 | Reward animation | **No** | Public Hugging Face Space, called anonymously |
-| Update check | **No** | Public R2 bucket, no credentials |
+| App updates | n/a | No online check. Rebuild and reinstall locally. |
 | Grok 4.5 replies | Yes, optional | Off by default, and OpenClaw holds the credential |
 | fal.ai / Replicate animation | Yes, optional | Only tried if a key exists in Settings |
 
-The two bolded rows changed on 2026-08-10. Animation used to read three
+The animation row changed on 2026-08-10. Animation used to read three
 API-key settings that were never wired to anything, so it failed for
-everyone. Updates used to be impossible without embedding a GitHub
-token, so they didn't exist.
+everyone. The update-check row was removed on 2026-08-21: there is no
+online feed, and a new build is a local rebuild and reinstall.
 
 ### The one unavoidable paid dependency
 

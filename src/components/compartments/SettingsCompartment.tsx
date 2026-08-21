@@ -3,7 +3,6 @@ import { useSettingsStore, useVoiceClient } from "../../store/StoreProvider";
 import { useSelfVoicing } from "../../hooks/useSelfVoicing";
 import { classifyVoicePerformance, measureTtsLatencySeconds, type VoicePerformance } from "../../services/hardwareCheck";
 import { NARRATION_VOICES } from "../../services/voiceClient";
-import { UpdateCheck } from "../UpdateCheck";
 import { LOCAL_MODELS } from "../../services/openclawClient";
 
 const PERFORMANCE_LABEL: Record<VoicePerformance | "checking", string> = {
@@ -214,7 +213,10 @@ export function SettingsCompartment() {
         <div className="mb-1.5 text-[0.7rem] tracking-wide text-[var(--ink-faint)] uppercase">
           Updates
         </div>
-        <UpdateCheck />
+        <p className="text-[0.75rem] text-[var(--ink-soft)]">
+          This is an internal app. There is no online update check. A new
+          build is a local rebuild and reinstall: <code>npm run tauri build</code>.
+        </p>
       </div>
 
       <div className="mt-2 border-t border-dashed border-[var(--line)] pt-3">
