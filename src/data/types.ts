@@ -227,3 +227,12 @@ export interface GamificationStats {
   daily_8hr_awarded: boolean;
   updated_at: string;
 }
+
+export interface ActivityEvent {
+  id: string;
+  sampled_at: string;
+  app: string;
+  title: string | null;
+  url: string | null;
+  idle: number | boolean;
+}

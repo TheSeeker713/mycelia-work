@@ -1,7 +1,7 @@
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    Manager, WindowEvent,
+    Emitter, Manager, WindowEvent,
 };
 use tauri_plugin_global_shortcut::ShortcutState;
 
@@ -11,6 +11,7 @@ mod openclaw;
 mod resource_watchdog;
 mod system_init;
 mod upscale;
+mod activity;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
@@ -88,15 +89,23 @@ pub fn run() {
             std::sync::atomic::AtomicBool::new(false),
         )))
         .setup(|app| {
+            let pause_item = MenuItem::with_id(app, "pause_capture", "Pause activity capture", true, None::<&str>)?;
+            let resume_item = MenuItem::with_id(app, "resume_capture", "Resume activity capture", true, None::<&str>)?;
             let show_item = MenuItem::with_id(app, "show", "Show Mycelia Time", true, None::<&str>)?;
             let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&show_item, &quit_item])?;
+            let menu = Menu::with_items(app, &[&pause_item, &resume_item, &show_item, &quit_item])?;
 
             TrayIconBuilder::new()
                 .icon(app.default_window_icon().unwrap().clone())
                 .menu(&menu)
                 .show_menu_on_left_click(false)
                 .on_menu_event(|app, event| match event.id.as_ref() {
+                    "pause_capture" => {
+                        let _ = app.emit("activity-capture-pause", true);
+                    }
+                    "resume_capture" => {
+                        let _ = app.emit("activity-capture-pause", false);
+                    }
                     "show" => show_main_window(app),
                     "quit" => app.exit(0),
                     _ => {}
@@ -137,6 +146,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             greet,
             system_idle_seconds,
+            activity::sample_foreground_activity,
             openclaw::openclaw_ensure_daemon,
             openclaw::openclaw_probe_daemon,
             openclaw::openclaw_release_daemon,

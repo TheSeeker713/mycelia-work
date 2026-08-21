@@ -8,6 +8,13 @@ import {
   LOCAL_MODEL_ID_KEY,
   PREFERRED_MODEL_KEY,
 } from "../services/openclawClient";
+import {
+  ACTIVITY_ENABLED_KEY,
+  ACTIVITY_EXCLUDE_KEY,
+  ACTIVITY_IDLE_THRESHOLD_KEY,
+  ACTIVITY_PAUSED_KEY,
+  DEFAULT_IDLE_THRESHOLD_SECS,
+} from "../services/activityCapture";
 
 /** Both accessibility features default ON — CLAUDE.md: introduced during onboarding with an immediate opt-out, not opt-in. */
 const SELF_VOICING_KEY = "self_voicing_enabled";
@@ -58,6 +65,10 @@ export interface SettingsState {
   /** Optional. Empty means the free keyless path handles animation on its own. */
   falKey: string;
   replicateKey: string;
+  activityCaptureEnabled: boolean;
+  activityCapturePaused: boolean;
+  activityIdleThresholdSecs: number;
+  activityExcludeApps: string;
   load: () => Promise<void>;
   setSelfVoicingEnabled: (enabled: boolean) => Promise<void>;
   setSttEnabled: (enabled: boolean) => Promise<void>;
@@ -71,6 +82,10 @@ export interface SettingsState {
   setMuseEnabled: (enabled: boolean) => Promise<void>;
   setFalKey: (key: string) => Promise<void>;
   setReplicateKey: (key: string) => Promise<void>;
+  setActivityCaptureEnabled: (enabled: boolean) => Promise<void>;
+  setActivityCapturePaused: (paused: boolean) => Promise<void>;
+  setActivityIdleThresholdSecs: (secs: number) => Promise<void>;
+  setActivityExcludeApps: (apps: string) => Promise<void>;
 }
 
 function parseBool(value: string | null, defaultValue: boolean): boolean {
@@ -93,6 +108,10 @@ export function createSettingsStore(repos: Repositories) {
     museEnabled: true,
     falKey: "",
     replicateKey: "",
+    activityCaptureEnabled: true,
+    activityCapturePaused: false,
+    activityIdleThresholdSecs: DEFAULT_IDLE_THRESHOLD_SECS,
+    activityExcludeApps: "",
 
     async load() {
       const all = await repos.settings.getAll();
@@ -111,6 +130,10 @@ export function createSettingsStore(repos: Repositories) {
         museEnabled: parseBool(all[JOURNAL_MUSE_KEY] ?? null, aiSuggestionsEnabled),
         falKey: all[VIDEOGEN_FAL_KEY] ?? "",
         replicateKey: all[VIDEOGEN_REPLICATE_KEY] ?? "",
+        activityCaptureEnabled: parseBool(all[ACTIVITY_ENABLED_KEY] ?? null, true),
+        activityCapturePaused: parseBool(all[ACTIVITY_PAUSED_KEY] ?? null, false),
+        activityIdleThresholdSecs: Number(all[ACTIVITY_IDLE_THRESHOLD_KEY] ?? DEFAULT_IDLE_THRESHOLD_SECS) || DEFAULT_IDLE_THRESHOLD_SECS,
+        activityExcludeApps: all[ACTIVITY_EXCLUDE_KEY] ?? "",
         loaded: true,
       });
     },
@@ -179,6 +202,26 @@ export function createSettingsStore(repos: Repositories) {
     async setReplicateKey(key) {
       await repos.settings.set(VIDEOGEN_REPLICATE_KEY, key);
       set({ replicateKey: key });
+    },
+
+    async setActivityCaptureEnabled(enabled) {
+      await repos.settings.set(ACTIVITY_ENABLED_KEY, String(enabled));
+      set({ activityCaptureEnabled: enabled });
+    },
+
+    async setActivityCapturePaused(paused) {
+      await repos.settings.set(ACTIVITY_PAUSED_KEY, String(paused));
+      set({ activityCapturePaused: paused });
+    },
+
+    async setActivityIdleThresholdSecs(secs) {
+      await repos.settings.set(ACTIVITY_IDLE_THRESHOLD_KEY, String(secs));
+      set({ activityIdleThresholdSecs: secs });
+    },
+
+    async setActivityExcludeApps(apps) {
+      await repos.settings.set(ACTIVITY_EXCLUDE_KEY, apps);
+      set({ activityExcludeApps: apps });
     },
   }));
 }

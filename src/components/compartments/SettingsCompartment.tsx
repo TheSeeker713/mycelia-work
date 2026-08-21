@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useSettingsStore, useVoiceClient } from "../../store/StoreProvider";
+import { useEffect, useState } from "react";
+import { useRepositories, useSettingsStore, useVoiceClient } from "../../store/StoreProvider";
 import { useSelfVoicing } from "../../hooks/useSelfVoicing";
 import { classifyVoicePerformance, measureTtsLatencySeconds, type VoicePerformance } from "../../services/hardwareCheck";
 import { NARRATION_VOICES } from "../../services/voiceClient";
@@ -29,6 +29,20 @@ export function SettingsCompartment() {
   const setNarrationVoiceId = useSettingsStore((s) => s.setNarrationVoiceId);
   const setAiSuggestionsEnabled = useSettingsStore((s) => s.setAiSuggestionsEnabled);
   const setCaptureLoggingEnabled = useSettingsStore((s) => s.setCaptureLoggingEnabled);
+  const activityCaptureEnabled = useSettingsStore((s) => s.activityCaptureEnabled);
+  const setActivityCaptureEnabled = useSettingsStore((s) => s.setActivityCaptureEnabled);
+  const activityCapturePaused = useSettingsStore((s) => s.activityCapturePaused);
+  const setActivityCapturePaused = useSettingsStore((s) => s.setActivityCapturePaused);
+  const activityExcludeApps = useSettingsStore((s) => s.activityExcludeApps);
+  const setActivityExcludeApps = useSettingsStore((s) => s.setActivityExcludeApps);
+  const repos = useRepositories();
+  const [recentActivity, setRecentActivity] = useState<{ app: string; title: string | null }[]>([]);
+
+  useEffect(() => {
+    void repos.activityEvents.listRecent(6).then((rows) =>
+      setRecentActivity(rows.map((r) => ({ app: r.app, title: r.title }))),
+    );
+  }, [repos]);
   const grok4Enabled = useSettingsStore((s) => s.grok4Enabled);
   const setGrok4Enabled = useSettingsStore((s) => s.setGrok4Enabled);
   const localModelId = useSettingsStore((s) => s.localModelId);
@@ -269,6 +283,59 @@ export function SettingsCompartment() {
           </span>
         </label>
       </div>
+
+      <div className="mt-2 border-t border-dashed border-[var(--line)] pt-3">
+        <div className="mb-1.5 text-[0.7rem] tracking-wide text-[var(--ink-faint)] uppercase">
+          Activity
+        </div>
+        <label className="mb-2 flex items-start gap-2 text-[0.82rem] text-[var(--ink)]">
+          <input
+            type="checkbox"
+            checked={activityCaptureEnabled}
+            onChange={(e) => setActivityCaptureEnabled(e.target.checked)}
+            className="mt-0.5"
+          />
+          <span>
+            Log which app is in front
+            <span className="block text-[0.72rem] text-[var(--ink-faint)]">
+              App name and window title only. No screenshots, no keystrokes, no clipboard.
+            </span>
+          </span>
+        </label>
+        <label className="mb-2 flex items-start gap-2 text-[0.82rem] text-[var(--ink)]">
+          <input
+            type="checkbox"
+            checked={activityCapturePaused}
+            onChange={(e) => setActivityCapturePaused(e.target.checked)}
+            className="mt-0.5"
+          />
+          <span>Pause capture (also in the tray menu)</span>
+        </label>
+        <input
+          value={activityExcludeApps}
+          onChange={(e) => setActivityExcludeApps(e.target.value)}
+          placeholder="Exclude apps (comma-separated)"
+          aria-label="Exclude apps"
+          className="mb-2 w-full rounded-lg border border-[var(--line)] bg-[var(--paper)] px-2.5 py-1.5 text-[0.8rem] text-[var(--ink)] outline-none placeholder:text-[var(--ink-faint)]"
+        />
+        <RecentActivityPreview rows={recentActivity} />
+      </div>
     </div>
+  );
+}
+
+function RecentActivityPreview({ rows }: { rows: { app: string; title: string | null }[] }) {
+  if (rows.length === 0) {
+    return <p className="text-[0.72rem] text-[var(--ink-faint)]">No samples yet.</p>;
+  }
+  return (
+    <ul className="space-y-0.5 text-[0.72rem] text-[var(--ink-soft)]">
+      {rows.map((row, i) => (
+        <li key={`${row.app}-${i}`} className="truncate">
+          {row.app}
+          {row.title ? ` — ${row.title}` : ""}
+        </li>
+      ))}
+    </ul>
   );
 }

@@ -188,6 +188,15 @@ export const MIGRATIONS: string[] = [
   // 0 = preferred (or no preference). NULL on rows written before this.
   `ALTER TABLE journals ADD COLUMN used_fallback INTEGER`,
   `ALTER TABLE project_reports ADD COLUMN used_fallback INTEGER`,
+  `CREATE TABLE IF NOT EXISTS activity_events (
+    id TEXT PRIMARY KEY,
+    sampled_at TEXT NOT NULL,
+    app TEXT NOT NULL,
+    title TEXT,
+    url TEXT,
+    idle INTEGER NOT NULL DEFAULT 0
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_activity_events_sampled_at ON activity_events(sampled_at)`,
 ];
 
 /**

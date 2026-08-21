@@ -119,6 +119,13 @@ describe("SettingsCompartment", () => {
     expect(screen.getByText(/no online update check/i)).toBeInTheDocument();
   });
 
+  it("offers a local activity-capture toggle with no screenshot copy", () => {
+    renderSettings();
+    expect(screen.getByLabelText(/Log which app is in front/)).toBeInTheDocument();
+    expect(screen.queryByText(/screenshot/i)).toBeInTheDocument();
+    expect(screen.getByText(/No screenshots/)).toBeInTheDocument();
+  });
+
   it("no Rewards/18+ hidden-unlock UI exists anymore", () => {
     renderSettings();
     expect(screen.queryByText("Rewards")).not.toBeInTheDocument();
